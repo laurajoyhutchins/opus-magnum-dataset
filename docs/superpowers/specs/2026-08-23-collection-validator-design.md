@@ -81,7 +81,7 @@ The frozen collection files remain in `collections/` unchanged unless validation
 The manifest schema describes the current TOML manifest after parsing to a mapping. Required top-level fields:
 
 - `schema_version`: integer, exactly `1` for this schema;
-- `collection_id`: lowercase dated identifier matching `^[a-z0-9]+(?:-[a-z0-9]+)*-\d{4}-\d{2}-\d{2}$`;
+- `collection_id`: lowercase slug matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`;
 - `title`: non-empty string;
 - `effective_date`: ISO `YYYY-MM-DD` string;
 - `status`: currently `frozen`;
@@ -92,9 +92,9 @@ The manifest schema describes the current TOML manifest after parsing to a mappi
 - `excludes`: array of unique non-empty strings;
 - `membership_source`: object containing `source`, `revision`, `puzzle_model`, `group_model`, and `collection_model`;
 - `release_evidence`: object containing `journal_final_issue_date`, `journal_issue_count`, and `source_url`;
-- `group_counts`: object with non-negative integer values.
+- `group_counts`: object whose keys match `^[a-z][a-z0-9_]*$` and whose values are non-negative integers.
 
-Unknown top-level fields are rejected in v1 so accidental manifest drift is visible. Unknown keys inside source/evidence objects are also rejected. `group_counts` keys are intentionally collection-specific and therefore open-ended, but values must be non-negative integers.
+Unknown top-level fields are rejected in v1 so accidental manifest drift is visible. Unknown keys inside source/evidence objects are also rejected. `group_counts` keys are intentionally collection-specific rollup labels rather than alternate puzzle identities.
 
 ### Inventory row schema
 
@@ -108,28 +108,46 @@ Each row requires:
 
 - `puzzle_id`: `om.puzzle.` followed by exactly four decimal digits;
 - `display_name`: non-empty string;
-- `kind`: one of `campaign`, `production`, `journal` for this first collection schema;
-- `group`: lowercase slug;
+- `kind`: one of `campaign`, `production`, `journal`, `expansion`, `custom`, `tournament`;
+- `group`: lowercase slug matching `^[a-z0-9]+(?:-[a-z0-9]+)*$`;
 - `game_puzzle_id`: `P` followed by three digits with an optional lowercase suffix;
 - `leaderboard_key`: uppercase identifier using `A-Z`, digits, and underscores;
 - `puzzle_type`: one of `normal`, `production`, `polymer_height`, `polymer_width`, `polymer_skew`.
 
 The row schema describes record shape. Cross-row uniqueness and ordering are semantic validator rules.
 
+## Group-count rollup semantics
+
+The existing manifest intentionally summarizes some finer inventory groups. For example, `journal_xcix = 59` covers inventory groups `journal-xcix-i` through `journal-xcix-xii`. The validator must preserve that model rather than rewriting the frozen manifest to mirror row-level grouping.
+
+For validation, each `group_counts` key is converted to a group prefix by replacing `_` with `-`.
+
+A row belongs to a rollup when its `group` is either exactly that prefix or begins with `prefix + "-"`.
+
+Examples:
+
+- `chapter_1` matches `chapter-1`;
+- `appendix` matches `appendix`;
+- `journal_xcix` matches `journal-xcix-i` through `journal-xcix-xii`.
+
+Every inventory row must match exactly one declared rollup. Zero matches indicate a stale/incomplete manifest summary; multiple matches indicate overlapping rollup declarations and are rejected. The observed count for each rollup must equal its manifest value.
+
+This is deterministic derivation from authoritative row facts and does not create a second catalog.
+
 ## Semantic validation
 
 For each `collections/*.toml` manifest, the validator:
 
 1. parses TOML and validates its required structure and primitive types;
-2. requires `inventory_file` to be a basename and resolves it only inside `collections/`;
+2. requires `inventory_file` to be a basename and resolves it only inside the manifest directory;
 3. reads the inventory as raw bytes and verifies `inventory_sha256` before parsing rows;
 4. decodes the inventory as UTF-8 and requires the exact ordered CSV header;
 5. validates every row shape and allowed value;
 6. rejects duplicate `puzzle_id`, `game_puzzle_id`, or `leaderboard_key` values;
 7. requires puzzle IDs to be contiguous and ordered from `om.puzzle.0001` through `om.puzzle.NNNN` with no gaps;
 8. requires the number of rows to equal `puzzle_count`;
-9. derives counts by `group` from the inventory and requires exact equality with manifest `group_counts`;
-10. requires every inventory group to appear in `group_counts` and rejects extra zero-count or stale group entries;
+9. assigns every row to exactly one `group_counts` rollup using the prefix rule above;
+10. requires every observed rollup count to equal its manifest value;
 11. reports all deterministic validation errors found for a collection in one run, then exits non-zero if any collection is invalid.
 
 The validator never edits manifests or inventories. Repair remains an explicit repository change.
@@ -158,6 +176,8 @@ Initial codes include:
 - `duplicate_leaderboard_key`
 - `puzzle_id_sequence_error`
 - `puzzle_count_mismatch`
+- `group_rollup_unmatched`
+- `group_rollup_overlap`
 - `group_counts_mismatch`
 
 CLI behavior:
@@ -166,7 +186,7 @@ CLI behavior:
 python -m tools.validate_collections
 ```
 
-With no arguments it validates every `collections/*.toml` manifest in lexical order. A positional manifest path may be accepted for focused local testing, but it must still obey the same rule that its inventory resolves within the manifest's directory.
+With no arguments it validates every `collections/*.toml` manifest in lexical order. A positional manifest path may be accepted for focused local testing, but it must obey the same rule that its inventory resolves within the manifest's directory.
 
 Success prints a concise per-collection summary and exits `0`. Failure prints errors in stable path/row/code order and exits `1`. Tooling/runtime misuse exits `2`.
 
@@ -184,12 +204,13 @@ Required tests:
 6. duplicate leaderboard key is rejected;
 7. non-contiguous or out-of-order canonical puzzle IDs are rejected;
 8. malformed game puzzle IDs are rejected;
-9. invalid groups or puzzle types are rejected;
+9. malformed groups or invalid puzzle types are rejected;
 10. exact CSV header/order is enforced;
-11. manifest `group_counts` mismatch is rejected;
-12. inventory path traversal is rejected;
-13. malformed TOML fails cleanly;
-14. repeated runs produce the same ordered error output.
+11. manifest `group_counts` rollups are validated against finer row groups;
+12. unmatched and overlapping rollup declarations are rejected;
+13. inventory path traversal is rejected;
+14. malformed TOML fails cleanly;
+15. repeated runs produce the same ordered error output.
 
 Tests should exercise the public validation function directly; CLI tests are limited to exit-code/output contract where useful.
 
