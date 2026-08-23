@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/laurajoyhutchins/opus-magnum-dataset/schemas/collection-inventory-row.schema.json",
+  "title": "Opus Magnum collection inventory row v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["puzzle_id", "display_name", "kind", "group", "game_puzzle_id", "leaderboard_key", "puzzle_type"],
+  "properties": {
+    "puzzle_id": {"type": "string", "pattern": "^om\\.puzzle\\.\\d{4}$"},
+    "display_name": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["campaign", "production", "journal", "expansion", "custom", "tournament"]},
+    "group": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "game_puzzle_id": {"type": "string", "pattern": "^P\\d{3}[a-z]?$"},
+    "leaderboard_key": {"type": "string", "pattern": "^[A-Z0-9]+(?:_[A-Z0-9]+)*$"},
+    "puzzle_type": {"enum": ["normal", "production", "polymer_height", "polymer_width", "polymer_skew"]}
+  }
+}
