@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/laurajoyhutchins/opus-magnum-dataset/schemas/collection-manifest.schema.json",
+  "title": "Opus Magnum collection manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "collection_id",
+    "title",
+    "effective_date",
+    "status",
+    "puzzle_count",
+    "inventory_file",
+    "inventory_sha256",
+    "scope",
+    "excludes",
+    "membership_source",
+    "release_evidence",
+    "group_counts"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "collection_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "title": {"type": "string", "minLength": 1},
+    "effective_date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "status": {"const": "frozen"},
+    "puzzle_count": {"type": "integer", "minimum": 1},
+    "inventory_file": {"type": "string", "pattern": "^[^/\\\\]+\\.csv$"},
+    "inventory_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "scope": {"type": "string", "minLength": 1},
+    "excludes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "membership_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "revision", "puzzle_model", "group_model", "collection_model"],
+      "properties": {
+        "source": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "puzzle_model": {"type": "string", "minLength": 1},
+        "group_model": {"type": "string", "minLength": 1},
+        "collection_model": {"type": "string", "minLength": 1}
+      }
+    },
+    "release_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journal_final_issue_date", "journal_issue_count", "source_url"],
+      "properties": {
+        "journal_final_issue_date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "journal_issue_count": {"type": "integer", "minimum": 0},
+        "source_url": {"type": "string", "minLength": 1}
+      }
+    },
+    "group_counts": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    }
+  }
+}
