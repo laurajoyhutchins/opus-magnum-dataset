@@ -1,0 +1,33 @@
+schema_version = 1
+collection_id = "base-game-2026-06-16"
+title = "Opus Magnum base game, scored built-in puzzles, 2026-06-16"
+effective_date = "2026-06-16"
+status = "frozen"
+puzzle_count = 166
+inventory_file = "base-game-2026-06-16.csv"
+inventory_sha256 = "b5eb005215726699232255ded092347a70232443d462838640315137745d821f"
+
+scope = "All leaderboard-addressable built-in synthesis puzzles in Campaign, Journal XCIX, and Journal CVIII as of the publication of Journal CVIII Issue XII on 2026-06-16."
+excludes = ["tutorial-micro-lessons", "de-re-metallica", "custom", "workshop", "tournament"]
+
+[membership_source]
+source = "F43nd1r/zachtronics-leaderboard-bot"
+revision = "ca40dee95da584270eb3be1c4b74e2be63afa7e6"
+puzzle_model = "src/main/kotlin/com/faendir/zachtronics/bot/om/model/OmPuzzle.kt"
+group_model = "src/main/kotlin/com/faendir/zachtronics/bot/om/model/OmGroup.kt"
+collection_model = "src/main/kotlin/com/faendir/zachtronics/bot/om/model/OmCollection.kt"
+
+[release_evidence]
+journal_final_issue_date = "2026-06-16"
+journal_issue_count = 24
+source_url = "https://steamcommunity.com/app/558990/announcements/"
+
+[group_counts]
+chapter_1 = 9
+chapter_2 = 7
+chapter_3 = 7
+chapter_4 = 7
+chapter_5 = 6
+appendix = 11
+journal_xcix = 59
+journal_cviii = 60
