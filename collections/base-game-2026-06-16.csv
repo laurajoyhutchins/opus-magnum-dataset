@@ -1,0 +1,167 @@
+puzzle_id,display_name,kind,group,game_puzzle_id,leaderboard_key,puzzle_type
+om.puzzle.0001,Stabilized Water,campaign,chapter-1,P007,STABILIZED_WATER,normal
+om.puzzle.0002,Refined Gold,campaign,chapter-1,P010,REFINED_GOLD,normal
+om.puzzle.0003,Face Powder,campaign,chapter-1,P009,FACE_POWDER,normal
+om.puzzle.0004,Waterproof Sealant,campaign,chapter-1,P011,WATERPROOF_SEALANT,normal
+om.puzzle.0005,Hangover Cure,campaign,chapter-1,P013,HANGOVER_CURE,normal
+om.puzzle.0006,Airship Fuel,campaign,chapter-1,P008,AIRSHIP_FUEL,normal
+om.puzzle.0007,Precision Machine Oil,campaign,chapter-1,P012,PRECISION_MACHINE_OIL,normal
+om.puzzle.0008,Health Tonic,campaign,chapter-1,P014,HEALTH_TONIC,normal
+om.puzzle.0009,Stamina Potion,campaign,chapter-1,P015,STAMINA_POTION,normal
+om.puzzle.0010,Hair Product,campaign,chapter-2,P016,HAIR_PRODUCT,normal
+om.puzzle.0011,Rocket Propellant,campaign,chapter-2,P019,ROCKET_PROPELLANT,normal
+om.puzzle.0012,Mist of Incapacitation,campaign,chapter-2,P018,MIST_OF_INCAPACITATION,normal
+om.puzzle.0013,Explosive Phial,campaign,chapter-2,P017,EXPLOSIVE_PHIAL,normal
+om.puzzle.0014,Armor Filament,campaign,chapter-2,P020,ARMOR_FILAMENT,polymer_height
+om.puzzle.0015,Courage Potion,campaign,chapter-2,P021,COURAGE_POTION,normal
+om.puzzle.0016,Surrender Flare,campaign,chapter-2,P022,SURRENDER_FLARE,normal
+om.puzzle.0017,Alcohol Separation,campaign,chapter-3,P024,ALCOHOL_SEPARATION,normal
+om.puzzle.0018,Water Purifier,campaign,chapter-3,P025,WATER_PURIFIER,normal
+om.puzzle.0019,Seal Solvent,campaign,chapter-3,P026,SEAL_SOLVENT,normal
+om.puzzle.0020,Climbing Rope Fiber,campaign,chapter-3,P027,CLIMBING_ROPE_FIBER,polymer_height
+om.puzzle.0021,Warming Tonic,campaign,chapter-3,P028,WARMING_TONIC,normal
+om.puzzle.0022,Life-Sensing Potion,campaign,chapter-3,P030b,LIFE_SENSING_POTION,normal
+om.puzzle.0023,Very Dark Thread,campaign,chapter-3,P029,VERY_DARK_THREAD,polymer_height
+om.puzzle.0024,Litharge Separation,campaign,chapter-4,P031b,LITHARGE_SEPARATION,normal
+om.puzzle.0025,Stain Remover,campaign,chapter-4,P034,STAIN_REMOVER,normal
+om.puzzle.0026,Sword Alloy,campaign,chapter-4,P033,SWORD_ALLOY,polymer_height
+om.puzzle.0027,Invisible Ink,campaign,chapter-4,P032,INVISIBLE_INK,normal
+om.puzzle.0028,Purified Gold,campaign,chapter-4,P036,PURIFIED_GOLD,normal
+om.puzzle.0029,Alchemical Jewel,campaign,chapter-4,P035,ALCHEMICAL_JEWEL,normal
+om.puzzle.0030,Golden Thread,campaign,chapter-4,P037,GOLDEN_THREAD,polymer_height
+om.puzzle.0031,Mist of Hallucination,campaign,chapter-5,P038,MIST_OF_HALLUCINATION,normal
+om.puzzle.0032,Timing Crystal,campaign,chapter-5,P042,TIMING_CRYSTAL,normal
+om.puzzle.0033,Voltaic Coil,campaign,chapter-5,P039,VOLTAIC_COIL,polymer_height
+om.puzzle.0034,Unstable Compound,campaign,chapter-5,P040,UNSTABLE_COMPOUND,normal
+om.puzzle.0035,Curious Lipstick,campaign,chapter-5,P041,CURIOUS_LIPSTICK,normal
+om.puzzle.0036,Universal Solvent,campaign,chapter-5,P043,UNIVERSAL_SOLVENT,normal
+om.puzzle.0037,Silver Paint,production,appendix,P076,SILVER_PAINT,production
+om.puzzle.0038,Viscous Sludge,production,appendix,P080,VISCOUS_SLUDGE,production
+om.puzzle.0039,Fragrant Powders,production,appendix,P075,FRAGRANT_POWDERS,production
+om.puzzle.0040,Rat Poison,production,appendix,P074,RAT_POISON,production
+om.puzzle.0041,Special Amaro,production,appendix,P083,SPECIAL_AMARO,production
+om.puzzle.0042,Vapor of Levity,production,appendix,P078,VAPOR_OF_LEVITY,production
+om.puzzle.0043,Abrasive Particles,production,appendix,P079,ABRASIVE_PARTICLES,production
+om.puzzle.0044,Eyedrops of Revelation,production,appendix,P081,EYEDROPS_OF_REVELATION,production
+om.puzzle.0045,Parade-Rocket Fuel,production,appendix,P082,PARADE_ROCKET_FUEL,production
+om.puzzle.0046,Aether Detector,production,appendix,P077,AETHER_DETECTOR,production
+om.puzzle.0047,Reconstructed Solvent,production,appendix,P084,RECONSTRUCTED_SOLVENT,production
+om.puzzle.0048,Van Berlo's Wheel,journal,journal-xcix-i,P054,VAN_BERLO_S_WHEEL,normal
+om.puzzle.0049,Van Berlo's Chain,journal,journal-xcix-i,P055,VAN_BERLO_S_CHAIN,polymer_height
+om.puzzle.0050,Reactive Cinnabar,journal,journal-xcix-i,P056,REACTIVE_CINNABAR,normal
+om.puzzle.0051,Silver Caustic,journal,journal-xcix-i,P057,SILVER_CAUSTIC,normal
+om.puzzle.0052,Lambent II/IX,journal,journal-xcix-i,P058,LAMBENT_II_IX,normal
+om.puzzle.0053,Explorer's Salve,journal,journal-xcix-ii,P059,EXPLORER_S_SALVE,normal
+om.puzzle.0054,Preservative Salt,journal,journal-xcix-ii,P060,PRESERVATIVE_SALT,normal
+om.puzzle.0055,Sailcloth Thread,journal,journal-xcix-ii,P061,SAILCLOTH_THREAD,polymer_height
+om.puzzle.0056,Buoyant Cable,journal,journal-xcix-ii,P062,BUOYANT_CABLE,polymer_height
+om.puzzle.0057,Spyglass Crystal,journal,journal-xcix-ii,P063,SPYGLASS_CRYSTAL,normal
+om.puzzle.0058,Ravari's Wheel,journal,journal-xcix-iii,P064,RAVARI_S_WHEEL,normal
+om.puzzle.0059,Lubricating Filament,journal,journal-xcix-iii,P065,LUBRICATING_FILAMENT,polymer_height
+om.puzzle.0060,Resonant Crystal,journal,journal-xcix-iii,P066,RESONANT_CRYSTAL,normal
+om.puzzle.0061,Refined Bronze,journal,journal-xcix-iii,P067,REFINED_BRONZE,polymer_height
+om.puzzle.0062,Ablative Crystal,journal,journal-xcix-iii,P068,ABLATIVE_CRYSTAL,normal
+om.puzzle.0063,Proof of Completeness,journal,journal-xcix-iv,P069,PROOF_OF_COMPLETENESS,normal
+om.puzzle.0064,Wheel Representation,journal,journal-xcix-iv,P070,WHEEL_REPRESENTATION,normal
+om.puzzle.0065,Synthesis via Alcohol,journal,journal-xcix-iv,P071,SYNTHESIS_VIA_ALCOHOL,normal
+om.puzzle.0066,Universal Compound,journal,journal-xcix-iv,P072,UNIVERSAL_COMPOUND,normal
+om.puzzle.0067,General Anaesthetic,journal,journal-xcix-v,P086,GENERAL_ANAESTHETIC,normal
+om.puzzle.0068,Wakefulness Potion,journal,journal-xcix-v,P088,WAKEFULNESS_POTION,normal
+om.puzzle.0069,Suture Thread,journal,journal-xcix-v,P085,SUTURE_THREAD,polymer_height
+om.puzzle.0070,Blood-Stanching Powder,journal,journal-xcix-v,P087,BLOOD_STANCHING_POWDER,normal
+om.puzzle.0071,Tonic of Hydration,journal,journal-xcix-v,P089,TONIC_OF_HYDRATION,normal
+om.puzzle.0072,Hexstabilized Salt,journal,journal-xcix-vi,P091b,HEXSTABILIZED_SALT,production
+om.puzzle.0073,Lustre,journal,journal-xcix-vi,P090,LUSTRE,production
+om.puzzle.0074,Lamplight Gas,journal,journal-xcix-vi,P092,LAMPLIGHT_GAS,production
+om.puzzle.0075,Conductive Enamel,journal,journal-xcix-vi,P093,CONDUCTIVE_ENAMEL,production
+om.puzzle.0076,Welding Thermite,journal,journal-xcix-vi,P094,WELDING_THERMITE,production
+om.puzzle.0077,Van Berlo's Pivots,journal,journal-xcix-vii,P096,VAN_BERLO_S_PIVOTS,normal
+om.puzzle.0078,Reactive Gold,journal,journal-xcix-vii,P095,REACTIVE_GOLD,normal
+om.puzzle.0079,Assassin's Filament,journal,journal-xcix-vii,P097,ASSASSIN_S_FILAMENT,polymer_height
+om.puzzle.0080,Vaporous Solvent,journal,journal-xcix-vii,P098,VAPOROUS_SOLVENT,normal
+om.puzzle.0081,Alchemical Slag,journal,journal-xcix-vii,P099,ALCHEMICAL_SLAG,normal
+om.puzzle.0082,Explosive Victrite,journal,journal-xcix-viii,P100,EXPLOSIVE_VICTRITE,normal
+om.puzzle.0083,Celestial Thread,journal,journal-xcix-viii,P101,CELESTIAL_THREAD,polymer_height
+om.puzzle.0084,Visillary Anaesthetic,journal,journal-xcix-viii,P102,VISILLARY_ANAESTHETIC,normal
+om.puzzle.0085,Animismus Buffer,journal,journal-xcix-viii,P104,ANIMISMUS_BUFFER,normal
+om.puzzle.0086,Electrum Separation,journal,journal-xcix-viii,P103,ELECTRUM_SEPARATION,polymer_height
+om.puzzle.0087,Hyper-volatile Gas,journal,journal-xcix-ix,P106,HYPER_VOLATILE_GAS,normal
+om.puzzle.0088,Vanishing Material,journal,journal-xcix-ix,P105,VANISHING_MATERIAL,production
+om.puzzle.0089,Synthetic Malachite,journal,journal-xcix-ix,P109,SYNTHETIC_MALACHITE,production
+om.puzzle.0090,Embalming Fluid,journal,journal-xcix-ix,P108,EMBALMING_FLUID,normal
+om.puzzle.0091,Quintessential Medium,journal,journal-xcix-ix,P107,QUINTESSENTIAL_MEDIUM,normal
+om.puzzle.0092,Touchstone,journal,journal-xcix-x,P245,TOUCHSTONE,normal
+om.puzzle.0093,Luminous Vapor,journal,journal-xcix-x,P247,LUMINOUS_VAPOR,normal
+om.puzzle.0094,Beauty Salve,journal,journal-xcix-x,P246,BEAUTY_SALVE,normal
+om.puzzle.0095,Cultivation Tonic,journal,journal-xcix-x,P249,CULTIVATION_TONIC,normal
+om.puzzle.0096,Bandage Thread,journal,journal-xcix-x,P248,BANDAGE_THREAD,polymer_height
+om.puzzle.0097,Compound Anaesthetic,journal,journal-xcix-xi,P244,COMPOUND_ANAESTHETIC,normal
+om.puzzle.0098,Green Vitriol,journal,journal-xcix-xi,P240,GREEN_VITRIOL,normal
+om.puzzle.0099,Sleeping Tonic,journal,journal-xcix-xi,P242,SLEEPING_TONIC,normal
+om.puzzle.0100,Resonant Dust,journal,journal-xcix-xi,P243,RESONANT_DUST,normal
+om.puzzle.0101,Blue Vitriol,journal,journal-xcix-xi,P241,BLUE_VITRIOL,normal
+om.puzzle.0102,Sophick Mercury,journal,journal-xcix-xii,P250,SOPHICK_MERCURY,normal
+om.puzzle.0103,Reclaimed Gold,journal,journal-xcix-xii,P254,RECLAIMED_GOLD,normal
+om.puzzle.0104,Dental Amalgam,journal,journal-xcix-xii,P252,DENTAL_AMALGAM,production
+om.puzzle.0105,Cuprite,journal,journal-xcix-xii,P253,CUPRITE,normal
+om.puzzle.0106,Explosive Alloy,journal,journal-xcix-xii,P251,EXPLOSIVE_ALLOY,normal
+om.puzzle.0107,Lodestone,journal,journal-cviii-i,P256,LODESTONE,normal
+om.puzzle.0108,Mooring Cable,journal,journal-cviii-i,P255,MOORING_CABLE,polymer_height
+om.puzzle.0109,Essence of Citrus,journal,journal-cviii-i,P257,ESSENCE_OF_CITRUS,normal
+om.puzzle.0110,Lighthouse Mirror,journal,journal-cviii-i,P258,LIGHTHOUSE_MIRROR,normal
+om.puzzle.0111,Grenade Pellet,journal,journal-cviii-i,P259,GRENADE_PELLET,normal
+om.puzzle.0112,Surveying Magnet,journal,journal-cviii-ii,P262,SURVEYING_MAGNET,polymer_height
+om.puzzle.0113,Prospector's Solvent,journal,journal-cviii-ii,P261,PROSPECTOR_S_SOLVENT,normal
+om.puzzle.0114,Realgar Separation,journal,journal-cviii-ii,P264,REALGAR_SEPARATION,normal
+om.puzzle.0115,Pig Iron,journal,journal-cviii-ii,P260,PIG_IRON,normal
+om.puzzle.0116,Leaching Agent,journal,journal-cviii-ii,P263,LEACHING_AGENT,normal
+om.puzzle.0117,Preserving Wax,journal,journal-cviii-iii,P267,PRESERVING_WAX,production
+om.puzzle.0118,Soda Ash,journal,journal-cviii-iii,P265,SODA_ASH,normal
+om.puzzle.0119,Miraculous Dentifrice,journal,journal-cviii-iii,P266,MIRACULOUS_DENTIFRICE,polymer_height
+om.puzzle.0120,Steel Wool,journal,journal-cviii-iii,P268,STEEL_WOOL,polymer_height
+om.puzzle.0121,Mirror Polish,journal,journal-cviii-iii,P269,MIRROR_POLISH,normal
+om.puzzle.0122,Ribbed Fletching,journal,journal-cviii-iv,P273,RIBBED_FLETCHING,normal
+om.puzzle.0123,Sparking Pyrite,journal,journal-cviii-iv,P274,SPARKING_PYRITE,normal
+om.puzzle.0124,Gunmetal,journal,journal-cviii-iv,P272,GUNMETAL,production
+om.puzzle.0125,High Explosive,journal,journal-cviii-iv,P271,HIGH_EXPLOSIVE,normal
+om.puzzle.0126,Canister Shot,journal,journal-cviii-iv,P270,CANISTER_SHOT,normal
+om.puzzle.0127,Gilding Wax,journal,journal-cviii-v,P279,GILDING_WAX,normal
+om.puzzle.0128,Glitra Paint,journal,journal-cviii-v,P275,GLITRA_PAINT,normal
+om.puzzle.0129,Vermilion Pigment,journal,journal-cviii-v,P276,VERMILION_PIGMENT,normal
+om.puzzle.0130,Lapidary Saw,journal,journal-cviii-v,P278,LAPIDARY_SAW,polymer_height
+om.puzzle.0131,Calligrapher's Ink,journal,journal-cviii-v,P277,CALLIGRAPHER_S_INK,normal
+om.puzzle.0132,Inductive Foil,journal,journal-cviii-vi,P280,INDUCTIVE_FOIL,normal
+om.puzzle.0133,Salt of Hartshorn,journal,journal-cviii-vi,P281,SALT_OF_HARTSHORN,normal
+om.puzzle.0134,Balanced Gold,journal,journal-cviii-vi,P282,BALANCED_GOLD,production
+om.puzzle.0135,Mist of Glaciation,journal,journal-cviii-vi,P283,MIST_OF_GLACIATION,normal
+om.puzzle.0136,Via Media,journal,journal-cviii-vi,P284,VIA_MEDIA,normal
+om.puzzle.0137,Leavening Agent,journal,journal-cviii-vii,P287,LEAVENING_AGENT,normal
+om.puzzle.0138,Marlstone,journal,journal-cviii-vii,P288,MARLSTONE,normal
+om.puzzle.0139,Rosewater,journal,journal-cviii-vii,P285,ROSEWATER,normal
+om.puzzle.0140,Fructifying Water,journal,journal-cviii-vii,P289,FRUCTIFYING_WATER,production
+om.puzzle.0141,Baling Fiber,journal,journal-cviii-vii,P286,BALING_FIBER,polymer_height
+om.puzzle.0142,Storm-Sensing Potion,journal,journal-cviii-viii,P294,STORM_SENSING_POTION,normal
+om.puzzle.0143,Endurance Potion,journal,journal-cviii-viii,P293,ENDURANCE_POTION,production
+om.puzzle.0144,Quickening Cordial,journal,journal-cviii-viii,P290,QUICKENING_CORDIAL,normal
+om.puzzle.0145,Umbral Mascara,journal,journal-cviii-viii,P292,UMBRAL_MASCARA,normal
+om.puzzle.0146,Invigorating Tonic,journal,journal-cviii-viii,P291,INVIGORATING_TONIC,normal
+om.puzzle.0147,Xylem Substitute,journal,journal-cviii-ix,P297,XYLEM_SUBSTITUTE,polymer_width
+om.puzzle.0148,Blast Cordage,journal,journal-cviii-ix,P299,BLAST_CORDAGE,polymer_width
+om.puzzle.0149,Durable Stitching,journal,journal-cviii-ix,P296,DURABLE_STITCHING,polymer_height
+om.puzzle.0150,Shimmering Chain,journal,journal-cviii-ix,P295,SHIMMERING_CHAIN,polymer_width
+om.puzzle.0151,Mirroring Amalgam,journal,journal-cviii-ix,P298,MIRRORING_AMALGAM,polymer_width
+om.puzzle.0152,Verdigris Glaze,journal,journal-cviii-x,P302,VERDIGRIS_GLAZE,normal
+om.puzzle.0153,Mosaic Tessera,journal,journal-cviii-x,P304,MOSAIC_TESSERA,normal
+om.puzzle.0154,Mist of Clarification,journal,journal-cviii-x,P300,MIST_OF_CLARIFICATION,normal
+om.puzzle.0155,Tempered Glass,journal,journal-cviii-x,P301,TEMPERED_GLASS,production
+om.puzzle.0156,Electrum,journal,journal-cviii-x,P303,ELECTRUM,normal
+om.puzzle.0157,Mineral Oil,journal,journal-cviii-xi,P307,MINERAL_OIL,normal
+om.puzzle.0158,Grindstone,journal,journal-cviii-xi,P305,GRINDSTONE,normal
+om.puzzle.0159,Mild Steel,journal,journal-cviii-xi,P308,MILD_STEEL,normal
+om.puzzle.0160,Rockwool Fiber,journal,journal-cviii-xi,P306,ROCKWOOL_FIBER,polymer_width
+om.puzzle.0161,Resin Glue,journal,journal-cviii-xi,P309,RESIN_GLUE,normal
+om.puzzle.0162,Lapis Solaris,journal,journal-cviii-xii,P313,LAPIS_SOLARIS,normal
+om.puzzle.0163,Brazing Silver,journal,journal-cviii-xii,P310,BRAZING_SILVER,polymer_skew
+om.puzzle.0164,Universal Ointment,journal,journal-cviii-xii,P314,UNIVERSAL_OINTMENT,normal
+om.puzzle.0165,Brilliant Pigment,journal,journal-cviii-xii,P311,BRILLIANT_PIGMENT,production
+om.puzzle.0166,Guipure Lace,journal,journal-cviii-xii,P312,GUIPURE_LACE,polymer_height
