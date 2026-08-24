@@ -107,6 +107,23 @@ path = "P001.puzzle"
     assert receipts[0] == receipts[1]
 
 
+def test_fetch_rejects_snapshot_id_that_can_escape_receipt_path(tmp_path: Path):
+    source_root = tmp_path / "official"
+    _write_manifest(
+        source_root,
+        '''schema_version = 1
+snapshot_id = "../escape"
+[[puzzles]]
+puzzle_id = "om.puzzle.0001"
+path = "P001.puzzle"
+''',
+    )
+    (source_root / "P001.puzzle").write_bytes(b"one")
+
+    with pytest.raises(OfficialGameAcquisitionError, match="snapshot_id"):
+        OfficialGameAdapter(source_root).fetch(_collection(tmp_path), tmp_path / "cache")
+
+
 @pytest.mark.parametrize(
     "body,match",
     [
