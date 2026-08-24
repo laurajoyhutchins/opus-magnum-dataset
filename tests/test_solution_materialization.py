@@ -251,6 +251,23 @@ def test_metadata_cannot_claim_solution_from_different_puzzle(
         materialize_solution_facts(collection, tmp_path)
 
 
+def test_metadata_cannot_name_different_puzzle_when_target_is_missing(
+    tmp_path: Path, collection: FixtureCollection
+) -> None:
+    _require_materializer()
+    foreign_path = "JOURNAL_X/TOUCHSTONE/missing.solution"
+    _put_fact(
+        tmp_path,
+        source_id="om-leaderboard",
+        revision=LEADERBOARD_REVISION,
+        upstream_path="CHAPTER_1/STABILIZED_WATER/bad.json",
+        payload=_leaderboard_metadata(foreign_path),
+    )
+
+    with pytest.raises(SolutionMaterializationError, match="different puzzle"):
+        materialize_solution_facts(collection, tmp_path)
+
+
 def test_corrupt_solution_object_fails_closed(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
