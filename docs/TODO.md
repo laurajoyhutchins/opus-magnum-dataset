@@ -2,13 +2,13 @@
 
 This checklist translates the strategic [`roadmap.md`](roadmap.md) into the next concrete implementation slices.
 
-It is not the authority for work state. GitHub pull requests and issues remain the repository execution record, while the Hatchable Portfolio Control Plane owns live work claims and settlement. Generated coverage, verification counts, manifests, and other derivable facts must come from repository software rather than hand-maintained entries here.
+It is not a second issue tracker. GitHub issues and pull requests are the repository execution record. This file records the dependency/concurrency map and a coarse landed/ready/blocked snapshot. Generated coverage, verification counts, manifests, and other derivable facts must come from repository software rather than hand-maintained entries here.
 
 Use this file to answer two questions: **what can be worked on concurrently without overlapping ownership, and what should we build next in dependency order?**
 
 ## Work graph
 
-This is the static concurrency map plus a coarse execution snapshot. It defines dependencies and ownership boundaries; the Hatchable Portfolio Control Plane remains authoritative for live claims and settlement (`work.claim` / `work.settle`). Landed packets are marked here to prevent agents from reclaiming completed architectural work, and in-progress markers are only navigation aids.
+This is the static concurrency map plus a coarse execution snapshot. It defines dependencies and ownership boundaries. Landed packets are marked here to prevent duplicate architectural work; ready and blocked markers help contributors choose work, while open GitHub issues and pull requests show live activity.
 
 ```text
 [LANDED] WP-01 Verification contract (#13)
@@ -51,7 +51,7 @@ The remaining hardening issues should settle before WP-11 begins modifying
 release-boundary behavior in earnest.
 ```
 
-The claimable architectural lanes are WP-04 and WP-08. WP-01, WP-02, WP-03, WP-05, WP-06, and WP-07 are settled foundations on `main`. Downstream packets should consume the landed interfaces rather than reimplementing upstream behavior.
+The ready architectural lanes are WP-04 and WP-08. WP-01, WP-02, WP-03, WP-05, WP-06, and WP-07 are settled foundations on `main`. Downstream packets should consume the landed interfaces rather than reimplementing upstream behavior.
 
 Issues #20 and #22 have landed through PRs #24 and #26. Issues #21 and #23 both modify release validation and remain serialized for collision avoidance, not because one is semantically required by the other. The schema/package surface is now a settled package-resource boundary that architectural and release work should consume rather than reimplement.
 
@@ -80,9 +80,9 @@ These capabilities already exist and should be consumed rather than recreated:
 - [x] Release staging source/destination overlap protection with a shared canonical tree-overlap guard from PR #24 / issue #20.
 - [x] Package-native authoritative JSON Schemas with shared collection/release resolution and installed-wheel validation from PR #26 / issue #22.
 
-### Claimable work packets
+### Work packets
 
-Each open packet owns one capability. A worker may change adjacent code only when required to consume an existing interface; extending or redesigning another packet's interface belongs to that packet. Settled packets remain listed because downstream dependencies refer to them, but they must not be claimed again.
+Each packet owns one capability. Contributors should inspect open issues and pull requests before starting work, respect the dependency and ownership boundaries here, and coordinate overlapping work through ordinary GitHub mechanisms. Settled packets remain listed because downstream dependencies refer to them; consume their landed interfaces rather than reopening them.
 
 | Packet | State | Depends on | Owns | Consumes → produces | Do not touch | Settle when |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -110,17 +110,17 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 | [#22 Unify schema resolution and remove repository-layout dependency](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/22) | **Settled** via PR #26 | `schema_resources.py`, packaged schemas, collection/release validation | Landed; downstream code should consume the package-resource boundary rather than add schema-location configuration |
 | [#23 Reject unsupported release manifest format versions](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/23) | Open; after #21 | `release.py` | Independent semantics, serialized after #21 to avoid release-validation collision; settle before WP-11 |
 
-### Agent execution rules
+### Contribution coordination
 
-1. Claim exactly one open packet or issue before implementation. Use the control-plane claim as the live concurrency lock; do not add assignee bookkeeping to this file.
-2. Never claim a packet or issue marked **Settled**. Consume its landed interface from `main`.
+1. Before starting an open packet or issue, inspect open issues and pull requests and choose one non-overlapping item. Coordinate live ownership through ordinary GitHub mechanisms when needed; no external claim service is required.
+2. Do not reopen a packet marked **Settled** by default. Consume its landed interface from `main`.
 3. Do not start a second item whose declared implementation surface overlaps an active item unless the graph explicitly allows it. The hardening sequence above exists specifically to avoid shared-file trampling.
 4. Branch from the packet's declared settled dependency base. A stacked PR is appropriate only when the graph contains that dependency edge or a collision-avoidance sequence explicitly calls for it.
 5. Own the capability, not neighboring machinery. If required work changes another packet's public contract, stop and split or restack rather than silently widening scope.
 6. Reuse established primitives. In particular, no packet may create a second content store, snapshot authority, canonical row authority, verification authority, or release path.
-7. Make dependencies explicit in the PR body and keep non-goals explicit enough that another agent can safely work beside it.
-8. Settle only with fresh deterministic evidence for the packet's acceptance criteria. Downstream workers consume settled contracts rather than copying unfinished implementations.
-9. If two items unexpectedly need the same implementation surface, fix the graph or factor a smaller shared primitive before continuing. Do not resolve the collision by allowing both workers to mutate it independently.
+7. Make dependencies explicit in the PR body and keep non-goals explicit enough that another contributor can safely work beside it.
+8. Consider a packet complete only with fresh deterministic evidence for its acceptance criteria. Downstream work should consume landed contracts rather than copying unfinished implementations.
+9. If two items unexpectedly need the same implementation surface, fix the graph or factor a smaller shared primitive before continuing. Do not resolve the collision by allowing both contributors to mutate it independently.
 
 ## Now
 
