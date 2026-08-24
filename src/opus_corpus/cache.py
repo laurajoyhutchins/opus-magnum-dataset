@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -39,6 +40,28 @@ class ContentAddressedCache:
         identity = f"{source_id}\0{revision}\0{upstream_path}".encode()
         key = hashlib.sha256(identity).hexdigest()
         return self.root / "receipts" / source_id / revision / f"{key}.json"
+
+    def iter_receipts(self, source_id: str, revision: str) -> Iterator[CacheReceipt]:
+        """Yield pinned-source receipts after validating their stored identity."""
+
+        receipt_root = self.root / "receipts" / source_id / revision
+        if not receipt_root.exists():
+            return
+
+        for path in sorted(receipt_root.glob("*.json")):
+            receipt = self._read_receipt(path)
+            expected_path = self.receipt_path(
+                receipt.source_id,
+                receipt.revision,
+                receipt.upstream_path,
+            )
+            if (
+                receipt.source_id != source_id
+                or receipt.revision != revision
+                or path != expected_path
+            ):
+                raise CacheIntegrityError(f"cache receipt identity mismatch: {path}")
+            yield receipt
 
     def put_bytes(
         self,

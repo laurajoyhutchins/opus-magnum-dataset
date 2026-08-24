@@ -104,27 +104,32 @@ A source-claimed score is not stored in these computed metric columns. Source cl
 
 ## 6. `observations` config
 
-One row per provenance observation.
+One row per provenance observation. An observation may describe an exact artifact sighting or source metadata about an artifact. Metadata is preserved even when the referenced solution bytes were not acquired.
 
 Required columns:
 
 - `observation_id`: string;
 - `artifact_kind`: string;
-- `artifact_id`: string;
+- `artifact_id`: nullable string; null is permitted only for an explicit metadata observation whose referenced artifact is absent;
 - `puzzle_id`: nullable string;
+- `source_role`: nullable string with canonical values `artifact` or `metadata`; null/omission is retained only for backward-compatible legacy rows;
 - `source_id`: string;
 - `source_revision`: nullable string;
 - `source_object_id`: nullable string;
 - `source_path`: nullable string;
+- `associated_artifact_path`: nullable string for a source-declared metadata-to-artifact association such as leaderboard `dataPath`;
+- `source_declared_puzzle_id`: nullable string preserving the source's own puzzle identifier independently of canonical `puzzle_id`;
 - `source_url`: nullable string;
 - `author`: nullable string;
 - `retrieved_at`: timestamp;
 - source-claimed metrics as nullable typed columns;
-- `observed_sha256`: nullable string;
+- `observed_sha256`: nullable string for the associated artifact bytes when available;
+- `source_evidence_sha256`: nullable string identifying the source evidence bytes;
+- `source_evidence_byte_length`: nullable integer;
 - `rights_status`: string;
 - `importer_version`: string.
 
-This config preserves the many-to-one relationship between upstream appearances and canonical artifacts.
+This config preserves the many-to-one relationship between upstream appearances and canonical artifacts. A metadata-only row with `artifact_id = null` remains a source fact rather than being discarded merely because the source-referenced solution artifact is missing from the cache.
 
 ## 7. `normalized` config
 
@@ -151,7 +156,8 @@ Within one published corpus release:
 
 - every `solutions.puzzle_id` must exist in `puzzles`;
 - every `normalized.solution_id` must exist in `solutions`;
-- every `observations.artifact_id` must resolve to its declared canonical artifact class;
+- every non-null `observations.artifact_id` must resolve to its declared canonical artifact class;
+- `observations.artifact_id` may be null only when `source_role` is explicitly `metadata`, preserving metadata about an artifact that is not present in the canonical artifact set;
 - all references use canonical stable IDs, not row offsets or file paths.
 
 Hugging Face does not enforce cross-config foreign keys, so the exporter and release validation must enforce them before publication.
