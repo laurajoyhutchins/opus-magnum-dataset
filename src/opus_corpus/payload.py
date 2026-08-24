@@ -4,8 +4,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .errors import PayloadPolicyError, ValidationError
+from .release_configs import PAYLOAD_FIELDS, get_release_config
 
-PAYLOAD_FIELDS = {"puzzles": "puzzle_bytes", "solutions": "solution_bytes"}
 POLICIES = {"metadata-only", "include-permitted"}
 
 
@@ -22,7 +22,7 @@ def validate_payload_policy(
                 )
             ]
         )
-    payload_field = PAYLOAD_FIELDS.get(config_name)
+    payload_field = get_release_config(config_name).payload_field
     if payload_field is None:
         return
     errors: list[ValidationError] = []
