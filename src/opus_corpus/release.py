@@ -28,11 +28,13 @@ from .release_inputs import (
     sort_records,
 )
 
+COVERAGE_POLICIES = ("complete", "subset")
 DERIVED_COVERAGE_FIELDS = (
     "puzzle_count",
     "candidate_solution_count",
     "verified_solution_count",
     "rejected_solution_count",
+    "by_puzzle",
 )
 CANONICAL_ID_FIELDS = {
     "puzzles": "puzzle_id",
@@ -64,6 +66,7 @@ class ReleaseManifest:
     build_software_revision: str | None
     build_config_sha256: str
     payload_policy: str
+    coverage_policy: str
     release_metadata: dict[str, Any]
     release_metadata_sha256: str
     configs: dict[str, ConfigRelease]
@@ -79,6 +82,7 @@ class ReleaseManifest:
             "build_software_revision": self.build_software_revision,
             "build_config_sha256": self.build_config_sha256,
             "payload_policy": self.payload_policy,
+            "coverage_policy": self.coverage_policy,
             "release_metadata": self.release_metadata,
             "release_metadata_sha256": self.release_metadata_sha256,
             "configs": {
@@ -102,6 +106,7 @@ class ReleaseManifest:
             build_software_revision=value.get("build_software_revision"),
             build_config_sha256=value["build_config_sha256"],
             payload_policy=value["payload_policy"],
+            coverage_policy=value["coverage_policy"],
             release_metadata=dict(value["release_metadata"]),
             release_metadata_sha256=value["release_metadata_sha256"],
             configs=configs,
@@ -116,13 +121,32 @@ def split_for_collection(collection_id: str) -> str:
     return collection_id.replace("-", "_")
 
 
+def _coverage_state(candidate_count: int, verified_count: int) -> str:
+    if verified_count > 1:
+        return "multi_solution"
+    if verified_count == 1:
+        return "verified"
+    if candidate_count:
+        return "candidate_found"
+    return "uncovered"
+
+
 def derive_release_coverage(
     collection: CollectionDefinition,
     records: dict[str, list[dict[str, Any]]],
     *,
-    release_kind: str,
-) -> dict[str, int]:
+    coverage_policy: str,
+) -> dict[str, Any]:
     errors: list[ValidationError] = []
+    if coverage_policy not in COVERAGE_POLICIES:
+        errors.append(
+            ValidationError(
+                "coverage_policy_invalid",
+                f"coverage_policy must be one of {COVERAGE_POLICIES}, got {coverage_policy!r}",
+                "release-manifest.json",
+            )
+        )
+
     for config_name, identity_field in CANONICAL_ID_FIELDS.items():
         seen: dict[Any, int] = {}
         for index, row in enumerate(records.get(config_name, []), start=1):
@@ -150,18 +174,9 @@ def derive_release_coverage(
     }
     unexpected = sorted(actual_puzzle_ids - expected_puzzle_ids)
     missing = sorted(expected_puzzle_ids - actual_puzzle_ids)
-    if release_kind == "fixture":
-        if unexpected:
-            errors.append(
-                ValidationError(
-                    "collection_coverage_mismatch",
-                    f"fixture contains puzzles outside collection: {unexpected}",
-                    "puzzles",
-                )
-            )
-    elif missing or unexpected:
+    if unexpected or (coverage_policy == "complete" and missing):
         details: list[str] = []
-        if missing:
+        if missing and coverage_policy == "complete":
             details.append(f"missing puzzles: {missing}")
         if unexpected:
             details.append(f"unexpected puzzles: {unexpected}")
@@ -173,16 +188,44 @@ def derive_release_coverage(
             )
         )
 
+    solutions = records.get("solutions", [])
+    by_puzzle: dict[str, dict[str, int | str]] = {}
+    for puzzle_id in sorted(expected_puzzle_ids):
+        puzzle_solutions = [row for row in solutions if row.get("puzzle_id") == puzzle_id]
+        candidate_count = len(puzzle_solutions)
+        verified_count = sum(row.get("verified") is True for row in puzzle_solutions)
+        by_puzzle[puzzle_id] = {
+            "candidate_solution_count": candidate_count,
+            "verified_solution_count": verified_count,
+            "rejected_solution_count": candidate_count - verified_count,
+            "state": _coverage_state(candidate_count, verified_count),
+        }
+
+    if coverage_policy == "complete":
+        unverified = sorted(
+            puzzle_id
+            for puzzle_id, puzzle_coverage in by_puzzle.items()
+            if puzzle_coverage["verified_solution_count"] == 0
+        )
+        if unverified:
+            errors.append(
+                ValidationError(
+                    "collection_verified_coverage_incomplete",
+                    f"puzzles without a verified solution: {unverified}",
+                    "solutions",
+                )
+            )
+
     if errors:
         raise ReleaseValidationError(errors)
 
-    solutions = records.get("solutions", [])
     verified_count = sum(row.get("verified") is True for row in solutions)
     return {
         "puzzle_count": len(records.get("puzzles", [])),
         "candidate_solution_count": len(solutions),
         "verified_solution_count": verified_count,
         "rejected_solution_count": len(solutions) - verified_count,
+        "by_puzzle": by_puzzle,
     }
 
 
@@ -190,6 +233,8 @@ def derive_release_metadata(
     collection: CollectionDefinition,
     records: dict[str, list[dict[str, Any]]],
     metadata: dict[str, Any],
+    *,
+    coverage_policy: str,
 ) -> dict[str, Any]:
     coverage = metadata.get("coverage", {})
     if not isinstance(coverage, dict):
@@ -213,21 +258,10 @@ def derive_release_metadata(
                 )
             ]
         )
-    release_kind = metadata.get("release_kind", "release")
-    if not isinstance(release_kind, str) or not release_kind:
-        raise ReleaseValidationError(
-            [
-                ValidationError(
-                    "release_metadata_invalid",
-                    "release_kind must be a non-empty string",
-                    "release-metadata.json",
-                )
-            ]
-        )
     derived = derive_release_coverage(
         collection,
         records,
-        release_kind=release_kind,
+        coverage_policy=coverage_policy,
     )
     result = dict(metadata)
     result["coverage"] = {**coverage, **derived}
@@ -244,6 +278,7 @@ def _logical_manifest_dict(manifest: ReleaseManifest) -> dict[str, Any]:
         "build_software_revision": manifest.build_software_revision,
         "build_config_sha256": manifest.build_config_sha256,
         "payload_policy": manifest.payload_policy,
+        "coverage_policy": manifest.coverage_policy,
         "release_metadata": manifest.release_metadata,
         "release_metadata_sha256": manifest.release_metadata_sha256,
         "configs": {
@@ -405,6 +440,7 @@ def build_release(
     output_dir: Path,
     config: CorpusConfig,
     payload_policy: str,
+    coverage_policy: str = "complete",
 ) -> ReleaseManifest:
     loaded = load_release_inputs(input_dir, config.schemas_dir)
     for config_name, rows in loaded.records.items():
@@ -428,7 +464,12 @@ def build_release(
         raise ReleaseValidationError(collection_errors)
 
     release_metadata, release_metadata_sha256 = _load_release_metadata(input_dir)
-    release_metadata = derive_release_metadata(collection, loaded.records, release_metadata)
+    release_metadata = derive_release_metadata(
+        collection,
+        loaded.records,
+        release_metadata,
+        coverage_policy=coverage_policy,
+    )
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     split = split_for_collection(collection.collection_id)
@@ -461,6 +502,7 @@ def build_release(
         build_software_revision=detect_git_revision(config.root),
         build_config_sha256=sha256_file(config.path),
         payload_policy=payload_policy,
+        coverage_policy=coverage_policy,
         release_metadata=release_metadata,
         release_metadata_sha256=release_metadata_sha256,
         configs=config_results,
@@ -519,6 +561,14 @@ def validate_release(
                 "build_config_changed",
                 "build configuration changed since release",
                 config.path.as_posix(),
+            )
+        )
+    if manifest.coverage_policy not in COVERAGE_POLICIES:
+        errors.append(
+            ValidationError(
+                "coverage_policy_invalid",
+                f"coverage_policy must be one of {COVERAGE_POLICIES}",
+                "release-manifest.json",
             )
         )
     if set(manifest.configs) != set(CONFIG_NAMES):
@@ -596,7 +646,7 @@ def validate_release(
             expected_coverage = derive_release_coverage(
                 collection,
                 records,
-                release_kind=str(manifest.release_metadata.get("release_kind", "release")),
+                coverage_policy=manifest.coverage_policy,
             )
             stored_coverage = manifest.release_metadata.get("coverage")
             if not isinstance(stored_coverage, dict):
