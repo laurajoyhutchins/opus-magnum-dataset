@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verification_id",
+    "puzzle_artifact_id",
+    "solution_id",
+    "verifier_implementation",
+    "verifier_revision",
+    "verifier_sha256",
+    "validation_profile",
+    "parse_status",
+    "simulation_status",
+    "cost",
+    "cycles",
+    "area",
+    "instructions",
+    "vanilla_constructible",
+    "record_eligible",
+    "error_code",
+    "error_detail"
+  ],
+  "properties": {
+    "verification_id": {
+      "type": "string",
+      "pattern": "^om\\.verification\\.[0-9a-f]{64}$"
+    },
+    "puzzle_artifact_id": {"type": "string", "minLength": 1},
+    "solution_id": {"type": "string", "minLength": 1},
+    "verifier_implementation": {"type": "string", "minLength": 1},
+    "verifier_revision": {"type": "string", "minLength": 1},
+    "verifier_sha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "validation_profile": {"type": "string", "minLength": 1},
+    "parse_status": {"enum": ["not_run", "passed", "failed"]},
+    "simulation_status": {"enum": ["not_run", "passed", "failed"]},
+    "cost": {"type": ["integer", "null"], "minimum": 0},
+    "cycles": {"type": ["integer", "null"], "minimum": 0},
+    "area": {"type": ["integer", "null"], "minimum": 0},
+    "instructions": {"type": ["integer", "null"], "minimum": 0},
+    "vanilla_constructible": {"type": ["boolean", "null"]},
+    "record_eligible": {"type": ["boolean", "null"]},
+    "error_code": {"type": ["string", "null"]},
+    "error_detail": {"type": ["string", "null"]}
+  }
+}
