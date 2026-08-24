@@ -422,13 +422,6 @@ def _load_release_metadata(input_dir: Path) -> tuple[dict[str, Any], str]:
     return value, sha256_bytes(raw)
 
 
-def _safe_relative(path: Path, root: Path) -> str:
-    try:
-        return path.resolve().relative_to(root.resolve()).as_posix()
-    except ValueError:
-        return path.resolve().as_posix()
-
-
 def build_release(
     collection: CollectionDefinition,
     input_dir: Path,
