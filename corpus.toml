@@ -1,6 +1,5 @@
 [corpus]
 schema_version = 1
-schemas_dir = "schemas"
 output_root = ".release"
 
 [parquet]

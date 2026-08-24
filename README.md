@@ -57,6 +57,8 @@ Tests marked `upstream` require live access to exact pinned external revisions a
 uv run pytest -q -o addopts= -m upstream
 ```
 
+Canonical JSON Schemas are repository-authored package resources under `src/opus_corpus/schemas/`. Collection and release validation resolve them through `opus_corpus.schema_resources`; `corpus.toml` does not configure a schema directory. Source/editable execution and installed-wheel execution therefore consume the same schema bytes, while release manifests retain stable logical `schemas/<name>` paths and hashes instead of checkout-specific filesystem paths.
+
 To exercise the tiny release factory locally, opt into subset coverage explicitly:
 
 ```bash

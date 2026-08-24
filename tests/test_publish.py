@@ -61,7 +61,6 @@ def config(tmp_path: Path, repo_id: str = "CHANGE_ME") -> CorpusConfig:
         tmp_path,
         cfg,
         1,
-        tmp_path / "schemas",
         tmp_path / ".release",
         ("puzzles", "solutions", "observations", "normalized"),
         "zstd",

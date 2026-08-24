@@ -19,7 +19,6 @@ def config(root: Path) -> CorpusConfig:
         root=root,
         path=path,
         schema_version=1,
-        schemas_dir=Path(__file__).resolve().parents[1] / "schemas",
         output_root=root / ".release",
         config_names=("puzzles", "solutions", "observations", "normalized"),
         compression="zstd",
