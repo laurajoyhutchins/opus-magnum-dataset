@@ -109,7 +109,10 @@ def load_release_inputs(input_dir: Path, schemas_dir: Path) -> LoadedReleaseInpu
                 ValidationError("input_empty", f"{path.name} contains no rows", path.as_posix())
             )
         records[config_name] = sort_records(config_name, config_rows)
-        sources[config_name] = {"path": path.as_posix(), "sha256": sha256_file(path)}
+        sources[config_name] = {
+            "path": path.relative_to(input_dir).as_posix(),
+            "sha256": sha256_file(path),
+        }
     if errors:
         raise ReleaseValidationError(errors)
     return LoadedReleaseInputs(records=records, sources=sources)
