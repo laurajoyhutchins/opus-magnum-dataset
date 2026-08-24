@@ -1,30 +1,75 @@
 from __future__ import annotations
 
-from opus_corpus.ingestion import ArtifactProvenance, _provenance_sort_key
+import json
+import os
+import subprocess
+import sys
+import textwrap
+
+_HASH_SEEDS = ("1", "2", "3", "4")
+
+_INGESTION_SCRIPT = textwrap.dedent(
+    """
+    from dataclasses import asdict
+    import json
+    from pathlib import Path
+    import tempfile
+
+    from opus_corpus.cache import CacheReceipt
+    from opus_corpus.content_store import ContentStore
+    from opus_corpus.ingestion import ObservedArtifactCandidate, ingest_artifacts
+
+    with tempfile.TemporaryDirectory() as root:
+        store = ContentStore(Path(root))
+        stored = store.put_bytes(b"deterministic solution")
+        receipt = CacheReceipt(
+            source_id="source",
+            revision="revision-a",
+            upstream_path="path/a.solution",
+            sha256=stored.sha256,
+            byte_length=stored.byte_length,
+            rights_status="local_fetch_only",
+            retrieved_at="2026-08-24T12:00:00+00:00",
+        )
+        common = dict(
+            artifact_kind="solution",
+            puzzle_id="om.puzzle.0001",
+            artifact_format="solution",
+            artifact_receipt=receipt,
+            evidence_receipt=None,
+            source_url=None,
+            author=None,
+            claimed_cost=None,
+            claimed_cycles=None,
+            claimed_area=None,
+            claimed_instructions=None,
+        )
+        candidates = [
+            ObservedArtifactCandidate(source_object_id=None, **common),
+            ObservedArtifactCandidate(source_object_id="", **common),
+        ]
+        result = ingest_artifacts(candidates, store)
+        print(json.dumps(asdict(result), sort_keys=True, separators=(",", ":")))
+    """
+)
 
 
-def _row(source_object_id: str | None) -> ArtifactProvenance:
-    return ArtifactProvenance(
-        artifact_id="om.solution.sha256." + "a" * 64,
-        puzzle_id="om.puzzle.0001",
-        source_role="artifact",
-        source_id="source",
-        source_revision="revision-a",
-        source_path="path/a.solution",
-        source_object_id=source_object_id,
-        source_url=None,
-        author=None,
-        retrieved_at="2026-08-24T12:00:00+00:00",
-        rights_status="local_fetch_only",
-        observed_sha256="a" * 64,
-        source_evidence_sha256="a" * 64,
-        source_evidence_byte_length=1,
-        claimed_cost=None,
-        claimed_cycles=None,
-        claimed_area=None,
-        claimed_instructions=None,
+def _run_ingestion(seed: str) -> str:
+    env = os.environ.copy()
+    env["PYTHONHASHSEED"] = seed
+    completed = subprocess.run(
+        [sys.executable, "-c", _INGESTION_SCRIPT],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
     )
+    return completed.stdout.strip()
 
 
-def test_provenance_sort_key_distinguishes_none_from_empty_string() -> None:
-    assert _provenance_sort_key(_row(None)) != _provenance_sort_key(_row(""))
+def test_public_ingestion_result_is_stable_across_pythonhashseed_values() -> None:
+    outputs = {seed: _run_ingestion(seed) for seed in _HASH_SEEDS}
+
+    assert len(set(outputs.values())) == 1, outputs
+    result = json.loads(next(iter(outputs.values())))
+    assert [row["source_object_id"] for row in result["provenance"]] == [None, ""]
