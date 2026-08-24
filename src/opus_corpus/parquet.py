@@ -7,7 +7,8 @@ from typing import Any
 
 from .config import CorpusConfig
 from .hashing import canonical_json_bytes
-from .release_configs import PAYLOAD_FIELDS, get_release_config
+from .release_configs import PAYLOAD_FIELDS as PAYLOAD_FIELDS
+from .release_configs import get_release_config
 
 
 def _to_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
