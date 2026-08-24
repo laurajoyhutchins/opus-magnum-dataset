@@ -217,9 +217,9 @@ def _aggregate_group(group: list[_IngestedCandidate]) -> ArtifactRecord:
     )
 
 
-def _provenance_sort_key(row: ArtifactProvenance) -> tuple[str, ...]:
+def _provenance_sort_key(row: ArtifactProvenance) -> tuple[tuple[int, str], ...]:
     return tuple(
-        "" if value is None else str(value)
+        (0, "") if value is None else (1, str(value))
         for value in (
             row.artifact_id,
             row.puzzle_id,
