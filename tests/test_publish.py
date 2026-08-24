@@ -105,6 +105,38 @@ def test_stage_contains_only_projection_allowlist(
     }
 
 
+@pytest.mark.parametrize("relation", ["equal", "destination_ancestor", "destination_descendant"])
+def test_stage_rejects_overlapping_paths_before_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relation: str
+):
+    release = manifest("subset")
+    root = tmp_path / "root"
+    output = root / "out"
+    output.mkdir(parents=True)
+    (output / "release-manifest.json").write_text("{}", encoding="utf-8")
+    for entry in release.configs.values():
+        path = output / entry.parquet_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"parquet")
+    sentinel = output / "source-sentinel.txt"
+    sentinel.write_text("source intact", encoding="utf-8")
+
+    if relation == "equal":
+        destination = output
+    elif relation == "destination_ancestor":
+        destination = root
+    else:
+        destination = output / "stage"
+
+    monkeypatch.setattr("opus_corpus.publish.validate_release", lambda *_: release)
+    with pytest.raises(PublicationError, match="overlap"):
+        stage_release(collection(tmp_path), output, destination, config(tmp_path))
+
+    assert sentinel.read_text(encoding="utf-8") == "source intact"
+    if relation == "destination_descendant":
+        assert not destination.exists()
+
+
 def test_publish_rejects_subset_before_staging_or_hub_mutation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
