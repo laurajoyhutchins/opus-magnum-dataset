@@ -1,0 +1,22 @@
+[corpus]
+schema_version = 1
+schemas_dir = "schemas"
+output_root = ".release"
+
+[parquet]
+compression = "zstd"
+use_dictionary = true
+write_statistics = true
+
+[release]
+config_names = ["puzzles", "solutions", "observations", "normalized"]
+payload_policy_default = "metadata-only"
+
+[huggingface]
+repo_id = "CHANGE_ME"
+private = false
+
+[card]
+title = "Opus Magnum Dataset"
+purpose = "A reproducible, provenance-preserving corpus of Opus Magnum puzzles and solutions for verification, benchmarking, search, and machine-learning research."
+rights_caveat = "Raw puzzle and solution bytes are published only when explicit per-artifact rights status permits redistribution; metadata-only releases omit restricted payloads."
