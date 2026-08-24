@@ -87,7 +87,8 @@ def _run(args: argparse.Namespace) -> int:
         if args.source == "official-game":
             if not args.source_root:
                 raise ConfigurationError(
-                    "official-game acquisition requires --source-root pointing to local puzzle bytes"
+                    "official-game acquisition requires --source-root "
+                    "pointing to local puzzle bytes"
                 )
             adapter = OfficialGameAdapter(Path(args.source_root))
         else:
