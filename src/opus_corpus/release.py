@@ -20,13 +20,8 @@ from .hashing import (
 )
 from .parquet import read_parquet, write_parquet
 from .payload import validate_payload_policy
-from .release_inputs import (
-    CONFIG_NAMES,
-    SCHEMA_FILES,
-    load_release_inputs,
-    load_schema,
-    sort_records,
-)
+from .release_inputs import CONFIG_NAMES, SCHEMA_FILES, load_release_inputs, sort_records
+from .schema_resources import load_schema_resource
 
 COVERAGE_POLICIES = ("complete", "subset")
 DERIVED_COVERAGE_FIELDS = (
@@ -442,7 +437,7 @@ def build_release(
     payload_policy: str,
     coverage_policy: str = "complete",
 ) -> ReleaseManifest:
-    loaded = load_release_inputs(input_dir, config.schemas_dir)
+    loaded = load_release_inputs(input_dir)
     for config_name, rows in loaded.records.items():
         validate_payload_policy(config_name, rows, payload_policy)
     validate_referential_integrity(loaded.records)
@@ -480,11 +475,11 @@ def build_release(
         parquet_rel = Path("data") / config_name / f"{split}-00000-of-00001.parquet"
         parquet_path = output_dir / parquet_rel
         write_parquet(config_name, rows, parquet_path, config)
-        schema_path = config.schemas_dir / SCHEMA_FILES[config_name]
+        schema_resource = load_schema_resource(SCHEMA_FILES[config_name])
         source = loaded.sources[config_name]
         config_results[config_name] = ConfigRelease(
-            schema_path=_safe_relative(schema_path, config.root),
-            schema_sha256=sha256_file(schema_path),
+            schema_path=schema_resource.logical_path,
+            schema_sha256=schema_resource.sha256,
             records_sha256=canonical_records_sha256(rows),
             row_count=len(rows),
             parquet_path=parquet_rel.as_posix(),
@@ -585,13 +580,13 @@ def validate_release(
     records: dict[str, list[dict[str, Any]]] = {}
     for config_name in CONFIG_NAMES:
         entry = manifest.configs[config_name]
-        schema_path = config.schemas_dir / SCHEMA_FILES[config_name]
-        if sha256_file(schema_path) != entry.schema_sha256:
+        schema_resource = load_schema_resource(SCHEMA_FILES[config_name])
+        if schema_resource.sha256 != entry.schema_sha256:
             errors.append(
                 ValidationError(
                     "schema_changed",
                     f"schema changed for {config_name}",
-                    schema_path.as_posix(),
+                    schema_resource.logical_path,
                 )
             )
             continue
@@ -615,9 +610,8 @@ def validate_release(
             )
             continue
         rows = sort_records(config_name, read_parquet(config_name, parquet_path))
-        schema = load_schema(config.schemas_dir, config_name)
         try:
-            _validate_rows(config_name, rows, schema)
+            _validate_rows(config_name, rows, schema_resource.schema)
             validate_payload_policy(config_name, rows, manifest.payload_policy)
         except ReleaseValidationError as exc:
             errors.extend(exc.errors)
