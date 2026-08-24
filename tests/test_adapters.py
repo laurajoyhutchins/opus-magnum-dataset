@@ -8,9 +8,11 @@ import pytest
 
 from opus_corpus.adapters import (
     ADAPTERS,
+    AdapterDataError,
     AdapterFetchError,
     AdapterNotImplementedError,
     GitHubSourceAdapter,
+    LeaderboardPuzzle,
     SourceAdapter,
 )
 from opus_corpus.collections import CollectionDefinition
@@ -33,14 +35,17 @@ EXPECTED_REPOSITORIES = {
 }
 
 
-def _collection(tmp_path: Path) -> CollectionDefinition:
+def _collection(
+    tmp_path: Path,
+    rows: tuple[dict[str, str], ...] = (),
+) -> CollectionDefinition:
     return CollectionDefinition(
         collection_id="test-collection",
         inventory_sha256="0" * 64,
-        puzzle_count=0,
+        puzzle_count=len(rows),
         manifest_path=tmp_path / "collection.toml",
         inventory_path=tmp_path / "collection.csv",
-        inventory_rows=(),
+        inventory_rows=rows,
         manifest={},
     )
 
@@ -53,6 +58,39 @@ def _archive_bytes(root: str, files: dict[str, bytes]) -> bytes:
             info.size = len(contents)
             archive.addfile(info, io.BytesIO(contents))
     return payload.getvalue()
+
+
+def _leaderboard_source(tmp_path: Path, entries: str) -> Path:
+    source_root = tmp_path / "leaderboard-source"
+    model_path = source_root / (
+        "src/main/kotlin/com/faendir/zachtronics/bot/om/model/OmPuzzle.kt"
+    )
+    model_path.parent.mkdir(parents=True)
+    model_path.write_text(
+        "enum class OmPuzzle {\n" + entries + "\n    ;\n}\n",
+        encoding="utf-8",
+    )
+    return source_root
+
+
+def _inventory_row(
+    puzzle_id: str,
+    display_name: str,
+    kind: str,
+    group: str,
+    game_puzzle_id: str,
+    leaderboard_key: str,
+    puzzle_type: str,
+) -> dict[str, str]:
+    return {
+        "puzzle_id": puzzle_id,
+        "display_name": display_name,
+        "kind": kind,
+        "group": group,
+        "game_puzzle_id": game_puzzle_id,
+        "leaderboard_key": leaderboard_key,
+        "puzzle_type": puzzle_type,
+    }
 
 
 def test_adapter_registry_has_expected_sources_and_revisions():
@@ -113,6 +151,119 @@ def test_github_fetch_failure_does_not_create_cache_entry(tmp_path: Path):
         adapter.fetch(_collection(tmp_path), cache_root)
 
     assert not target.exists()
+
+
+def test_leaderboard_bot_load_catalog_parses_active_enum_entries(tmp_path: Path):
+    source_root = _leaderboard_source(
+        tmp_path,
+        """
+    STABILIZED_WATER(CHAPTER_1, NORMAL, "Stabilized Water", "P007"),
+    // RETIRED_PUZZLE(CHAPTER_1, NORMAL, "Retired Puzzle", "P999"),
+    MATERIAL_SALVAGE(
+        TOURNAMENT_2025,
+        NORMAL,
+        "Material Salvage",
+        "w3446276940",
+        "OM2025_break_Material Salvage",
+    ),
+""",
+    )
+
+    catalog = ADAPTERS["leaderboard-bot"]().load_catalog(source_root)
+
+    assert catalog["STABILIZED_WATER"] == LeaderboardPuzzle(
+        leaderboard_key="STABILIZED_WATER",
+        group_key="CHAPTER_1",
+        puzzle_type="normal",
+        display_name="Stabilized Water",
+        game_puzzle_id="P007",
+        alt_ids=(),
+    )
+    assert catalog["MATERIAL_SALVAGE"].alt_ids == ("OM2025_break_Material Salvage",)
+    assert "RETIRED_PUZZLE" not in catalog
+
+
+def test_leaderboard_bot_reconciles_collection_in_canonical_order(tmp_path: Path):
+    source_root = _leaderboard_source(
+        tmp_path,
+        """
+    STABILIZED_WATER(CHAPTER_1, NORMAL, "Stabilized Water", "P007"),
+    SILVER_PAINT(CHAPTER_PRODUCTION, PRODUCTION, "Silver Paint", "P076"),
+    VAN_BERLO_S_WHEEL(JOURNAL_I, NORMAL, "Van Berlo's Wheel", "P054"),
+    DIFFUSIVE_GOLD(JOURNAL_CVIII_XII, NORMAL, "Diffusive Gold", "P318"),
+""",
+    )
+    rows = (
+        _inventory_row(
+            "om.puzzle.0001",
+            "Stabilized Water",
+            "campaign",
+            "chapter-1",
+            "P007",
+            "STABILIZED_WATER",
+            "normal",
+        ),
+        _inventory_row(
+            "om.puzzle.0002",
+            "Silver Paint",
+            "production",
+            "appendix",
+            "P076",
+            "SILVER_PAINT",
+            "production",
+        ),
+        _inventory_row(
+            "om.puzzle.0003",
+            "Van Berlo's Wheel",
+            "journal",
+            "journal-xcix-i",
+            "P054",
+            "VAN_BERLO_S_WHEEL",
+            "normal",
+        ),
+        _inventory_row(
+            "om.puzzle.0004",
+            "Diffusive Gold",
+            "journal",
+            "journal-cviii-xii",
+            "P318",
+            "DIFFUSIVE_GOLD",
+            "normal",
+        ),
+    )
+
+    reconciled = ADAPTERS["leaderboard-bot"]().reconcile_collection(
+        _collection(tmp_path, rows),
+        source_root,
+    )
+
+    assert tuple(puzzle.leaderboard_key for puzzle in reconciled) == tuple(
+        row["leaderboard_key"] for row in rows
+    )
+
+
+def test_leaderboard_bot_reconciliation_fails_closed_on_identity_drift(tmp_path: Path):
+    source_root = _leaderboard_source(
+        tmp_path,
+        '    STABILIZED_WATER(CHAPTER_1, NORMAL, "Stabilized Water", "P007"),',
+    )
+    rows = (
+        _inventory_row(
+            "om.puzzle.0001",
+            "Stabilized Water",
+            "campaign",
+            "chapter-1",
+            "P999",
+            "STABILIZED_WATER",
+            "normal",
+        ),
+    )
+
+    with pytest.raises(AdapterDataError, match="game_puzzle_id"):
+        ADAPTERS["leaderboard-bot"]().reconcile_collection(
+            _collection(tmp_path, rows),
+            source_root,
+        )
 
 
 def test_official_game_fetch_still_fails_closed(tmp_path: Path):
