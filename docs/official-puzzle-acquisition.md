@@ -2,6 +2,8 @@
 
 The `official-game` adapter is the explicit local path for exact official Opus Magnum `.puzzle` bytes. It does not auto-discover game installations, infer puzzle identities from filenames, parse game fields, or create a second object store.
 
+This capability is WP-07 in the repository work graph and lands through PR #16. Downstream puzzle-artifact materialization should consume these cached facts rather than re-reading mutable local source roots.
+
 ## Source-root contract
 
 Pass a local directory containing `official-puzzles.toml` plus the referenced `.puzzle` files:
