@@ -13,6 +13,7 @@ from opus_corpus.release import (
     derive_release_coverage,
     derive_release_metadata,
     validate_referential_integrity,
+    validate_release,
 )
 
 
@@ -124,6 +125,28 @@ def test_logical_release_hash_changes_with_coverage_policy():
     changed = ReleaseManifest.from_dict(original.to_dict())
     changed = ReleaseManifest.from_dict({**changed.to_dict(), "coverage_policy": "subset"})
     assert compute_logical_release_hash(changed) != original.logical_release_sha256
+
+
+@pytest.mark.parametrize("format_version", [1, 999])
+def test_validate_release_rejects_unsupported_manifest_versions_before_other_validation(
+    monkeypatch: pytest.MonkeyPatch, format_version: int
+):
+    unsupported = ReleaseManifest.from_dict(
+        {
+            **sample_manifest().to_dict(),
+            "format_version": format_version,
+            "logical_release_sha256": "",
+        }
+    ).with_logical_hash()
+    monkeypatch.setattr("opus_corpus.release._read_manifest", lambda *_: unsupported)
+
+    with pytest.raises(ReleaseValidationError) as exc:
+        validate_release(collection("om.puzzle.0001"), Path("unused"), object())
+
+    assert {error.code for error in exc.value.errors} == {
+        "release_manifest_format_unsupported"
+    }
+    assert str(format_version) in exc.value.errors[0].detail
 
 
 def test_referential_integrity_rejects_dangling_solution_puzzle():
