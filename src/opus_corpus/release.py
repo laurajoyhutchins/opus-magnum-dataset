@@ -19,6 +19,7 @@ from .hashing import (
     sha256_file,
 )
 from .parquet import read_parquet, write_parquet
+from .path_safety import resolve_confined_path
 from .payload import validate_payload_policy
 from .release_inputs import (
     CONFIG_NAMES,
@@ -595,7 +596,17 @@ def validate_release(
                 )
             )
             continue
-        parquet_path = output_dir / entry.parquet_path
+        try:
+            parquet_path = resolve_confined_path(output_dir, entry.parquet_path)
+        except ValueError as exc:
+            errors.append(
+                ValidationError(
+                    "release_manifest_path_unsafe",
+                    str(exc),
+                    f"release-manifest.json#configs.{config_name}.parquet_path",
+                )
+            )
+            continue
         if not parquet_path.is_file():
             errors.append(
                 ValidationError(
