@@ -14,7 +14,13 @@ def validate_payload_policy(
 ) -> None:
     if policy not in POLICIES:
         raise PayloadPolicyError(
-            [ValidationError("payload_policy_invalid", f"unknown payload policy {policy!r}", config_name)]
+            [
+                ValidationError(
+                    "payload_policy_invalid",
+                    f"unknown payload policy {policy!r}",
+                    config_name,
+                )
+            ]
         )
     payload_field = PAYLOAD_FIELDS.get(config_name)
     if payload_field is None:
