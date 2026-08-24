@@ -40,7 +40,9 @@ def collection(tmp_path: Path) -> CollectionDefinition:
         puzzle_count=166,
         manifest_path=manifest,
         inventory_path=inventory,
-        inventory_rows=(),
+        inventory_rows=tuple(
+            {"puzzle_id": f"om.puzzle.{index:04d}"} for index in range(1, 167)
+        ),
         manifest={},
     )
 
