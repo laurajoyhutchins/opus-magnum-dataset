@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 from jsonschema import Draft202012Validator
+
+from opus_corpus.schema_resources import load_schema_resource
 
 
 def _normalized_puzzle() -> dict[str, object]:
@@ -41,30 +40,25 @@ def _normalized_puzzle() -> dict[str, object]:
     }
 
 
+def _normalized_puzzle_schema() -> dict[str, object]:
+    return load_schema_resource("normalized-puzzle.schema.json").schema
+
+
 def test_normalized_puzzle_schema_accepts_molecular_structure():
-    root = Path(__file__).resolve().parents[1]
-    schema_path = root / "schemas" / "normalized-puzzle.schema.json"
-    assert schema_path.is_file(), "normalized puzzle schema is missing"
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    Draft202012Validator.check_schema(schema)
+    schema = _normalized_puzzle_schema()
     errors = list(Draft202012Validator(schema).iter_errors(_normalized_puzzle()))
     assert errors == []
 
 
 def test_normalized_puzzle_schema_excludes_source_provenance():
-    root = Path(__file__).resolve().parents[1]
-    schema_path = root / "schemas" / "normalized-puzzle.schema.json"
-    assert schema_path.is_file(), "normalized puzzle schema is missing"
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    schema = _normalized_puzzle_schema()
     row = _normalized_puzzle() | {"source_uri": "https://example.invalid/source"}
     errors = list(Draft202012Validator(schema).iter_errors(row))
     assert errors
 
 
 def test_normalized_puzzle_schema_requires_puzzle_artifact_identity():
-    root = Path(__file__).resolve().parents[1]
-    schema_path = root / "schemas" / "normalized-puzzle.schema.json"
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    schema = _normalized_puzzle_schema()
     assert "puzzle_artifact_id" in schema["required"]
     assert schema["properties"]["puzzle_artifact_id"] == {"type": "string", "minLength": 1}
 
