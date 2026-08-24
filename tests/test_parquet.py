@@ -52,10 +52,16 @@ def test_tiny_release_builds_and_validates(tmp_path: Path):
     output = tmp_path / "release"
     cfg = config(tmp_path)
     built = build_release(
-        collection(tmp_path), root / "fixtures/tiny-corpus", output, cfg, "metadata-only"
+        collection(tmp_path),
+        root / "fixtures/tiny-corpus",
+        output,
+        cfg,
+        "metadata-only",
+        coverage_policy="subset",
     )
     assert set(built.configs) == {"puzzles", "solutions", "observations", "normalized"}
     assert built.split == "base_game_2026_06_16"
+    assert built.coverage_policy == "subset"
     for name in built.configs:
         assert (output / built.configs[name].parquet_path).is_file()
     validated = validate_release(collection(tmp_path), output, cfg)
@@ -71,6 +77,7 @@ def test_repeated_builds_have_identical_logical_hashes(tmp_path: Path):
         tmp_path / "one",
         cfg,
         "metadata-only",
+        coverage_policy="subset",
     )
     second = build_release(
         collection(tmp_path),
@@ -78,6 +85,7 @@ def test_repeated_builds_have_identical_logical_hashes(tmp_path: Path):
         tmp_path / "two",
         cfg,
         "metadata-only",
+        coverage_policy="subset",
     )
     assert first.logical_release_sha256 == second.logical_release_sha256
     assert {name: value.records_sha256 for name, value in first.configs.items()} == {
