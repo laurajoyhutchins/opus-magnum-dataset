@@ -184,14 +184,30 @@ def test_collection_semantics_preserves_topology_counts_and_names(tmp_path: Path
     )
 
 
-def test_collection_semantics_fails_closed_on_identity_drift(tmp_path: Path):
+def test_collection_semantics_preserves_source_display_name(tmp_path: Path):
+    puzzle_source = _puzzle_source().replace(
+        'StabilizedWater => "Stabilized Water"',
+        'StabilizedWater => "Stabilized Water (source label)"',
+    )
+    source_root = _source(tmp_path, puzzle_source, _molecule_source())
+    collection = _collection(
+        tmp_path,
+        (_row("om.puzzle.0001", "Stabilized Water", "P007", "STABILIZED_WATER"),),
+    )
+
+    semantics = MoleculeDbAdapter().load_collection_semantics(collection, source_root)
+
+    assert semantics[0].display_name == "Stabilized Water (source label)"
+
+
+def test_collection_semantics_fails_closed_on_missing_game_id(tmp_path: Path):
     source_root = _source(tmp_path, _puzzle_source(), _molecule_source())
     collection = _collection(
         tmp_path,
-        (_row("om.puzzle.0001", "Wrong Name", "P007", "STABILIZED_WATER"),),
+        (_row("om.puzzle.0001", "Unknown", "P999", "UNKNOWN"),),
     )
 
-    with pytest.raises(AdapterDataError, match="display_name"):
+    with pytest.raises(AdapterDataError, match="missing"):
         MoleculeDbAdapter().load_collection_semantics(collection, source_root)
 
 
