@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 
+from .adapters import ADAPTERS
 from .collections import validate_all_collections, validate_collection
 from .config import load_config
 from .errors import ConfigurationError, CorpusError, PublicationError, ValidationFailure
@@ -21,6 +22,11 @@ def _parser() -> argparse.ArgumentParser:
     collection_commands = collections.add_subparsers(dest="collection_command", required=True)
     collection_validate = collection_commands.add_parser("validate")
     collection_validate.add_argument("manifest", nargs="?")
+
+    fetch = commands.add_parser("fetch")
+    fetch.add_argument("collection")
+    fetch.add_argument("--source", required=True, choices=tuple(sorted(ADAPTERS)))
+    fetch.add_argument("--cache", default=".cache")
 
     release = commands.add_parser("release")
     release_commands = release.add_subparsers(dest="release_command", required=True)
@@ -73,6 +79,14 @@ def _run(args: argparse.Namespace) -> int:
         return 0
 
     config, collection = _collection_from_id(args.config, args.collection)
+    if args.command == "fetch":
+        result = ADAPTERS[args.source]().fetch(collection, Path(args.cache))
+        print(
+            f"fetched {result.source_id}: {result.candidate_count} candidates across "
+            f"{result.puzzles_covered} puzzles"
+        )
+        return 0
+
     if args.release_command == "build":
         policy = args.payload_policy or config.payload_policy_default
         manifest = build_release(

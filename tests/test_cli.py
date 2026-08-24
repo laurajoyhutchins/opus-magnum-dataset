@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from opus_corpus.adapters.base import AcquisitionResult
+from opus_corpus.adapters.om_archive import OmArchiveAdapter
 from opus_corpus.cli import main
 
 HEADER = "puzzle_id,display_name,kind,group,game_puzzle_id,leaderboard_key,puzzle_type\n"
@@ -57,6 +59,72 @@ def test_collection_validation_failure_returns_one(tmp_path: Path):
     manifest = write_collection(tmp_path)
     (tmp_path / "fixture.csv").write_text(HEADER + ROW + "\n", encoding="utf-8")
     assert main(["collections", "validate", str(manifest)]) == 1
+
+
+def test_fetch_selected_source(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    root = Path(__file__).resolve().parents[1]
+    config = root / "corpus.toml"
+    cache = tmp_path / "cache"
+
+    def fake_fetch(self, collection, cache_root):
+        assert collection.collection_id == "base-game-2026-06-16"
+        assert cache_root == cache
+        return AcquisitionResult(
+            source_id="om-archive",
+            candidate_count=2,
+            puzzles_covered=1,
+        )
+
+    monkeypatch.setattr(OmArchiveAdapter, "fetch", fake_fetch)
+
+    assert (
+        main(
+            [
+                "--config",
+                str(config),
+                "fetch",
+                "base-game-2026-06-16",
+                "--source",
+                "om-archive",
+                "--cache",
+                str(cache),
+            ]
+        )
+        == 0
+    )
+    output = capsys.readouterr().out
+    assert "om-archive" in output
+    assert "2 candidates" in output
+    assert "1 puzzles" in output
+
+
+def test_fetch_unimplemented_source_returns_two(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    root = Path(__file__).resolve().parents[1]
+    config = root / "corpus.toml"
+
+    assert (
+        main(
+            [
+                "--config",
+                str(config),
+                "fetch",
+                "base-game-2026-06-16",
+                "--source",
+                "omsim",
+                "--cache",
+                str(tmp_path / "cache"),
+            ]
+        )
+        == 2
+    )
+    assert "omsim" in capsys.readouterr().err
 
 
 def test_tiny_fixture_end_to_end_when_pyarrow_and_repo_collection_are_present(tmp_path: Path):

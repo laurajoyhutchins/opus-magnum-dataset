@@ -13,6 +13,7 @@ EXPECTED_REVISIONS = {
     "molecule-db": "6f3cd8068428ef96ac6426d092c3523da359ec76",
     "official-game": None,
 }
+UNIMPLEMENTED_SOURCES = sorted(set(EXPECTED_REVISIONS) - {"om-archive"})
 
 
 def _collection(tmp_path: Path) -> CollectionDefinition:
@@ -38,8 +39,8 @@ def test_registered_adapters_derive_from_source_adapter():
     assert all(issubclass(adapter_type, SourceAdapter) for adapter_type in ADAPTERS.values())
 
 
-@pytest.mark.parametrize("source_id", sorted(EXPECTED_REVISIONS))
-def test_stub_fetch_fails_closed(source_id: str, tmp_path: Path):
+@pytest.mark.parametrize("source_id", UNIMPLEMENTED_SOURCES)
+def test_unimplemented_fetch_fails_closed(source_id: str, tmp_path: Path):
     adapter = ADAPTERS[source_id]()
     with pytest.raises(AdapterNotImplementedError, match=source_id):
         adapter.fetch(_collection(tmp_path), tmp_path / "cache")
