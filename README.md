@@ -8,7 +8,7 @@ This repository is the **factory and specification**, not a hand-maintained data
 
 The collection contract and generic release shell are implemented. The repository can validate the frozen collection and can build, validate, stage, and publish a four-config Hugging Face-compatible release from canonical JSONL inputs.
 
-Source acquisition now includes pinned community/archive inputs, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical artifact materialization, complete `omsim` puzzle acquisition, deterministic verification, normalization, and complete solution coverage remain downstream slices. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those stages are connected end to end.
+Source acquisition now includes pinned community/archive inputs, pinned `omsim` campaign puzzle definitions, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical exact-byte artifact/provenance materialization is implemented. Remaining downstream slices include complete verifier-usable puzzle coverage, deterministic verification, solution parsing/normalization, and complete release coverage. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those stages are connected end to end.
 
 ## Implemented release shell
 
@@ -51,6 +51,12 @@ uv run pytest -q
 uv run opus-corpus collections validate
 ```
 
+Tests marked `upstream` require live access to exact pinned external revisions and are excluded from the ordinary hermetic pytest suite. CI runs them explicitly with:
+
+```bash
+uv run pytest -q -o addopts= -m upstream
+```
+
 To exercise the tiny release factory locally, opt into subset coverage explicitly:
 
 ```bash
@@ -84,6 +90,7 @@ Generated release directories are projections and should not be treated as repos
 - [`docs/dataset-spec.md`](docs/dataset-spec.md) — canonical corpus model, invariants, validation, provenance, reproducibility, and release acceptance criteria.
 - [`docs/hugging-face-export.md`](docs/hugging-face-export.md) — loading-script-free Hugging Face / Parquet publication contract.
 - [`docs/source-inventory.md`](docs/source-inventory.md) — frozen collection coverage and rights boundaries.
+- [`docs/molecule-db-acquisition.md`](docs/molecule-db-acquisition.md) — pinned semantic-source evidence, reconciliation, cache ordering, and upstream test contract.
 - [`docs/official-puzzle-acquisition.md`](docs/official-puzzle-acquisition.md) — explicit local official-byte manifest, provenance, cache identity, and rights contract.
 
 ## Source classes
@@ -92,10 +99,11 @@ Implemented acquisition paths include:
 
 - `om-archive` for historical community solutions;
 - Zachtronics Leaderboards for current record/frontier observations;
+- `omsim` for pinned campaign puzzle-definition acquisition;
 - molecule-db for semantic puzzle evidence without claiming exact official byte identity;
 - `official-game` for explicitly mapped local official `.puzzle` bytes with `local_fetch_only` rights.
 
-Planned source work includes `omsim` / `libverify` puzzle definitions and deterministic verification, plus clearly identified machine-generated baselines such as OpusSolver output.
+Planned source work includes deterministic `omsim` / `libverify` verifier execution and clearly identified machine-generated baselines such as OpusSolver output.
 
 Source adapters do not define the dataset schema. They translate upstream facts into the canonical model.
 
