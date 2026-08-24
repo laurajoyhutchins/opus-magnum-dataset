@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from opus_corpus.cache import CacheReceipt
-from opus_corpus.content_store import ContentStore, ContentStoreError
-from opus_corpus.ingestion import ArtifactIngestionError, ObservedArtifactCandidate, ingest_artifacts
+from opus_corpus.content_store import ContentStore
+from opus_corpus.ingestion import ObservedArtifactCandidate, ingest_artifacts
 
 
 def _receipt(
