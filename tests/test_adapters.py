@@ -92,7 +92,9 @@ def test_github_fetch_materializes_pinned_archive_once(source_id: str, tmp_path:
     first = adapter.fetch(_collection(tmp_path), cache_root)
     second = adapter.fetch(_collection(tmp_path), cache_root)
 
-    expected_url = f"https://codeload.github.com/{EXPECTED_REPOSITORIES[source_id]}/tar.gz/{revision}"
+    expected_url = (
+        f"https://codeload.github.com/{EXPECTED_REPOSITORIES[source_id]}/tar.gz/{revision}"
+    )
     assert calls == [expected_url]
     assert first == second == cache_root / source_id / revision
     assert (first / "nested/source.txt").read_text() == source_id
