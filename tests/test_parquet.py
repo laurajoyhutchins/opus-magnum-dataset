@@ -6,6 +6,7 @@ import pytest
 
 from opus_corpus.collections import CollectionDefinition
 from opus_corpus.config import CorpusConfig
+from opus_corpus.parquet import read_parquet, write_parquet
 from opus_corpus.release import build_release, validate_release
 
 pytest.importorskip("pyarrow")
@@ -45,6 +46,36 @@ def collection(tmp_path: Path) -> CollectionDefinition:
         ),
         manifest={},
     )
+
+
+def test_normalized_empty_part_parameters_round_trip_through_parquet(tmp_path: Path):
+    rows = [{"parts": [{"part_id": "arm-1", "parameters": {}}]}]
+    path = tmp_path / "normalized.parquet"
+
+    write_parquet("normalized", rows, path, config(tmp_path))
+
+    assert read_parquet("normalized", path) == rows
+
+
+def test_normalized_nested_part_parameters_round_trip_through_parquet(tmp_path: Path):
+    rows = [
+        {
+            "parts": [
+                {
+                    "part_id": "arm-1",
+                    "parameters": {
+                        "length": 2,
+                        "source_fields": {"extension": "future-proof"},
+                    },
+                }
+            ]
+        }
+    ]
+    path = tmp_path / "normalized.parquet"
+
+    write_parquet("normalized", rows, path, config(tmp_path))
+
+    assert read_parquet("normalized", path) == rows
 
 
 def test_tiny_release_builds_and_validates(tmp_path: Path):
