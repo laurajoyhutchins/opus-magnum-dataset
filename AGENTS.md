@@ -15,42 +15,25 @@ Start with:
 3. `docs/dataset-spec.md` for canonical entities, provenance rules, and source-fact/derived-state boundaries.
 4. The focused design/source document for the subsystem you are changing.
 
-Inspect the implementation and recent relevant PRs before proposing a new abstraction. Consume landed interfaces instead of recreating them.
+Inspect the implementation and recent relevant issues/PRs before proposing a new abstraction. Consume landed interfaces instead of recreating them.
 
-## Authority and live execution
+## Authority and execution
 
 - GitHub repository contents are authoritative for code, schemas, collection definitions, tests, and durable documentation.
 - GitHub issues and pull requests are the repository execution record.
-- `docs/TODO.md` is a dependency/concurrency map and planning aid. It is not live claim state and must not become an assignee ledger.
-- The **Hatchable Portfolio Control Plane** is the sole live orchestration authority. The historical Agent Execution Control Plane is obsolete and must not be revived or treated as a fallback.
-- Before implementation, claim exactly one executable work item with `work.claim`. Settle it with `work.settle` only after fresh verification evidence satisfies its acceptance criteria.
-- If the Portfolio Control Plane is unavailable in the current environment, do not emulate claim or settlement state in GitHub, Linear, comments, or `docs/TODO.md`. Report the limitation instead of inventing a second control surface.
-- Linear, when present, is only a thin projection of currently executable work. Do not use it as a repository, evidence store, or historical archive.
-
-## Control-plane primitives
-
-Before adding orchestration machinery, check whether an existing Portfolio Control Plane primitive already provides the required semantics. Important primitives include:
-
-- `work.claim`
-- `work.settle`
-- `github.apply_changeset`
-- `github.review_packet`
-- `github.delete_branch`
-- `github.required_checks.ensure`
-- `portfolio.reconcile_work_surface`
-- `object.capture`
-- `object.get_verified`
-
-Use higher-level control-plane commands when atomicity, idempotency, conditional mutation, evidence, or protocol semantics justify them. Do not recreate ordinary GitHub functionality inside the control plane without a comparable reason.
+- `docs/TODO.md` is the repository's dependency/concurrency map and planning aid. It is not an assignee ledger or a second issue tracker.
+- Before implementation, inspect open issues, pull requests, and the work graph for dependencies or overlapping ownership.
+- Work should remain understandable and executable from the repository and ordinary GitHub surfaces. Do not require contributors to have access to an external orchestration service, private control plane, proprietary project tracker, or agent-specific runtime in order to follow repository procedure.
+- External tools may automate ordinary repository operations, but they are conveniences rather than architectural authorities. Repository correctness and contribution rules must remain represented in versioned repository content and GitHub state.
 
 ## Concurrency and ownership
 
-- Work on one claimed packet or issue at a time.
+- Work on one packet or issue at a time unless the work graph explicitly permits independent parallel work.
 - Respect the ownership boundaries and dependency edges in `docs/TODO.md`.
 - Do not concurrently modify a surface owned by another active item unless the work graph explicitly allows it.
-- Branch from the settled dependency base declared by the work graph. Use stacked PRs only when there is a real dependency edge or an explicit collision-avoidance sequence.
+- Branch from the landed dependency base declared by the work graph. Use stacked PRs only when there is a real dependency edge or an explicit collision-avoidance sequence.
 - Own the capability, not neighboring machinery. If the task requires changing another packet's public contract, split or restack the work rather than silently widening scope.
-- If two items unexpectedly require the same implementation surface, fix the graph or extract the smallest shared primitive before continuing. Do not let two agents mutate the same boundary independently.
+- If two items unexpectedly require the same implementation surface, fix the graph or extract the smallest shared primitive before continuing. Do not let two contributors mutate the same boundary independently.
 
 ## One authoritative path
 
@@ -150,19 +133,19 @@ uv run opus-corpus release stage base-game-2026-06-16 \
 
 The ordinary pytest suite is hermetic. Tests marked `upstream` intentionally require access to exact pinned external revisions. If the environment cannot run an upstream check, state that explicitly; never report it as passing without evidence.
 
-Run the smallest relevant checks during development, then fresh validation appropriate to the changed surface before settlement or merge. For changes that can affect the release boundary, mirror the complete CI validation sequence above.
+Run the smallest relevant checks during development, then fresh validation appropriate to the changed surface before merge. For changes that can affect the release boundary, mirror the complete CI validation sequence above.
 
-## Pull requests and settlement
+## Pull requests and completion
 
 A PR should make concurrent review easy. State:
 
-- the claimed packet or issue and its settled dependencies;
+- the packet or issue being implemented and its landed dependencies;
 - the capability and implementation surface owned by the PR;
 - explicit non-goals;
 - any dependency or stacking relationship;
 - fresh verification evidence, including red/green regression evidence when applicable.
 
-Keep PRs narrow enough that another worker can safely operate on an independent packet. Do not mark work settled because code exists or a branch is mergeable. Settle only after the required evidence is fresh and the landed state satisfies the work item's acceptance criteria.
+Keep PRs narrow enough that another contributor can safely operate on an independent packet. Do not describe work as complete merely because code exists or a branch is mergeable. Completion requires fresh evidence that the landed state satisfies the work item's acceptance criteria.
 
 ## Documentation maintenance
 
@@ -171,8 +154,8 @@ Update durable documentation when a contract, command, invariant, dependency, or
 In particular:
 
 - keep `README.md` focused on the current usable repository shape;
-- keep `docs/TODO.md` as the dependency/concurrency map rather than a live control plane;
+- keep `docs/TODO.md` as the dependency/concurrency map rather than a second execution system;
 - keep detailed subsystem contracts in focused documents;
-- prefer links to authoritative facts over duplicated prose that agents must later reconcile.
+- prefer links to authoritative facts over duplicated prose that contributors must later reconcile.
 
 When terminology and implementation disagree, resolve the discrepancy. Names should describe the system that actually exists.
