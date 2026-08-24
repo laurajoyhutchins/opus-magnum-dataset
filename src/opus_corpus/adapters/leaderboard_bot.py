@@ -19,7 +19,7 @@ _ENTRY_RE = re.compile(
     rf"(?P<type>[A-Z][A-Z0-9_]*)\s*,\s*"
     rf"(?P<display>{_QUOTED_STRING})\s*,\s*"
     rf"(?P<id>{_QUOTED_STRING})"
-    rf"(?P<alts>(?:\s*,\s*{_QUOTED_STRING})*)\s*"
+    rf"(?P<alts>(?:\s*,\s*{_QUOTED_STRING})*)\s*,?\s*"
     rf"\)\s*,?\s*$"
 )
 _STRING_RE = re.compile(_QUOTED_STRING)
