@@ -5,35 +5,14 @@ from pathlib import Path, PurePosixPath
 from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
 from ..github_source import download_github_tarball, tarball_files
+from ..solution_sources import OM_LEADERBOARD_SOURCE
 from .base import AcquisitionResult, SourceAdapter
-
-_CAMPAIGN_GROUP_DIRECTORIES = {
-    "chapter-1": "CHAPTER_1",
-    "chapter-2": "CHAPTER_2",
-    "chapter-3": "CHAPTER_3",
-    "chapter-4": "CHAPTER_4",
-    "chapter-5": "CHAPTER_5",
-    "appendix": "CHAPTER_PRODUCTION",
-}
-_ROMAN_ISSUES = {
-    "i",
-    "ii",
-    "iii",
-    "iv",
-    "v",
-    "vi",
-    "vii",
-    "viii",
-    "ix",
-    "x",
-    "xi",
-    "xii",
-}
 
 
 class OmLeaderboardAdapter(SourceAdapter):
-    source_id = "om-leaderboard"
-    pinned_revision = "0cfd371ef66cf94eac3f7a7a06bc9ab959495576"
+    source_layout = OM_LEADERBOARD_SOURCE
+    source_id = source_layout.source_id
+    pinned_revision = source_layout.pinned_revision
 
     def fetch(self, collection: CollectionDefinition, cache_root: Path) -> AcquisitionResult:
         tarball = download_github_tarball(
@@ -72,31 +51,4 @@ class OmLeaderboardAdapter(SourceAdapter):
 
     @staticmethod
     def _expected_directories(collection: CollectionDefinition) -> dict[str, str]:
-        directories: dict[str, str] = {}
-        for row in collection.inventory_rows:
-            upstream_group = _group_directory(row["group"])
-            if upstream_group is None:
-                continue
-            directory = f"{upstream_group}/{row['leaderboard_key']}"
-            directories[directory] = row["puzzle_id"]
-        return directories
-
-
-def _group_directory(group: str) -> str | None:
-    campaign = _CAMPAIGN_GROUP_DIRECTORIES.get(group)
-    if campaign is not None:
-        return campaign
-
-    xcix_prefix = "journal-xcix-"
-    if group.startswith(xcix_prefix):
-        issue = group.removeprefix(xcix_prefix)
-        if issue in _ROMAN_ISSUES:
-            return f"JOURNAL_{issue.upper()}"
-
-    cviii_prefix = "journal-cviii-"
-    if group.startswith(cviii_prefix):
-        issue = group.removeprefix(cviii_prefix)
-        if issue in _ROMAN_ISSUES:
-            return f"JOURNAL_CVIII_{issue.upper()}"
-
-    return None
+        return OM_LEADERBOARD_SOURCE.expected_directories(collection)
