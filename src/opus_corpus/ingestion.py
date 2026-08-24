@@ -240,6 +240,40 @@ def _provenance_sort_key(row: ArtifactProvenance) -> tuple[str, ...]:
     )
 
 
+def _aggregate_group(group: list[_IngestedCandidate]) -> ArtifactRecord:
+    first = group[0]
+    artifact_id = first.artifact_id
+
+    puzzle_ids = {item.candidate.puzzle_id for item in group}
+    if len(puzzle_ids) != 1:
+        raise ArtifactIngestionError(
+            f"{artifact_id}: same artifact digest associated with different puzzle IDs"
+        )
+
+    formats = {item.candidate.artifact_format for item in group}
+    if len(formats) != 1:
+        raise ArtifactIngestionError(f"{artifact_id}: conflicting artifact formats")
+
+    byte_lengths = {item.byte_length for item in group}
+    if len(byte_lengths) != 1:
+        raise ArtifactIngestionError(f"{artifact_id}: conflicting byte lengths")
+
+    object_keys = {item.object_key for item in group}
+    if len(object_keys) != 1:
+        raise ArtifactIngestionError(f"{artifact_id}: conflicting object keys")
+
+    return ArtifactRecord(
+        artifact_kind=first.candidate.artifact_kind,
+        artifact_id=artifact_id,
+        puzzle_id=next(iter(puzzle_ids)),
+        sha256=first.sha256,
+        byte_length=next(iter(byte_lengths)),
+        artifact_format=next(iter(formats)),
+        rights_status=_aggregate_rights(item.candidate.rights_status for item in group),
+        object_key=next(iter(object_keys)),
+    )
+
+
 def ingest_artifacts(
     candidates: Iterable[ObservedArtifactCandidate],
     object_root: Path,
@@ -265,22 +299,7 @@ def ingest_artifacts(
     artifacts: list[ArtifactRecord] = []
     provenance: set[ArtifactProvenance] = set()
     for group in groups.values():
-        first = group[0]
-        candidate = first.candidate
-        artifacts.append(
-            ArtifactRecord(
-                artifact_kind=candidate.artifact_kind,
-                artifact_id=first.artifact_id,
-                puzzle_id=candidate.puzzle_id,
-                sha256=first.sha256,
-                byte_length=first.byte_length,
-                artifact_format=candidate.artifact_format,
-                rights_status=_aggregate_rights(
-                    item.candidate.rights_status for item in group
-                ),
-                object_key=first.object_key,
-            )
-        )
+        artifacts.append(_aggregate_group(group))
         provenance.update(_provenance(item.candidate, item.artifact_id) for item in group)
 
     return IngestionResult(
