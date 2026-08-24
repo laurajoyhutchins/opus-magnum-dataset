@@ -2,7 +2,7 @@
 
 This checklist translates the strategic [`roadmap.md`](roadmap.md) into concrete implementation slices.
 
-It is not a second issue tracker. GitHub issues and pull requests are the live execution record. This file records dependency order, ownership boundaries, and a coarse landed / in-review / blocked snapshot. Generated coverage, verification counts, manifests, benchmark results, and other derivable facts belong in deterministic software outputs rather than hand-maintained entries here.
+It is not a second issue tracker. GitHub issues and pull requests are the live execution record. This file records dependency order, ownership boundaries, and a coarse landed / ready / blocked snapshot. Generated coverage, verification counts, manifests, benchmark results, and other derivable facts belong in deterministic software outputs rather than hand-maintained entries here.
 
 Use this file to answer two questions: **what can be worked on concurrently without overlapping ownership, and what should we build next?**
 
@@ -15,21 +15,21 @@ Use this file to answer two questions: **what can be worked on concurrently with
 
 [LANDED] WP-03 Artifact materializer core (#15)
         │
-        └────→ [IN REVIEW] WP-04 SolutionArtifact + Observation materialization (#30) ─┐
-                                                                                       │
-[LANDED] WP-05 omsim puzzle source (#19) ─────┐                                        │
-[LANDED] WP-06 molecule-db semantic source (#18) ├→ [IN REVIEW] WP-08 PuzzleArtifact (#31)
-[LANDED] WP-07 official/local puzzle-byte path (#16) ┘ coverage/materialization        │
-                                                       │                               │
-[LANDED] WP-01 ───────────────────────────────────────┼──────┐                        │
-                                                       ↓      │                        │
-                                                 WP-09 Verification ←──────────────────┘
+        └────→ [LANDED] WP-04 SolutionArtifact + Observation materialization (#30) ─┐
+                                                                                    │
+[LANDED] WP-05 omsim puzzle source (#19) ─────┐                                     │
+[LANDED] WP-06 molecule-db semantic source (#18) ├→ [LANDED] WP-08 PuzzleArtifact (#31)
+[LANDED] WP-07 official/local puzzle-byte path (#16) ┘ coverage/materialization     │
+                                                       │                            │
+[LANDED] WP-01 ───────────────────────────────────────┼──────┐                     │
+                                                       ↓      │                     │
+                                      [IN REVIEW] WP-09 Verification (#43) ←────────┘
                                                        │
 [LANDED] WP-02 ─────────────────────────┐              │
-WP-04 ──────────────────────────────────┴→ WP-10 Solution parser + normalizer
+[LANDED] WP-04 ─────────────────────────┴→ [IN PROGRESS] WP-10 (#41)
                                                        │
-WP-04 ────────────────────────────────────────────────┐
-WP-08 ────────────────────────────────────────────────┤
+[LANDED] WP-04 ──────────────────────────────────────┐
+[LANDED] WP-08 ──────────────────────────────────────┤
 WP-09 ────────────────────────────────────────────────┼→ WP-11 Release materialization
 WP-10 ────────────────────────────────────────────────┘
                                                        │
@@ -37,7 +37,7 @@ WP-10 ────────────────────────�
                                                WP-12 Complete v1 release
 ```
 
-The active architectural lanes are WP-04 in PR #30 and WP-08 in PR #31. They are independent enough to review and land separately. WP-09 and WP-10 remain blocked on their declared upstream packets; WP-11 and WP-12 remain downstream of those implementations.
+WP-04 and WP-08 have landed. WP-09 is implemented and under review in PR #43 while WP-10 is active in PR #41; the two lanes remain independent. WP-11 stays blocked until both implementations land, and WP-12 remains downstream of WP-11.
 
 Release-boundary hardening #20, #21, #22, and #23 has landed through PRs #24, #29, #26, and #25 respectively. The repository-wide MIT license and third-party corpus rights boundary landed in PR #32.
 
@@ -53,6 +53,8 @@ These capabilities already exist and should be consumed rather than recreated:
 - [x] Content-addressed acquisition cache with immutable receipts and source-mutation protection.
 - [x] One authoritative exact-byte `ContentStore` shared by acquisition and materialization.
 - [x] Receipt-only canonical artifact/provenance materializer with deterministic exact-byte identity, deduplication, provenance preservation, conservative rights folding, and fail-closed conflicts.
+- [x] Canonical `SolutionArtifact` and `Observation` materialization from pinned solution and metadata receipts, including metadata-only observations.
+- [x] Canonical exact-byte `PuzzleArtifact` materialization with deterministic coverage derivation and fail-closed ambiguity checks.
 - [x] Pinned `om-archive` and `om-leaderboard` acquisition.
 - [x] Pinned `omsim` campaign puzzle-definition acquisition.
 - [x] Pinned molecule-db semantic acquisition and topology reconciliation.
@@ -73,13 +75,13 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 | **WP-01 Verification contract** | **Settled** | current `main` at implementation time | Canonical `Verification` schema, identity, protocol, contract tests | PR #13 merged with contract tests green |
 | **WP-02 Normalized-solution contract** | **Settled** | WP-01 | Strict normalized-solution schema, deterministic identity, `SolutionNormalizer` seam | PR #14 merged with contract tests green |
 | **WP-03 Artifact materializer core** | **Settled** | landed content-addressed cache | Shared canonical artifact/provenance materialization primitive | PR #15 merged with integrity, conflict, determinism, provenance, and local-root tests green |
-| **WP-04 SolutionArtifact + Observation materialization** | **In review: PR #30** | WP-03 | Cached solution/metadata facts → canonical `SolutionArtifact` + `Observation` records | overlapping exact bytes dedupe while observations, metadata-only observations, and source claims remain preserved |
+| **WP-04 SolutionArtifact + Observation materialization** | **Settled** | WP-03 | Cached solution/metadata facts → canonical `SolutionArtifact` + `Observation` records | PR #30 merged with deterministic materialization, metadata-only observation, provenance, and release-integrity regressions green |
 | **WP-05 omsim puzzle source** | **Settled** | acquisition/cache primitives | Pinned `omsim` campaign puzzle acquisition | PR #19 merged with deterministic/idempotent rights-aware acquisition tests green |
 | **WP-06 molecule-db semantic source** | **Settled** | acquisition/cache primitives | Pinned molecule-db semantic acquisition | PR #18 plus hardening PR #27 landed with evidence retention and upstream reconciliation tests green |
 | **WP-07 Official/local puzzle-byte path** | **Settled** | acquisition/cache primitives | Explicit local exact official puzzle-byte acquisition | PR #16 merged with provenance, rights, portability, and fail-closed regressions green |
-| **WP-08 PuzzleArtifact coverage/materialization** | **In review: PR #31** | WP-03, WP-05, WP-06, WP-07 | Cached puzzle facts/evidence → canonical `PuzzleArtifact` records + derived coverage | every required puzzle resolves deterministically to verifier-usable exact-byte evidence or coverage fails explicitly |
-| **WP-09 Verification implementation** | Blocked | WP-01, WP-04, WP-08 | Pinned `omsim` / `libverify` implementation behind `Verifier` | parse/simulation success and failure retained; metrics recomputed; repeated evaluation deterministic |
-| **WP-10 Solution parser + normalizer** | Blocked | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | normalized records retain exact artifact lineage/version and normalization does not alter verification facts |
+| **WP-08 PuzzleArtifact coverage/materialization** | **Settled** | WP-03, WP-05, WP-06, WP-07 | Cached puzzle facts/evidence → canonical `PuzzleArtifact` records + derived coverage | PR #31 merged with deterministic exact-artifact coverage, official-manifest evidence, ambiguity, and receipt-identity regressions green |
+| **WP-09 Verification implementation** | **In review** | WP-01, WP-04, WP-08 | Pinned `omsim` / `libverify` implementation behind `Verifier` | PR #43 merges with native pinned-upstream, failure-retention, metric-recomputation, artifact-lineage, and determinism tests green |
+| **WP-10 Solution parser + normalizer** | **In progress** | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | normalized records retain exact artifact lineage/version and normalization does not alter verification facts |
 | **WP-11 Release materialization** | Blocked | WP-04, WP-08, WP-09, WP-10 | Canonical entities → existing four release inputs | repeated offline materialization yields identical canonical rows/manifest hashes and release validation passes |
 | **WP-12 Complete v1 release** | Blocked | WP-11 | Full frozen-collection build and publication readiness | all 166 puzzles have verifier-successful coverage, offline rebuild reproduces the canonical manifest, and HF contract passes |
 
@@ -97,8 +99,10 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 
 ## Now
 
-- [ ] Review and land WP-04 in PR #30.
-- [ ] Review and land WP-08 in PR #31.
+- [x] Land WP-04 via PR #30.
+- [x] Land WP-08 via PR #31.
+- [ ] Land WP-09 deterministic verification via PR #43.
+- [ ] Complete WP-10 solution parsing and normalization via PR #41 in parallel with WP-09 review.
 - [x] Land issue #20 staging source/destination overlap protection via PR #24.
 - [x] Land issue #21 release-manifest path confinement via PR #29.
 - [x] Land issue #22 package-native schema resolution via PR #26.
@@ -110,14 +114,14 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 
 ### WP-09: deterministic verification
 
-- [ ] Pin the verifier implementation/revision and validation-profile identity used for v1.
-- [ ] Implement the `Verifier` protocol using `omsim` / `libverify`.
-- [ ] Parse exact puzzle and solution artifacts through the verification path.
-- [ ] Emit canonical `Verification` records for successful and failed attempts.
-- [ ] Recompute at least cost, cycles, area, and instructions for successful verifications.
-- [ ] Preserve structured parse and simulation failures as canonical data.
-- [ ] Keep simulator-valid, ordinary constructible, and record-eligible as distinct predicates.
-- [ ] Prove repeat verification is deterministic for identical cached artifacts and pinned verifier inputs.
+- [x] Pin the verifier implementation/revision and validation-profile identity used for v1.
+- [x] Implement the `Verifier` protocol using `omsim` / `libverify`.
+- [x] Parse exact puzzle and solution artifacts through the verification path.
+- [x] Emit canonical `Verification` records for successful and failed attempts.
+- [x] Recompute at least cost, cycles, area, and instructions for successful verifications.
+- [x] Preserve structured parse and simulation failures as canonical data.
+- [x] Keep simulator-valid, ordinary constructible, and record-eligible as distinct predicates.
+- [x] Prove repeat verification is deterministic for identical cached artifacts and pinned verifier inputs.
 
 ### WP-10: solution parsing and normalization
 
