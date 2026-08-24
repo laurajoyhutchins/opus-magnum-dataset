@@ -64,6 +64,8 @@ def render_dataset_card(manifest: ReleaseManifest, card_settings: Mapping[str, A
             f"- Candidate solutions: {coverage.get('candidate_solution_count', 0)}",
             f"- Verified solutions: {coverage.get('verified_solution_count', 0)}",
             f"- Rejected solutions: {coverage.get('rejected_solution_count', 0)}",
+            "- Per-puzzle coverage: `release-manifest.json` → "
+            "`release_metadata.coverage.by_puzzle`",
             f"- Summary: {_text(coverage.get('summary'))}",
             "",
             "## Sources",
