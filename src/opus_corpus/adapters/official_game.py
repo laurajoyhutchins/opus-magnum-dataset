@@ -38,9 +38,9 @@ class OfficialGameAdapter(SourceAdapter):
         snapshot_id = manifest["snapshot_id"]
         revision = f"local:{snapshot_id}"
         collection_ids = {row["puzzle_id"] for row in collection.inventory_rows}
-        cache = ContentAddressedCache(cache_root)
         seen_puzzle_ids: set[str] = set()
         seen_paths: set[str] = set()
+        prepared: list[tuple[PurePosixPath, bytes]] = []
 
         for index, item in enumerate(manifest["puzzles"], start=1):
             puzzle_id, relative_path = self._validate_mapping(
@@ -63,19 +63,28 @@ class OfficialGameAdapter(SourceAdapter):
                 raise OfficialGameAcquisitionError(
                     f"missing puzzle file for {puzzle_id}: {relative_path.as_posix()}"
                 )
+            try:
+                payload = local_path.read_bytes()
+            except OSError as exc:
+                raise OfficialGameAcquisitionError(
+                    f"could not read puzzle file for {puzzle_id}: {relative_path.as_posix()}"
+                ) from exc
+            prepared.append((relative_path, payload))
 
+        cache = ContentAddressedCache(cache_root)
+        for relative_path, payload in prepared:
             cache.put_bytes(
                 self.source_id,
                 revision,
                 relative_path.as_posix(),
-                local_path.read_bytes(),
+                payload,
                 rights_status="local_fetch_only",
             )
 
         return AcquisitionResult(
             source_id=self.source_id,
-            candidate_count=len(seen_puzzle_ids),
-            puzzles_covered=len(seen_puzzle_ids),
+            candidate_count=len(prepared),
+            puzzles_covered=len(prepared),
         )
 
     @staticmethod
