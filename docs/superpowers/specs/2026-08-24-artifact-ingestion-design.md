@@ -121,13 +121,16 @@ Ingestion publishes exact bytes into a caller-provided artifact object root usin
 
 The object path contains no source name or original filename. Source layout remains provenance, not storage identity.
 
-Publication rules:
+Publication uses one read of the source payload:
 
-1. read/hash the candidate bytes;
-2. derive the digest object path;
-3. if the object already exists, verify that its bytes hash to the expected digest;
-4. otherwise copy/write through a temporary file in the destination filesystem and atomically publish it;
-5. never overwrite a mismatching existing object silently.
+1. open the candidate file once;
+2. stream its bytes into a temporary file located on the destination filesystem while computing SHA-256 and byte length from the same stream;
+3. derive the final digest object path only after that stream is complete;
+4. if the digest object already exists, verify that the existing object hashes to the expected digest and discard the temporary copy;
+5. otherwise atomically publish the temporary file at the digest object path;
+6. never overwrite a mismatching existing object silently.
+
+Hashing and stored bytes therefore describe the same byte stream. Ingestion never hashes one read and then reopens the source to obtain the payload that is stored.
 
 The store is a canonical exact-byte cache downstream of source snapshot acquisition. It does not replace adapter caches: adapter caches preserve pinned upstream snapshots, while the object store deduplicates exact byte artifacts across those sources.
 
@@ -144,7 +147,7 @@ Fail closed on ambiguous identity:
 - the same solution digest associated with different canonical `puzzle_id` values;
 - the same puzzle-artifact digest associated with different canonical `puzzle_id` values;
 - the same kind/puzzle/digest described with conflicting artifact formats;
-- a missing, unreadable, non-file, or changed source payload;
+- a missing, unreadable, or non-file source payload;
 - a corrupt pre-existing object-store blob whose contents do not match its digest path.
 
 The same physical digest may exist in puzzle and solution namespaces without conflict because the semantic entity kinds are intentionally distinct.
@@ -251,7 +254,8 @@ Required cases:
 11. a corrupt existing object-store blob fails rather than being overwritten;
 12. candidate order does not affect returned logical records;
 13. moving both source files and object store to different local roots does not change logical records;
-14. exact duplicate provenance assertions collapse while distinct assertions remain separate.
+14. exact duplicate provenance assertions collapse while distinct assertions remain separate;
+15. the stored object hash and byte length are computed from the same single source-file read.
 
 ## Non-goals
 
