@@ -81,7 +81,7 @@ pub(crate) fn molecules() -> Vec<(Molecule, Vec<(Puzzle, u8, u8, Option<&'static
                 Bond {
                     start: HexIndex { q: 0, r: 0 },
                     end: HexIndex { q: 1, r: 0 },
-                    ty: BondType::Normal,
+                    ty: BondType::Triplex { red: true, black: true, yellow: false },
                 },
             ],
         }, vec![
@@ -135,7 +135,7 @@ def test_collection_semantics_preserves_topology_counts_and_names(tmp_path: Path
                 start_r=0,
                 end_q=1,
                 end_r=0,
-                bond_type="Normal",
+                bond_type="Triplex { red: true, black: true, yellow: false }",
             ),
         ),
     )
