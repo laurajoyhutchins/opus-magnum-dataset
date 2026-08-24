@@ -4,6 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from opus_corpus import config, parquet, payload, release, release_inputs
 from opus_corpus.payload import validate_payload_policy
 
 
@@ -47,6 +48,24 @@ def test_release_config_specs_are_the_single_ordered_release_surface():
 
     with pytest.raises(FrozenInstanceError):
         RELEASE_CONFIGS[0].name = "changed"
+
+
+def test_existing_release_surfaces_share_derived_config_views():
+    from opus_corpus.release_configs import (
+        CANONICAL_ID_FIELDS,
+        CONFIG_NAMES,
+        PAYLOAD_FIELDS,
+        SCHEMA_FILES,
+        SORT_KEYS,
+    )
+
+    assert config.REQUIRED_CONFIGS is CONFIG_NAMES
+    assert release_inputs.CONFIG_NAMES is CONFIG_NAMES
+    assert release_inputs.SCHEMA_FILES is SCHEMA_FILES
+    assert release_inputs.SORT_KEYS is SORT_KEYS
+    assert release.CANONICAL_ID_FIELDS is CANONICAL_ID_FIELDS
+    assert parquet.PAYLOAD_FIELDS is PAYLOAD_FIELDS
+    assert payload.PAYLOAD_FIELDS is PAYLOAD_FIELDS
 
 
 def test_unknown_release_config_fails_explicitly():
