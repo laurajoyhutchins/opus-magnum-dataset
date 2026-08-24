@@ -8,7 +8,7 @@
     "artifact_kind": {"enum": ["puzzle", "solution"]},
     "artifact_id": {"type": ["string", "null"], "minLength": 1},
     "puzzle_id": {"type": ["string", "null"]},
-    "source_role": {"enum": ["artifact", "metadata"]},
+    "source_role": {"enum": ["artifact", "metadata", null]},
     "source_id": {"type": "string", "minLength": 1},
     "source_revision": {"type": ["string", "null"]},
     "source_object_id": {"type": ["string", "null"]},
