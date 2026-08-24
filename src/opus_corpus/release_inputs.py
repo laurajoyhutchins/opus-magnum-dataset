@@ -9,7 +9,10 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from .errors import ReleaseValidationError, ValidationError
 from .hashing import sha256_file
-from .release_configs import CONFIG_NAMES, SCHEMA_FILES, SORT_KEYS, get_release_config
+from .release_configs import CONFIG_NAMES
+from .release_configs import SCHEMA_FILES as SCHEMA_FILES
+from .release_configs import SORT_KEYS as SORT_KEYS
+from .release_configs import get_release_config
 from .schema_resources import load_schema_resource
 
 _OBSERVATION_OPTIONAL_NULL_FIELDS = (
