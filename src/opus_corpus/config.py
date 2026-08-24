@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from .errors import ConfigurationError
+from .release_configs import CONFIG_NAMES
 
-REQUIRED_CONFIGS = ("puzzles", "solutions", "observations", "normalized")
+REQUIRED_CONFIGS = CONFIG_NAMES
 
 
 @dataclass(frozen=True)
