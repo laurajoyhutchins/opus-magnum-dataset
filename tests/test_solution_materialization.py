@@ -5,19 +5,17 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
+import opus_corpus.solution_materialization as solution_materialization
+from opus_corpus.adapters.om_archive import OmArchiveAdapter
+from opus_corpus.adapters.om_leaderboard import OmLeaderboardAdapter
 from opus_corpus.cache import CacheReceipt, ContentAddressedCache
 from opus_corpus.content_store import ContentStore, ContentStoreError
-
-try:
-    from opus_corpus.solution_materialization import (
-        SolutionMaterializationError,
-        materialize_solution_facts,
-    )
-except ModuleNotFoundError:
-    SolutionMaterializationError = None  # type: ignore[assignment]
-    materialize_solution_facts = None  # type: ignore[assignment]
-
+from opus_corpus.solution_materialization import (
+    SolutionMaterializationError,
+    materialize_solution_facts,
+)
 
 ARCHIVE_REVISION = "44006a0eeb0051337640443d1b0576ea24c983f6"
 LEADERBOARD_REVISION = "0cfd371ef66cf94eac3f7a7a06bc9ab959495576"
@@ -77,10 +75,15 @@ def _put_fact(
     return receipt
 
 
-def _leaderboard_metadata(data_path: str, *, cost: int = 100) -> bytes:
+def _leaderboard_metadata(
+    data_path: str,
+    *,
+    cost: int = 100,
+    puzzle: str = "STABILIZED_WATER",
+) -> bytes:
     return json.dumps(
         {
-            "puzzle": "STABILIZED_WATER",
+            "puzzle": puzzle,
             "score": {
                 "cost": cost,
                 "instructions": 10,
@@ -95,15 +98,14 @@ def _leaderboard_metadata(data_path: str, *, cost: int = 100) -> bytes:
     ).encode()
 
 
-def _require_materializer() -> None:
-    assert materialize_solution_facts is not None, "WP-04 materializer is not implemented"
-    assert SolutionMaterializationError is not None
+def _observation_validator() -> Draft202012Validator:
+    schema_path = Path(__file__).parents[1] / "schemas" / "observation.schema.json"
+    return Draft202012Validator(json.loads(schema_path.read_text(encoding="utf-8")))
 
 
 def test_identical_cross_source_solution_bytes_deduplicate_but_keep_observations(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     payload = b"same-solution-bytes"
     archive_path = "CHAPTER_1/STABILIZED_WATER/archive.solution"
     leaderboard_path = "CHAPTER_1/STABILIZED_WATER/current.solution"
@@ -152,14 +154,15 @@ def test_identical_cross_source_solution_bytes_deduplicate_but_keep_observations
     assert metadata.claimed_instructions == 10
     assert metadata.observed_sha256 == artifact.sha256
     assert metadata.source_evidence_sha256 != artifact.sha256
-    assert metadata.source_object_id == leaderboard_path
+    assert metadata.source_object_id is None
+    assert metadata.associated_artifact_path == leaderboard_path
+    assert metadata.source_declared_puzzle_id == "STABILIZED_WATER"
     assert metadata.source_url == "https://zlbb.example/solution"
 
 
 def test_unpaired_leaderboard_metadata_is_preserved_as_observation(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     metadata_path = "CHAPTER_1/STABILIZED_WATER/orphan.json"
     missing_path = "CHAPTER_1/STABILIZED_WATER/missing.solution"
     metadata_receipt = _put_fact(
@@ -178,7 +181,9 @@ def test_unpaired_leaderboard_metadata_is_preserved_as_observation(
     assert observation.artifact_id is None
     assert observation.puzzle_id == "om.puzzle.0001"
     assert observation.source_role == "metadata"
-    assert observation.source_object_id == missing_path
+    assert observation.source_object_id is None
+    assert observation.associated_artifact_path == missing_path
+    assert observation.source_declared_puzzle_id == "STABILIZED_WATER"
     assert observation.claimed_cost == 7
     assert observation.observed_sha256 is None
     assert observation.source_evidence_sha256 == metadata_receipt.sha256
@@ -187,7 +192,6 @@ def test_unpaired_leaderboard_metadata_is_preserved_as_observation(
 def test_relative_data_path_pairs_with_solution_in_same_directory(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     solution_path = "CHAPTER_1/STABILIZED_WATER/current.solution"
     _put_fact(
         tmp_path,
@@ -209,12 +213,12 @@ def test_relative_data_path_pairs_with_solution_in_same_directory(
     assert len(result.artifacts) == 1
     metadata = next(row for row in result.observations if row.source_role == "metadata")
     assert metadata.artifact_id == result.artifacts[0].artifact_id
+    assert metadata.associated_artifact_path == solution_path
 
 
 def test_metadata_data_path_cannot_escape_its_puzzle_directory(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     _put_fact(
         tmp_path,
         source_id="om-leaderboard",
@@ -230,7 +234,6 @@ def test_metadata_data_path_cannot_escape_its_puzzle_directory(
 def test_metadata_cannot_claim_solution_from_different_puzzle(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     foreign_path = "JOURNAL_X/TOUCHSTONE/foreign.solution"
     _put_fact(
         tmp_path,
@@ -254,7 +257,6 @@ def test_metadata_cannot_claim_solution_from_different_puzzle(
 def test_metadata_cannot_name_different_puzzle_when_target_is_missing(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     foreign_path = "JOURNAL_X/TOUCHSTONE/missing.solution"
     _put_fact(
         tmp_path,
@@ -268,10 +270,84 @@ def test_metadata_cannot_name_different_puzzle_when_target_is_missing(
         materialize_solution_facts(collection, tmp_path)
 
 
+def test_source_declared_puzzle_identifier_is_preserved_when_it_disagrees(
+    tmp_path: Path, collection: FixtureCollection
+) -> None:
+    solution_path = "CHAPTER_1/STABILIZED_WATER/current.solution"
+    _put_fact(
+        tmp_path,
+        source_id="om-leaderboard",
+        revision=LEADERBOARD_REVISION,
+        upstream_path=solution_path,
+        payload=b"solution",
+    )
+    _put_fact(
+        tmp_path,
+        source_id="om-leaderboard",
+        revision=LEADERBOARD_REVISION,
+        upstream_path="CHAPTER_1/STABILIZED_WATER/current.json",
+        payload=_leaderboard_metadata(solution_path, puzzle="SOURCE_DISAGREES"),
+    )
+
+    result = materialize_solution_facts(collection, tmp_path)
+
+    metadata = next(row for row in result.observations if row.source_role == "metadata")
+    assert metadata.puzzle_id == "om.puzzle.0001"
+    assert metadata.source_declared_puzzle_id == "SOURCE_DISAGREES"
+
+
+def test_materialized_observations_conform_to_canonical_schema(
+    tmp_path: Path, collection: FixtureCollection
+) -> None:
+    solution_path = "CHAPTER_1/STABILIZED_WATER/current.solution"
+    _put_fact(
+        tmp_path,
+        source_id="om-leaderboard",
+        revision=LEADERBOARD_REVISION,
+        upstream_path=solution_path,
+        payload=b"solution",
+    )
+    _put_fact(
+        tmp_path,
+        source_id="om-leaderboard",
+        revision=LEADERBOARD_REVISION,
+        upstream_path="CHAPTER_1/STABILIZED_WATER/current.json",
+        payload=_leaderboard_metadata(solution_path),
+    )
+    _put_fact(
+        tmp_path,
+        source_id="om-leaderboard",
+        revision=LEADERBOARD_REVISION,
+        upstream_path="CHAPTER_1/STABILIZED_WATER/orphan.json",
+        payload=_leaderboard_metadata("CHAPTER_1/STABILIZED_WATER/missing.solution"),
+    )
+
+    result = materialize_solution_facts(collection, tmp_path)
+    validator = _observation_validator()
+
+    for observation in result.observations:
+        validator.validate(asdict(observation))
+
+
+def test_existing_observation_fixture_remains_schema_valid() -> None:
+    fixture_path = Path(__file__).parents[1] / "fixtures" / "tiny-corpus" / "observations.jsonl"
+    row = json.loads(fixture_path.read_text(encoding="utf-8").strip())
+    _observation_validator().validate(row)
+
+
+def test_materializer_and_adapters_share_source_layout_objects() -> None:
+    archive_source = getattr(solution_materialization, "OM_ARCHIVE_SOURCE", None)
+    leaderboard_source = getattr(solution_materialization, "OM_LEADERBOARD_SOURCE", None)
+
+    assert archive_source is not None
+    assert leaderboard_source is not None
+    assert getattr(OmArchiveAdapter, "source_layout", None) is archive_source
+    assert getattr(OmLeaderboardAdapter, "source_layout", None) is leaderboard_source
+
+
 def test_corrupt_solution_object_fails_closed(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     receipt = _put_fact(
         tmp_path,
         source_id="om-archive",
@@ -288,7 +364,6 @@ def test_corrupt_solution_object_fails_closed(
 def test_output_is_independent_of_cache_root_and_fact_insertion_order(
     tmp_path: Path, collection: FixtureCollection
 ) -> None:
-    _require_materializer()
     facts = [
         (
             "om-archive",
