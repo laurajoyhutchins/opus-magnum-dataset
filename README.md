@@ -8,7 +8,7 @@ This repository is the **factory and specification**, not a hand-maintained data
 
 The collection contract and generic release shell are implemented. The repository can validate the frozen collection and can build, validate, stage, and publish a four-config Hugging Face-compatible release from canonical JSONL inputs.
 
-Source acquisition now includes pinned community/archive inputs, pinned `omsim` campaign puzzle definitions, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical exact-byte artifact/provenance materialization is implemented. Remaining downstream slices include complete verifier-usable puzzle coverage, deterministic verification, solution parsing/normalization, and complete release coverage. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those stages are connected end to end.
+Source acquisition includes pinned community/archive inputs, pinned `omsim` campaign puzzle definitions, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical exact-byte puzzle/solution artifact materialization and deterministic `omsim` / `libverify` verification are implemented. Remaining downstream slices include solution parsing/normalization, release materialization from canonical entities, and complete release coverage. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those stages are connected end to end.
 
 ## Implemented release shell
 
@@ -63,6 +63,8 @@ Tests marked `upstream` require live access to exact pinned external revisions a
 uv run pytest -q -o addopts= -m upstream
 ```
 
+The upstream verification contract builds `libverify.so` from the exact pinned `omsim` revision and exercises a real puzzle/solution pair through the production ctypes adapter. Runtime verification itself consumes an explicitly supplied shared-library path and records the exact binary SHA-256 in canonical verifier identity; it does not create a second source cache or verifier object store.
+
 Canonical JSON Schemas are repository-authored package resources under `src/opus_corpus/schemas/`. Collection and release validation resolve them through `opus_corpus.schema_resources`; `corpus.toml` does not configure a schema directory. Source/editable execution and installed-wheel execution therefore consume the same schema bytes, while release manifests retain stable logical `schemas/<name>` paths and hashes instead of checkout-specific filesystem paths.
 
 To exercise the tiny release factory locally, opt into subset coverage explicitly:
@@ -99,6 +101,7 @@ Generated release directories are projections and should not be treated as repos
 - [`docs/TODO.md`](docs/TODO.md) — dependency/concurrency work graph and current landed/ready/blocked implementation snapshot.
 - [`docs/roadmap.md`](docs/roadmap.md) — dependency-ordered path from the current corpus factory to the first complete release and later research expansion.
 - [`docs/dataset-spec.md`](docs/dataset-spec.md) — canonical corpus model, invariants, validation, provenance, reproducibility, and release acceptance criteria.
+- [`docs/verification.md`](docs/verification.md) — pinned `libverify` identity, native boundary, canonical failure semantics, metric recomputation, and deterministic artifact-to-verification materialization.
 - [`docs/benchmark-protocol.md`](docs/benchmark-protocol.md) — versioned benchmark boundary, Solve-first evaluation protocol, metrics, attempt policies, contamination guidance, and result requirements.
 - [`docs/hugging-face-export.md`](docs/hugging-face-export.md) — loading-script-free Hugging Face / Parquet publication contract.
 - [`docs/source-inventory.md`](docs/source-inventory.md) — frozen collection coverage and source-specific rights evidence.
@@ -107,15 +110,16 @@ Generated release directories are projections and should not be treated as repos
 
 ## Source classes
 
-Implemented acquisition paths include:
+Implemented acquisition and verification paths include:
 
 - `om-archive` for historical community solutions;
 - Zachtronics Leaderboards for current record/frontier observations;
 - `omsim` for pinned campaign puzzle-definition acquisition;
 - molecule-db for semantic puzzle evidence without claiming exact official byte identity;
-- `official-game` for explicitly mapped local official `.puzzle` bytes with `local_fetch_only` rights.
+- `official-game` for explicitly mapped local official `.puzzle` bytes with `local_fetch_only` rights;
+- pinned `omsim` / `libverify` execution for deterministic canonical verification and metric recomputation.
 
-Planned source work includes deterministic `omsim` / `libverify` verifier execution and clearly identified machine-generated baselines such as OpusSolver output.
+Planned source work includes clearly identified machine-generated baselines such as OpusSolver output.
 
 Source adapters do not define the dataset schema. They translate upstream facts into the canonical model.
 
