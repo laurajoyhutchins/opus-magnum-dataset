@@ -264,7 +264,7 @@ def test_receipt_path_rejects_unsafe_revision(tmp_path: Path, unsafe: str) -> No
 
 def test_read_receipt_rejects_path_identity_mismatch(tmp_path: Path) -> None:
     cache = ContentAddressedCache(tmp_path)
-    receipt = cache.put_bytes(
+    cache.put_bytes(
         "source",
         "rev",
         "path/a.solution",
