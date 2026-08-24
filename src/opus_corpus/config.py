@@ -15,7 +15,6 @@ class CorpusConfig:
     root: Path
     path: Path
     schema_version: int
-    schemas_dir: Path
     output_root: Path
     config_names: tuple[str, ...]
     compression: str
@@ -50,7 +49,6 @@ def load_config(path: Path | str = "corpus.toml") -> CorpusConfig:
     schema_version = corpus.get("schema_version")
     if schema_version != 1:
         raise ConfigurationError("corpus.schema_version must be 1")
-    schemas_dir = corpus.get("schemas_dir", "schemas")
     output_root = corpus.get("output_root", ".release")
     config_names = tuple(release.get("config_names", ()))
     if config_names != REQUIRED_CONFIGS:
@@ -71,7 +69,6 @@ def load_config(path: Path | str = "corpus.toml") -> CorpusConfig:
         root=config_path.parent,
         path=config_path,
         schema_version=1,
-        schemas_dir=config_path.parent / str(schemas_dir),
         output_root=config_path.parent / str(output_root),
         config_names=config_names,
         compression=str(parquet.get("compression", "zstd")),
