@@ -30,7 +30,11 @@ pub(crate) fn molecules() -> Vec<()> {
                     Bond {
                         start: HexIndex { q: 0, r: 0 },
                         end: HexIndex { q: 1, r: 0 },
-                        ty: BondType::Normal
+                        ty: BondType::Triplex {
+                            red: true,
+                            black: false,
+                            yellow: true
+                        }
                     }
                 ]
             },
@@ -119,7 +123,7 @@ def test_parse_collection_semantics_reconciles_topology_by_game_puzzle_id(tmp_pa
     assert [
         (bond.start_q, bond.start_r, bond.end_q, bond.end_r, bond.bond_type)
         for bond in use.molecule.bonds
-    ] == [(0, 0, 1, 0, "Normal")]
+    ] == [(0, 0, 1, 0, "Triplex {\n                            red: true,\n                            black: false,\n                            yellow: true\n                        }")]
     assert not hasattr(puzzle, "puzzle_bytes")
     assert not hasattr(puzzle, "puzzle_sha256")
 
