@@ -39,21 +39,21 @@ WP-10 ────────────────────────�
                                             WP-12 Complete v1 release
 
 Independent hardening lane
-  #20 staging source/destination overlap
-      ↓  shared publish.py surface; serialize to avoid branch collision
+  [LANDED] #20 staging source/destination overlap (#24)
+      ↓
   #21 manifest path confinement
       ↓  shared release.py surface; serialize to avoid branch collision
   #23 manifest format-version gate
 
   #22 schema-resolution/package-layout fix  (may run in parallel)
 
-All four hardening issues should settle before WP-11 begins modifying the
-release boundary in earnest.
+The remaining hardening issues should settle before WP-11 begins modifying
+release-boundary behavior in earnest.
 ```
 
 The claimable architectural lanes are WP-04 and WP-08. WP-01, WP-02, WP-03, WP-05, WP-06, and WP-07 are settled foundations on `main`. Downstream packets should consume the landed interfaces rather than reimplementing upstream behavior.
 
-The hardening issues are independent of the canonical-materialization dependency spine, but not all are safe to implement simultaneously. Issues #20 and #21 both modify staging behavior, and #21 and #23 both modify release validation. Their sequencing above is for collision avoidance, not because one issue is semantically required by the next. Issue #22 has a separate schema/package surface and can proceed beside them.
+Issue #20 has landed through PR #24. Issues #21 and #23 both modify release validation and remain serialized for collision avoidance, not because one is semantically required by the other. Issue #22 has a separate schema/package surface and can proceed beside them and beside WP-04/WP-08.
 
 ### Landed foundations
 
@@ -77,6 +77,7 @@ These capabilities already exist and should be consumed rather than recreated:
 - [x] Strict normalized-solution contract and `SolutionNormalizer` seam from PR #14.
 - [x] Pinned molecule-db semantic acquisition and topology reconciliation from PR #18.
 - [x] Explicit local official `.puzzle` acquisition with immutable manifest provenance, filesystem-safe snapshot identity, and `local_fetch_only` rights from PR #16.
+- [x] Release staging source/destination overlap protection with a shared canonical tree-overlap guard from PR #24 / issue #20.
 
 ### Claimable work packets
 
@@ -103,15 +104,15 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 
 | Issue | Execution | Surface | Relationship to work graph |
 | --- | --- | --- | --- |
-| [#20 Reject overlapping source and destination paths when staging releases](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/20) | Open; first in release-hardening sequence | `publish.py`, stage CLI | Independent of WP-04/WP-08; settle before #21 and WP-11 |
-| [#21 Constrain release manifest paths to the release root](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/21) | Open; after #20 | `release.py`, `publish.py` | Independent semantics, serialized after #20 to avoid staging-surface collision; settle before #23/WP-11 |
+| [#20 Reject overlapping source and destination paths when staging releases](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/20) | **Settled** via PR #24 | `path_safety.py`, `publish.py`, stage CLI | Landed; #21 may now proceed on the staging/release path boundary |
+| [#21 Constrain release manifest paths to the release root](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/21) | **Ready**; next in release-hardening sequence | `release.py`, `publish.py` | Independent of WP-04/WP-08; settle before #23/WP-11 |
 | [#22 Unify schema resolution and remove repository-layout dependency](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/22) | Open; parallel | `collections.py`, `release_inputs.py`, config, packaging | Separate surface; may proceed beside architectural packets and release hardening |
 | [#23 Reject unsupported release manifest format versions](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/23) | Open; after #21 | `release.py` | Independent semantics, serialized after #21 to avoid release-validation collision; settle before WP-11 |
 
 ### Agent execution rules
 
 1. Claim exactly one open packet or issue before implementation. Use the control-plane claim as the live concurrency lock; do not add assignee bookkeeping to this file.
-2. Never claim a packet marked **Settled**. Consume its landed interface from `main`.
+2. Never claim a packet or issue marked **Settled**. Consume its landed interface from `main`.
 3. Do not start a second item whose declared implementation surface overlaps an active item unless the graph explicitly allows it. The hardening sequence above exists specifically to avoid shared-file trampling.
 4. Branch from the packet's declared settled dependency base. A stacked PR is appropriate only when the graph contains that dependency edge or a collision-avoidance sequence explicitly calls for it.
 5. Own the capability, not neighboring machinery. If required work changes another packet's public contract, stop and split or restack rather than silently widening scope.
@@ -133,8 +134,8 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 
 ### Release and package hardening
 
-- [ ] Issue #20: reject overlapping staging source/destination trees.
-- [ ] Issue #21: constrain manifest-controlled artifact paths to the release root.
+- [x] Issue #20: reject overlapping staging source/destination trees. Landed in PR #24.
+- [ ] Issue #21: constrain manifest-controlled artifact paths to the release root. **Ready.**
 - [ ] Issue #22: unify schema resolution and remove source-checkout/package-layout dependence.
 - [ ] Issue #23: reject unsupported release-manifest format versions.
 
