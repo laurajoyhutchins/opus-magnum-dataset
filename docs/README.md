@@ -11,6 +11,7 @@ For current repository behavior, prefer the documents in this directory root. Fi
 | [`TODO.md`](TODO.md) | Dependency/concurrency work graph and coarse landed/ready/blocked implementation snapshot. GitHub issues and pull requests show live activity. |
 | [`roadmap.md`](roadmap.md) | Strategic dependency order from the current corpus factory to a complete v1 release and later research expansion. |
 | [`dataset-spec.md`](dataset-spec.md) | Canonical data model, invariants, provenance, verification, normalization, reproducibility, and release acceptance criteria. |
+| [`verification.md`](verification.md) | Pinned `libverify` implementation identity, native boundary, canonical success/failure semantics, metric recomputation, and deterministic artifact-to-verification materialization. |
 | [`benchmark-protocol.md`](benchmark-protocol.md) | Benchmark protocol boundary, Solve-first evaluation design, attempt profiles, scoring/reporting, contamination guidance, and result requirements. |
 | [`hugging-face-export.md`](hugging-face-export.md) | Loading-script-free Hugging Face/Parquet publication contract. |
 | [`source-inventory.md`](source-inventory.md) | Frozen base-game collection membership, pinned source coverage, provenance roles, and rights boundaries. |
