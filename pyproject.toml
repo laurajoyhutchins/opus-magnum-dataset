@@ -25,9 +25,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/opus_corpus"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"schemas" = "opus_corpus/schemas"
-
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
