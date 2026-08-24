@@ -84,3 +84,159 @@ def test_ingest_puzzle_uses_distinct_artifact_namespace(tmp_path: Path) -> None:
     )
 
     assert result.artifacts[0].artifact_id == f"om.puzzle-artifact.sha256.{digest}"
+
+
+def test_identical_solution_bytes_deduplicate_without_losing_provenance(tmp_path: Path) -> None:
+    first = tmp_path / "first.solution"
+    second = tmp_path / "second.solution"
+    first.write_bytes(b"same bytes")
+    second.write_bytes(b"same bytes")
+
+    result = ingest_artifacts(
+        [
+            _candidate(first, source_id="om-archive", source_path="archive/a.solution"),
+            _candidate(
+                second,
+                source_id="om-leaderboard",
+                source_path="leaderboard/a.solution",
+                claimed_cost=19,
+            ),
+        ],
+        tmp_path / "objects",
+    )
+
+    assert len(result.artifacts) == 1
+    assert len(result.provenance) == 2
+    assert {row.source_id for row in result.provenance} == {"om-archive", "om-leaderboard"}
+    assert {row.claimed_cost for row in result.provenance} == {19, 20}
+    assert not hasattr(result.artifacts[0], "claimed_cost")
+
+
+def test_identical_puzzle_bytes_deduplicate_without_losing_provenance(tmp_path: Path) -> None:
+    first = tmp_path / "first.puzzle"
+    second = tmp_path / "second.puzzle"
+    first.write_bytes(b"same puzzle")
+    second.write_bytes(b"same puzzle")
+
+    result = ingest_artifacts(
+        [
+            _candidate(
+                first,
+                artifact_kind="puzzle",
+                artifact_format="puzzle",
+                source_id="omsim",
+                source_path="fixtures/P007.puzzle",
+                claimed_cost=None,
+                claimed_cycles=None,
+                claimed_area=None,
+                claimed_instructions=None,
+            ),
+            _candidate(
+                second,
+                artifact_kind="puzzle",
+                artifact_format="puzzle",
+                source_id="official-game",
+                source_path="P007.puzzle",
+                claimed_cost=None,
+                claimed_cycles=None,
+                claimed_area=None,
+                claimed_instructions=None,
+            ),
+        ],
+        tmp_path / "objects",
+    )
+
+    assert len(result.artifacts) == 1
+    assert {row.source_id for row in result.provenance} == {"omsim", "official-game"}
+
+
+def test_exact_duplicate_provenance_assertions_collapse(tmp_path: Path) -> None:
+    source = tmp_path / "same.solution"
+    source.write_bytes(b"same bytes")
+    candidate = _candidate(source)
+
+    result = ingest_artifacts([candidate, candidate], tmp_path / "objects")
+
+    assert len(result.artifacts) == 1
+    assert len(result.provenance) == 1
+
+
+def test_different_bytes_never_deduplicate(tmp_path: Path) -> None:
+    first = tmp_path / "first.solution"
+    second = tmp_path / "second.solution"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+
+    result = ingest_artifacts(
+        [_candidate(first), _candidate(second, source_path="other.solution")],
+        tmp_path / "objects",
+    )
+
+    assert len(result.artifacts) == 2
+
+
+def test_artifact_rights_local_fetch_only_outranks_other_statuses(tmp_path: Path) -> None:
+    sources = [tmp_path / name for name in ("a.solution", "b.solution", "c.solution")]
+    for source in sources:
+        source.write_bytes(b"same")
+
+    result = ingest_artifacts(
+        [
+            _candidate(sources[0], source_id="a", source_path="a", rights_status="redistributable"),
+            _candidate(sources[1], source_id="b", source_path="b", rights_status="unknown"),
+            _candidate(sources[2], source_id="c", source_path="c", rights_status="local_fetch_only"),
+        ],
+        tmp_path / "objects",
+    )
+
+    assert result.artifacts[0].rights_status == "local_fetch_only"
+    assert {row.rights_status for row in result.provenance} == {
+        "redistributable",
+        "unknown",
+        "local_fetch_only",
+    }
+
+
+def test_artifact_rights_unknown_outranks_redistributable(tmp_path: Path) -> None:
+    first = tmp_path / "a.solution"
+    second = tmp_path / "b.solution"
+    first.write_bytes(b"same")
+    second.write_bytes(b"same")
+
+    result = ingest_artifacts(
+        [
+            _candidate(first, source_id="a", source_path="a", rights_status="redistributable"),
+            _candidate(second, source_id="b", source_path="b", rights_status="unknown"),
+        ],
+        tmp_path / "objects",
+    )
+
+    assert result.artifacts[0].rights_status == "unknown"
+
+
+def test_logical_output_is_independent_of_candidate_and_local_path_order(tmp_path: Path) -> None:
+    left_root = tmp_path / "left"
+    right_root = tmp_path / "right"
+    left_root.mkdir()
+    right_root.mkdir()
+    (left_root / "a.solution").write_bytes(b"alpha")
+    (left_root / "b.solution").write_bytes(b"beta")
+    (right_root / "renamed-one.solution").write_bytes(b"alpha")
+    (right_root / "renamed-two.solution").write_bytes(b"beta")
+
+    left = ingest_artifacts(
+        [
+            _candidate(left_root / "b.solution", source_id="b", source_path="stable/b"),
+            _candidate(left_root / "a.solution", source_id="a", source_path="stable/a"),
+        ],
+        tmp_path / "objects-left",
+    )
+    right = ingest_artifacts(
+        [
+            _candidate(right_root / "renamed-one.solution", source_id="a", source_path="stable/a"),
+            _candidate(right_root / "renamed-two.solution", source_id="b", source_path="stable/b"),
+        ],
+        tmp_path / "objects-right",
+    )
+
+    assert left == right
