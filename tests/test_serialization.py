@@ -10,6 +10,7 @@ def _normalized_puzzle() -> dict[str, object]:
     return {
         "normalized_puzzle_id": "normalized-puzzle-0001",
         "puzzle_id": "om.puzzle.0001",
+        "puzzle_artifact_id": "puzzle-artifact-0001",
         "normalizer_version": "test-normalizer-v1",
         "allowed_parts": ["arm1", "bonder"],
         "reagents": [
