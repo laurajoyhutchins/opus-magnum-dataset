@@ -88,6 +88,7 @@ Generated release directories are projections and should not be treated as repos
 
 ## Documents
 
+- [`docs/README.md`](docs/README.md) — map of current contracts, planning documents, and dated historical design notes.
 - [`docs/TODO.md`](docs/TODO.md) — dependency/concurrency work graph and current landed/ready/blocked implementation snapshot.
 - [`docs/roadmap.md`](docs/roadmap.md) — dependency-ordered path from the current corpus factory to the first complete release and later research expansion.
 - [`docs/dataset-spec.md`](docs/dataset-spec.md) — canonical corpus model, invariants, validation, provenance, reproducibility, and release acceptance criteria.
