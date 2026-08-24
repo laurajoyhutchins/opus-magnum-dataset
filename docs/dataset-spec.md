@@ -32,6 +32,8 @@ The canonical model must support:
 7. reproducible dataset releases;
 8. export to Hugging Face and generic Parquet/JSONL consumers.
 
+Benchmark-specific protocol, attempt, scoring, contamination, and split rules are defined separately in [`benchmark-protocol.md`](benchmark-protocol.md). The corpus model supplies benchmark facts; it does not bake one benchmark methodology into canonical entities.
+
 ## 3. Collections
 
 A **collection** is an immutable, explicit set of canonical puzzle identities.
@@ -46,7 +48,7 @@ Examples may include:
 
 A collection identifier must be versioned or dated. A mutable alias such as `current` may exist only as a convenience pointer and must never be used as the identity of a published corpus release.
 
-The first base-game collection manifest must be created only after the built-in puzzle inventory has been verified against authoritative source material.
+The first frozen collection is `base-game-2026-06-16`, whose 166-puzzle membership is committed in `collections/base-game-2026-06-16.csv`. Its membership is repository authority; pinned upstream inventories are evidence for that frozen definition rather than alternate mutable collection authorities.
 
 ## 4. Canonical entities
 
@@ -154,22 +156,26 @@ Examples of derived state:
 - Pareto membership;
 - best-per-metric selections;
 - coverage summaries;
+- benchmark selections and reports;
 - Hugging Face Parquet files.
 
 Derived state must not be maintained by agents or hand-edited as a second authority.
 
 ## 6. Source adapters
 
-Each upstream source is implemented as an independent adapter that emits the canonical entity model.
+Each upstream source is implemented as an independent adapter that emits source facts for later canonical materialization.
 
-Initial source classes are expected to include:
+Current source classes include:
 
-- built-in puzzle transcriptions and verification tooling from `omsim` / `libverify`;
 - historical solution material from `om-archive`;
-- current records/frontier observations from Zachtronics Leaderboards;
-- machine-generated baselines from OpusSolver.
+- current solution payloads and record/frontier metadata from `om-leaderboard`;
+- pinned campaign puzzle transcriptions from `omsim`;
+- semantic puzzle evidence from `molecule-db` without claiming exact official byte identity;
+- explicitly mapped local official `.puzzle` bytes through the `official-game` adapter.
 
-No adapter may redefine canonical puzzle IDs, validation semantics, or output schema.
+Planned source classes may include clearly identified machine-generated baselines such as OpusSolver output.
+
+No adapter may redefine canonical puzzle IDs, validation semantics, or output schema. Source acquisition also does not make source-declared metrics authoritative; verification remains a separate derived stage.
 
 ## 7. Provenance requirements
 
@@ -290,7 +296,7 @@ The corpus should deterministically support views such as:
 - generated baselines;
 - one-per-puzzle benchmark selections.
 
-These are queries/materializations over canonical facts, not separately curated corpora.
+These are queries/materializations over canonical facts, not separately curated corpora. Benchmark-specific selection and evaluation semantics belong to [`benchmark-protocol.md`](benchmark-protocol.md).
 
 ## 13. Coverage semantics
 
@@ -334,14 +340,19 @@ Given the same source cache, manifests, and software revisions, an offline build
 
 Network acquisition and deterministic materialization are separate operations.
 
-Conceptual interface:
+The implemented acquisition boundary is explicit per source:
 
 ```text
-opus-corpus fetch <collection>
-opus-corpus build <collection> --offline
+opus-corpus fetch <collection> --source <source> --cache <path> [--source-root <path>]
 ```
 
-The local cache is content-addressed. Builds consume pinned cached objects rather than mutable remote URLs.
+The existing release shell consumes canonical JSONL projections:
+
+```text
+opus-corpus release build <collection> --input <path> --output <path> --payload-policy <policy> [--coverage-policy complete|subset]
+```
+
+The remaining production materialization work connects cached source facts, canonical artifacts, verification, and normalization to those release inputs. The local cache is content-addressed; deterministic materialization must consume pinned cached objects rather than mutable remote URLs.
 
 ## 16. Testing requirements
 
@@ -384,7 +395,7 @@ V1 does not require:
 - an agent-maintained reconciliation process;
 - hand-authored leaderboard snapshots;
 - direct mirroring of every upstream repository layout;
-- a train/validation/test split before benchmark methodology is explicitly designed.
+- a train/validation/test split before benchmark split methodology is explicitly designed and versioned.
 
 ## 18. Release acceptance criteria
 
@@ -399,15 +410,24 @@ A first stable corpus release is complete when:
 7. an offline rebuild from the pinned content cache reproduces the canonical release manifest;
 8. Hugging Face export passes the contract in `hugging-face-export.md`.
 
-## 19. Open decisions before implementation
+## 19. Settled and remaining decisions
 
-The following must be resolved before the full importer is implemented:
+Several early design choices are now settled by committed repository state:
 
-- exact first collection inventory and identifier;
-- canonical puzzle-ID naming convention after inventory inspection;
-- repository code license;
-- redistribution status of each upstream content class;
-- implementation language/toolchain;
-- exact pinned `omsim`/`libverify` revision;
-- Parquet library/version and deterministic ordering rules;
-- whether normalized structures derived from local-only bytes are publishable under the chosen rights policy.
+- first collection: immutable `base-game-2026-06-16` with 166 puzzle identities;
+- canonical puzzle IDs and aliases: committed in the frozen collection inventory;
+- implementation toolchain: Python 3.12 with a locked `uv` environment;
+- schema authority: packaged repository JSON Schemas resolved through `opus_corpus.schema_resources`;
+- Parquet implementation: pinned `pyarrow==21.0.0` with `zstd` compression and deterministic logical row ordering;
+- release configs: `puzzles`, `solutions`, `observations`, and `normalized`;
+- default publication policy: `metadata-only`, with payload inclusion gated by per-artifact rights status.
+
+Remaining decisions that affect stable v1 behavior include:
+
+- repository code license and any accompanying third-party-content notices;
+- source-specific redistribution conclusions where rights remain unresolved;
+- exact pinned `omsim`/`libverify` verifier revision and validation-profile identity for v1;
+- publication policy for normalized structures derived from local-only bytes;
+- final Hugging Face namespace/repository identity and publication credentials/automation policy.
+
+These remaining decisions must be resolved explicitly at the boundary they govern. They must not be inferred from technical availability or silently encoded in generated state.
