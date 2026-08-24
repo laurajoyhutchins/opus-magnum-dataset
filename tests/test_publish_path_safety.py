@@ -65,7 +65,6 @@ def _config(tmp_path: Path) -> CorpusConfig:
         tmp_path,
         path,
         1,
-        tmp_path / "schemas",
         tmp_path / ".release",
         ("puzzles", "solutions", "observations", "normalized"),
         "zstd",
