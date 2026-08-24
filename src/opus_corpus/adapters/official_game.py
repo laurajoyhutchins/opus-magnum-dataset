@@ -52,9 +52,11 @@ class OfficialGameAdapter(SourceAdapter):
             try:
                 local_path.relative_to(source_root)
             except ValueError as exc:
-                raise OfficialGameAcquisitionError(
-                    f"puzzle mapping {index} must use a relative .puzzle path within the source root"
-                ) from exc
+                detail = (
+                    f"puzzle mapping {index} must use a relative .puzzle path "
+                    "within the source root"
+                )
+                raise OfficialGameAcquisitionError(detail) from exc
             if not local_path.is_file():
                 raise OfficialGameAcquisitionError(
                     f"missing puzzle file for {puzzle_id}: {relative_path.as_posix()}"
