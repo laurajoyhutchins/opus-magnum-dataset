@@ -19,7 +19,7 @@ puzzle_id = "om.puzzle.0002"
 path = "campaign/P008.puzzle"
 ```
 
-`puzzle_id` must be a canonical ID in the selected collection. `path` is a POSIX-style relative path below the source root and must end in `.puzzle`. The same puzzle ID or path may appear only once. `snapshot_id` is a stable local provenance label and may contain only letters, digits, `.`, `_`, and `-`, beginning with a letter or digit.
+`puzzle_id` must be a canonical ID in the selected collection. `path` is a POSIX-style relative path below the source root and must end in `.puzzle`. The same puzzle ID or path may appear only once. `snapshot_id` is a stable local provenance label and may contain only letters, digits, `.`, `_`, and `-`, beginning with a letter or digit. Reusing a snapshot ID means reusing the same immutable local snapshot, including the exact manifest mapping.
 
 The manifest may name only the locally available official bytes being acquired. The adapter does not substitute molecule-database semantics or synthesize missing official puzzle payloads.
 
@@ -34,16 +34,19 @@ opus-corpus fetch base-game-2026-06-16 \
 
 `--source-root` is required for `official-game`; there is intentionally no guessed fallback path.
 
-Before mutating the cache, the adapter validates the complete manifest, checks each resolved path remains within the source root, requires every referenced file to exist, and reads the exact file bytes. Ambiguous or unsafe manifests fail closed.
+Before mutating the cache, the adapter validates the complete manifest, checks each resolved path remains within the source root, requires every referenced file to exist, and reads the exact manifest and puzzle-file bytes. Ambiguous or unsafe manifests fail closed.
 
 ## Cache facts and rights
 
 Successful acquisition writes through the existing `ContentAddressedCache` only:
 
-- object identity is the SHA-256 of the exact `.puzzle` bytes;
-- provenance uses source `official-game`, revision `local:<snapshot_id>`, and the manifest-relative upstream path;
-- rights status is always `local_fetch_only`;
+- object identity is the SHA-256 of the exact cached source bytes;
+- the exact `official-puzzles.toml` bytes are cached as a source fact, preserving the canonical puzzle-ID-to-path mapping needed for offline materialization;
+- provenance uses source `official-game`, a filesystem-safe revision `local-<sha256(snapshot_id)>`, and manifest-relative upstream paths;
+- the original `snapshot_id` remains present in the cached manifest rather than being embedded verbatim in a filesystem path;
+- rights status is always `local_fetch_only` for both the manifest and puzzle bytes;
 - local absolute paths are not recorded in provenance;
-- reusing the same snapshot ID and upstream path with different bytes is rejected by the cache's pinned-source integrity check.
+- reusing the same snapshot ID with different manifest bytes, including a changed puzzle-ID mapping, is rejected by the cache's pinned-source integrity check;
+- reusing the same snapshot ID and upstream puzzle path with different puzzle bytes is likewise rejected.
 
 This path acquires source facts only. Canonical `PuzzleArtifact` materialization, simulation/verification, normalized puzzle generation, and release inclusion remain separate downstream responsibilities.
