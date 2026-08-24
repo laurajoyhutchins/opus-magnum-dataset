@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
+from opus_corpus.collections import CollectionDefinition
 from opus_corpus.errors import ReleaseValidationError
 from opus_corpus.release import (
     ConfigRelease,
     ReleaseManifest,
     compute_logical_release_hash,
+    derive_release_coverage,
+    derive_release_metadata,
     validate_referential_integrity,
 )
 
@@ -40,6 +45,36 @@ def sample_manifest() -> ReleaseManifest:
         logical_release_sha256="",
     )
     return manifest.with_logical_hash()
+
+
+def collection(*puzzle_ids: str) -> CollectionDefinition:
+    return CollectionDefinition(
+        collection_id="fixture-collection",
+        inventory_sha256="a" * 64,
+        puzzle_count=len(puzzle_ids),
+        manifest_path=Path("fixture.toml"),
+        inventory_path=Path("fixture.csv"),
+        inventory_rows=tuple({"puzzle_id": puzzle_id} for puzzle_id in puzzle_ids),
+        manifest={},
+    )
+
+
+def records(
+    *,
+    puzzle_ids: tuple[str, ...] = ("om.puzzle.0001",),
+    solutions: list[dict] | None = None,
+) -> dict[str, list[dict]]:
+    return {
+        "puzzles": [{"puzzle_id": puzzle_id} for puzzle_id in puzzle_ids],
+        "solutions": solutions
+        if solutions is not None
+        else [
+            {"solution_id": "s1", "puzzle_id": puzzle_ids[0], "verified": True},
+            {"solution_id": "s2", "puzzle_id": puzzle_ids[0], "verified": False},
+        ],
+        "observations": [],
+        "normalized": [],
+    }
 
 
 def test_release_manifest_round_trips():
@@ -84,24 +119,133 @@ def test_logical_release_hash_changes_with_record_hash():
 
 
 def test_referential_integrity_rejects_dangling_solution_puzzle():
-    records = {
+    value = {
         "puzzles": [{"puzzle_id": "om.puzzle.0001"}],
         "solutions": [{"solution_id": "s1", "puzzle_id": "om.puzzle.9999"}],
         "observations": [],
         "normalized": [],
     }
     with pytest.raises(ReleaseValidationError) as exc:
-        validate_referential_integrity(records)
+        validate_referential_integrity(value)
     assert "referential_integrity" in {error.code for error in exc.value.errors}
 
 
 def test_referential_integrity_rejects_dangling_normalized_solution():
-    records = {
+    value = {
         "puzzles": [{"puzzle_id": "om.puzzle.0001"}],
         "solutions": [{"solution_id": "s1", "puzzle_id": "om.puzzle.0001"}],
         "observations": [],
         "normalized": [{"solution_id": "missing", "puzzle_id": "om.puzzle.0001"}],
     }
     with pytest.raises(ReleaseValidationError) as exc:
-        validate_referential_integrity(records)
+        validate_referential_integrity(value)
     assert "referential_integrity" in {error.code for error in exc.value.errors}
+
+
+def test_release_coverage_is_derived_from_canonical_rows():
+    coverage = derive_release_coverage(
+        collection("om.puzzle.0001"),
+        records(),
+        release_kind="release",
+    )
+    assert coverage == {
+        "puzzle_count": 1,
+        "candidate_solution_count": 2,
+        "verified_solution_count": 1,
+        "rejected_solution_count": 1,
+    }
+
+
+def test_full_release_requires_exact_collection_puzzle_set():
+    with pytest.raises(ReleaseValidationError) as exc:
+        derive_release_coverage(
+            collection("om.puzzle.0001", "om.puzzle.0002"),
+            records(),
+            release_kind="release",
+        )
+    assert "collection_coverage_mismatch" in {error.code for error in exc.value.errors}
+
+
+def test_fixture_release_may_cover_collection_subset():
+    coverage = derive_release_coverage(
+        collection("om.puzzle.0001", "om.puzzle.0002"),
+        records(),
+        release_kind="fixture",
+    )
+    assert coverage["puzzle_count"] == 1
+
+
+@pytest.mark.parametrize(
+    ("config_name", "identity_field", "rows_with_duplicate"),
+    [
+        ("puzzles", "puzzle_id", [{"puzzle_id": "om.puzzle.0001"}] * 2),
+        (
+            "solutions",
+            "solution_id",
+            [
+                {"solution_id": "s1", "puzzle_id": "om.puzzle.0001", "verified": True},
+                {"solution_id": "s1", "puzzle_id": "om.puzzle.0001", "verified": False},
+            ],
+        ),
+        (
+            "observations",
+            "observation_id",
+            [{"observation_id": "o1"}, {"observation_id": "o1"}],
+        ),
+        (
+            "normalized",
+            "normalized_solution_id",
+            [
+                {"normalized_solution_id": "n1"},
+                {"normalized_solution_id": "n1"},
+            ],
+        ),
+    ],
+)
+def test_release_coverage_rejects_duplicate_canonical_ids(
+    config_name: str, identity_field: str, rows_with_duplicate: list[dict]
+):
+    value = records(solutions=[])
+    value[config_name] = rows_with_duplicate
+    with pytest.raises(ReleaseValidationError) as exc:
+        derive_release_coverage(
+            collection("om.puzzle.0001"),
+            value,
+            release_kind="fixture",
+        )
+    errors = [error for error in exc.value.errors if error.code == "duplicate_canonical_id"]
+    assert errors
+    assert identity_field in errors[0].detail
+
+
+def test_release_metadata_rejects_hand_maintained_coverage_counts():
+    with pytest.raises(ReleaseValidationError) as exc:
+        derive_release_metadata(
+            collection("om.puzzle.0001"),
+            records(),
+            {
+                "release_kind": "release",
+                "corpus_schema_version": "0.1",
+                "coverage": {"puzzle_count": 99, "summary": "human prose is allowed"},
+            },
+        )
+    assert "release_metadata_derived_field" in {error.code for error in exc.value.errors}
+
+
+def test_release_metadata_preserves_coverage_summary_and_adds_derived_counts():
+    metadata = derive_release_metadata(
+        collection("om.puzzle.0001"),
+        records(),
+        {
+            "release_kind": "release",
+            "corpus_schema_version": "0.1",
+            "coverage": {"summary": "human prose is allowed"},
+        },
+    )
+    assert metadata["coverage"] == {
+        "summary": "human prose is allowed",
+        "puzzle_count": 1,
+        "candidate_solution_count": 2,
+        "verified_solution_count": 1,
+        "rejected_solution_count": 1,
+    }
