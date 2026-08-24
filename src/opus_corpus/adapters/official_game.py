@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -12,6 +13,7 @@ from .base import AcquisitionResult, SourceAdapter
 _MANIFEST_NAME = "official-puzzles.toml"
 _TOP_LEVEL_KEYS = {"schema_version", "snapshot_id", "puzzles"}
 _PUZZLE_KEYS = {"puzzle_id", "path"}
+_SNAPSHOT_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 
 
 class OfficialGameAcquisitionError(CorpusError):
@@ -94,8 +96,10 @@ class OfficialGameAdapter(SourceAdapter):
         if manifest["schema_version"] != 1:
             raise OfficialGameAcquisitionError(f"{_MANIFEST_NAME} schema_version must be 1")
         snapshot_id = manifest["snapshot_id"]
-        if not isinstance(snapshot_id, str) or not snapshot_id.strip():
-            raise OfficialGameAcquisitionError(f"{_MANIFEST_NAME} snapshot_id must be non-empty")
+        if not isinstance(snapshot_id, str) or not _SNAPSHOT_ID_PATTERN.fullmatch(snapshot_id):
+            raise OfficialGameAcquisitionError(
+                f"{_MANIFEST_NAME} snapshot_id must use only letters, digits, '.', '_', or '-'"
+            )
         puzzles = manifest["puzzles"]
         if not isinstance(puzzles, list) or not puzzles:
             raise OfficialGameAcquisitionError(
