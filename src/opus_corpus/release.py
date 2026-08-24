@@ -12,10 +12,21 @@ from jsonschema import Draft202012Validator, FormatChecker
 from .collections import CollectionDefinition
 from .config import CorpusConfig
 from .errors import ReleaseValidationError, ValidationError
-from .hashing import canonical_json_bytes, canonical_records_sha256, sha256_bytes, sha256_file
+from .hashing import (
+    canonical_json_bytes,
+    canonical_records_sha256,
+    sha256_bytes,
+    sha256_file,
+)
 from .parquet import read_parquet, write_parquet
 from .payload import validate_payload_policy
-from .release_inputs import CONFIG_NAMES, SCHEMA_FILES, load_release_inputs, load_schema, sort_records
+from .release_inputs import (
+    CONFIG_NAMES,
+    SCHEMA_FILES,
+    load_release_inputs,
+    load_schema,
+    sort_records,
+)
 
 
 @dataclass(frozen=True)
@@ -57,12 +68,14 @@ class ReleaseManifest:
             "payload_policy": self.payload_policy,
             "release_metadata": self.release_metadata,
             "release_metadata_sha256": self.release_metadata_sha256,
-            "configs": {name: asdict(value) for name, value in sorted(self.configs.items())},
+            "configs": {
+                name: asdict(value) for name, value in sorted(self.configs.items())
+            },
             "logical_release_sha256": self.logical_release_sha256,
         }
 
     @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> "ReleaseManifest":
+    def from_dict(cls, value: dict[str, Any]) -> ReleaseManifest:
         configs = {
             name: ConfigRelease(**config_value)
             for name, config_value in value.get("configs", {}).items()
@@ -82,7 +95,7 @@ class ReleaseManifest:
             logical_release_sha256=value["logical_release_sha256"],
         )
 
-    def with_logical_hash(self) -> "ReleaseManifest":
+    def with_logical_hash(self) -> ReleaseManifest:
         return replace(self, logical_release_sha256=compute_logical_release_hash(self))
 
 
@@ -138,19 +151,29 @@ def detect_git_revision(root: Path) -> str | None:
     return revision or None
 
 
-def _validate_rows(config_name: str, rows: list[dict[str, Any]], schema: dict[str, Any]) -> None:
+def _validate_rows(
+    config_name: str,
+    rows: list[dict[str, Any]],
+    schema: dict[str, Any],
+) -> None:
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     errors: list[ValidationError] = []
     for index, row in enumerate(rows, start=1):
-        for error in sorted(
-            validator.iter_errors(row), key=lambda item: (list(item.path), item.message)
-        ):
-            errors.append(ValidationError("schema_invalid", error.message, config_name, index))
+        row_errors = sorted(
+            validator.iter_errors(row),
+            key=lambda item: (list(item.path), item.message),
+        )
+        for error in row_errors:
+            errors.append(
+                ValidationError("schema_invalid", error.message, config_name, index)
+            )
     if errors:
         raise ReleaseValidationError(errors)
 
 
-def validate_referential_integrity(records: dict[str, list[dict[str, Any]]]) -> None:
+def validate_referential_integrity(
+    records: dict[str, list[dict[str, Any]]],
+) -> None:
     puzzles = {row.get("puzzle_id") for row in records.get("puzzles", [])}
     puzzle_artifacts = {
         row.get("canonical_puzzle_artifact_id")
@@ -164,7 +187,8 @@ def validate_referential_integrity(records: dict[str, list[dict[str, Any]]]) -> 
             errors.append(
                 ValidationError(
                     "referential_integrity",
-                    f"solution {row.get('solution_id')} references unknown puzzle {row.get('puzzle_id')}",
+                    f"solution {row.get('solution_id')} references unknown puzzle "
+                    f"{row.get('puzzle_id')}",
                     "solutions",
                     index,
                 )
@@ -222,7 +246,9 @@ def _load_release_metadata(input_dir: Path) -> tuple[dict[str, Any], str]:
         raise ReleaseValidationError(
             [ValidationError("release_metadata_invalid", str(exc), path.as_posix())]
         ) from exc
-    if not isinstance(value, dict) or not isinstance(value.get("corpus_schema_version"), str):
+    if not isinstance(value, dict) or not isinstance(
+        value.get("corpus_schema_version"), str
+    ):
         raise ReleaseValidationError(
             [
                 ValidationError(
@@ -261,7 +287,8 @@ def build_release(
                 collection_errors.append(
                     ValidationError(
                         "collection_mismatch",
-                        f"row collection_id {row.get('collection_id')!r} != {collection.collection_id!r}",
+                        f"row collection_id {row.get('collection_id')!r} != "
+                        f"{collection.collection_id!r}",
                         config_name,
                         index,
                     )
@@ -310,7 +337,8 @@ def build_release(
     manifest_path = output_dir / "release-manifest.json"
     temp_path = output_dir / ".release-manifest.json.tmp"
     temp_path.write_text(
-        json.dumps(manifest.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(manifest.to_dict(), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
     temp_path.replace(manifest_path)
     return manifest
@@ -330,7 +358,9 @@ def _read_manifest(output_dir: Path) -> ReleaseManifest:
 
 
 def validate_release(
-    collection: CollectionDefinition, output_dir: Path, config: CorpusConfig
+    collection: CollectionDefinition,
+    output_dir: Path,
+    config: CorpusConfig,
 ) -> ReleaseManifest:
     output_dir = Path(output_dir)
     manifest = _read_manifest(output_dir)
@@ -377,7 +407,9 @@ def validate_release(
         if sha256_file(schema_path) != entry.schema_sha256:
             errors.append(
                 ValidationError(
-                    "schema_changed", f"schema changed for {config_name}", schema_path.as_posix()
+                    "schema_changed",
+                    f"schema changed for {config_name}",
+                    schema_path.as_posix(),
                 )
             )
             continue
@@ -385,7 +417,9 @@ def validate_release(
         if not parquet_path.is_file():
             errors.append(
                 ValidationError(
-                    "parquet_missing", f"missing {entry.parquet_path}", parquet_path.as_posix()
+                    "parquet_missing",
+                    f"missing {entry.parquet_path}",
+                    parquet_path.as_posix(),
                 )
             )
             continue
