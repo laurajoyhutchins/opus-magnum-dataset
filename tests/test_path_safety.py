@@ -7,7 +7,16 @@ import pytest
 from opus_corpus.path_safety import resolve_confined_path
 
 
-@pytest.mark.parametrize("relative_path", ["/tmp/escape.parquet", "../escape.parquet"])
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "/tmp/escape.parquet",
+        "C:\\escape.parquet",
+        "../escape.parquet",
+        "data/../escape.parquet",
+        "data/./split.parquet",
+    ],
+)
 def test_resolve_confined_path_rejects_unsafe_lexical_paths(
     tmp_path: Path, relative_path: str
 ):
