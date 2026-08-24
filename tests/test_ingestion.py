@@ -3,7 +3,14 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from opus_corpus.ingestion import ObservedArtifactCandidate, ingest_artifacts
+import pytest
+
+import opus_corpus.ingestion as ingestion
+from opus_corpus.ingestion import (
+    ArtifactIngestionError,
+    ObservedArtifactCandidate,
+    ingest_artifacts,
+)
 
 
 def _candidate(path: Path, **overrides: object) -> ObservedArtifactCandidate:
@@ -240,3 +247,165 @@ def test_logical_output_is_independent_of_candidate_and_local_path_order(tmp_pat
     )
 
     assert left == right
+
+
+def test_same_solution_digest_for_different_puzzles_fails_closed(tmp_path: Path) -> None:
+    first = tmp_path / "a.solution"
+    second = tmp_path / "b.solution"
+    first.write_bytes(b"same")
+    second.write_bytes(b"same")
+
+    with pytest.raises(ArtifactIngestionError, match="different puzzle IDs"):
+        ingest_artifacts(
+            [
+                _candidate(first, puzzle_id="om.puzzle.0001"),
+                _candidate(second, puzzle_id="om.puzzle.0002", source_path="b.solution"),
+            ],
+            tmp_path / "objects",
+        )
+
+
+def test_same_puzzle_digest_for_different_puzzles_fails_closed(tmp_path: Path) -> None:
+    first = tmp_path / "a.puzzle"
+    second = tmp_path / "b.puzzle"
+    first.write_bytes(b"same puzzle bytes")
+    second.write_bytes(b"same puzzle bytes")
+
+    with pytest.raises(ArtifactIngestionError, match="different puzzle IDs"):
+        ingest_artifacts(
+            [
+                _candidate(
+                    first,
+                    artifact_kind="puzzle",
+                    artifact_format="puzzle",
+                    puzzle_id="om.puzzle.0001",
+                    claimed_cost=None,
+                    claimed_cycles=None,
+                    claimed_area=None,
+                    claimed_instructions=None,
+                ),
+                _candidate(
+                    second,
+                    artifact_kind="puzzle",
+                    artifact_format="puzzle",
+                    puzzle_id="om.puzzle.0002",
+                    source_path="b.puzzle",
+                    claimed_cost=None,
+                    claimed_cycles=None,
+                    claimed_area=None,
+                    claimed_instructions=None,
+                ),
+            ],
+            tmp_path / "objects",
+        )
+
+
+def test_same_artifact_digest_with_conflicting_formats_fails_closed(tmp_path: Path) -> None:
+    first = tmp_path / "a.solution"
+    second = tmp_path / "b.solution"
+    first.write_bytes(b"same")
+    second.write_bytes(b"same")
+
+    with pytest.raises(ArtifactIngestionError, match="conflicting artifact formats"):
+        ingest_artifacts(
+            [
+                _candidate(first, artifact_format="solution"),
+                _candidate(second, artifact_format="legacy-solution", source_path="b.solution"),
+            ],
+            tmp_path / "objects",
+        )
+
+
+def test_same_bytes_in_puzzle_and_solution_namespaces_share_object_not_id(tmp_path: Path) -> None:
+    puzzle = tmp_path / "a.puzzle"
+    solution = tmp_path / "a.solution"
+    puzzle.write_bytes(b"identical physical bytes")
+    solution.write_bytes(b"identical physical bytes")
+
+    result = ingest_artifacts(
+        [
+            _candidate(
+                puzzle,
+                artifact_kind="puzzle",
+                artifact_format="puzzle",
+                source_id="omsim",
+                source_path="puzzle/P007.puzzle",
+                claimed_cost=None,
+                claimed_cycles=None,
+                claimed_area=None,
+                claimed_instructions=None,
+            ),
+            _candidate(solution, source_path="solution/P007.solution"),
+        ],
+        tmp_path / "objects",
+    )
+
+    by_kind = {artifact.artifact_kind: artifact for artifact in result.artifacts}
+    assert set(by_kind) == {"puzzle", "solution"}
+    assert by_kind["puzzle"].artifact_id != by_kind["solution"].artifact_id
+    assert by_kind["puzzle"].sha256 == by_kind["solution"].sha256
+    assert by_kind["puzzle"].object_key == by_kind["solution"].object_key
+
+
+def test_missing_payload_fails_explicitly(tmp_path: Path) -> None:
+    with pytest.raises(ArtifactIngestionError, match="cannot stat source payload"):
+        ingest_artifacts([_candidate(tmp_path / "missing.solution")], tmp_path / "objects")
+
+
+def test_directory_payload_fails_explicitly(tmp_path: Path) -> None:
+    source = tmp_path / "directory"
+    source.mkdir()
+    with pytest.raises(ArtifactIngestionError, match="not a file"):
+        ingest_artifacts([_candidate(source)], tmp_path / "objects")
+
+
+def test_unreadable_payload_is_wrapped_as_ingestion_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.solution"
+    source.write_bytes(b"payload")
+    real_open = Path.open
+
+    def fail_source_open(self: Path, *args: object, **kwargs: object):
+        if self == source:
+            raise PermissionError("denied")
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", fail_source_open)
+
+    with pytest.raises(ArtifactIngestionError, match="cannot ingest source payload"):
+        ingest_artifacts([_candidate(source)], tmp_path / "objects")
+
+
+def test_corrupt_existing_content_object_fails_without_overwrite(tmp_path: Path) -> None:
+    source = tmp_path / "source.solution"
+    source.write_bytes(b"good bytes")
+    digest = hashlib.sha256(b"good bytes").hexdigest()
+    object_path = tmp_path / "objects" / f"sha256/{digest[:2]}/{digest}"
+    object_path.parent.mkdir(parents=True)
+    object_path.write_bytes(b"corrupt bytes")
+
+    with pytest.raises(ArtifactIngestionError, match="does not match its digest"):
+        ingest_artifacts([_candidate(source)], tmp_path / "objects")
+
+    assert object_path.read_bytes() == b"corrupt bytes"
+
+
+def test_source_change_during_stream_fails_before_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.solution"
+    source.write_bytes(b"payload")
+    original = ingestion._source_signature(source)
+    changed = (original[0], original[1], original[2], original[3], original[4] + 1)
+    signatures = iter((original, changed))
+
+    monkeypatch.setattr(ingestion, "_source_signature", lambda path: next(signatures))
+
+    with pytest.raises(ArtifactIngestionError, match="changed during ingestion"):
+        ingest_artifacts([_candidate(source)], tmp_path / "objects")
+
+    digest = hashlib.sha256(b"payload").hexdigest()
+    assert not (tmp_path / "objects" / f"sha256/{digest[:2]}/{digest}").exists()
