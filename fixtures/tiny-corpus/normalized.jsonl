@@ -1,0 +1,1 @@
+{"normalized_solution_id":"normalized-0001","solution_id":"solution-0001","puzzle_id":"om.puzzle.0001","normalizer_version":"fixture-normalizer","parts":[{"type":"arm1","x":0,"y":0,"rotation":0}],"tracks":[],"programs":[{"arm":"arm-1","instructions":[{"cycle":0,"opcode":"grab"}]}],"summaries":{"part_count":1,"instruction_count":1}}
