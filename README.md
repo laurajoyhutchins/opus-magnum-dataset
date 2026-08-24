@@ -88,8 +88,10 @@ Generated release directories are projections and should not be treated as repos
 
 ## Documents
 
+- [`docs/TODO.md`](docs/TODO.md) — dependency/concurrency work graph and current landed/ready/blocked implementation snapshot.
 - [`docs/roadmap.md`](docs/roadmap.md) — dependency-ordered path from the current corpus factory to the first complete release and later research expansion.
 - [`docs/dataset-spec.md`](docs/dataset-spec.md) — canonical corpus model, invariants, validation, provenance, reproducibility, and release acceptance criteria.
+- [`docs/benchmark-protocol.md`](docs/benchmark-protocol.md) — versioned benchmark boundary, Solve-first evaluation protocol, metrics, attempt policies, contamination guidance, and result requirements.
 - [`docs/hugging-face-export.md`](docs/hugging-face-export.md) — loading-script-free Hugging Face / Parquet publication contract.
 - [`docs/source-inventory.md`](docs/source-inventory.md) — frozen collection coverage and rights boundaries.
 - [`docs/molecule-db-acquisition.md`](docs/molecule-db-acquisition.md) — pinned semantic-source evidence, reconciliation, cache ordering, and upstream test contract.
