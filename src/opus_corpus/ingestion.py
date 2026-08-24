@@ -69,6 +69,22 @@ class IngestionResult:
     provenance: tuple[ArtifactProvenance, ...]
 
 
+@dataclass(frozen=True)
+class _IngestedCandidate:
+    candidate: ObservedArtifactCandidate
+    artifact_id: str
+    sha256: str
+    byte_length: int
+    object_key: str
+
+
+_RIGHTS_RANK = {
+    "redistributable": 0,
+    "unknown": 1,
+    "local_fetch_only": 2,
+}
+
+
 def _artifact_id(artifact_kind: str, digest: str) -> str:
     if artifact_kind == "puzzle":
         return f"om.puzzle-artifact.sha256.{digest}"
@@ -188,26 +204,86 @@ def _provenance(candidate: ObservedArtifactCandidate, artifact_id: str) -> Artif
     )
 
 
+def _aggregate_rights(statuses: Iterable[str]) -> str:
+    values = tuple(statuses)
+    if not values:
+        raise ArtifactIngestionError("invalid or empty rights status set")
+    try:
+        return max(values, key=_RIGHTS_RANK.__getitem__)
+    except KeyError as exc:
+        raise ArtifactIngestionError(f"invalid rights status {exc.args[0]!r}") from exc
+
+
+def _artifact_sort_key(record: ArtifactRecord) -> tuple[str, str]:
+    return record.artifact_kind, record.artifact_id
+
+
+def _provenance_sort_key(row: ArtifactProvenance) -> tuple[str, ...]:
+    return tuple(
+        "" if value is None else str(value)
+        for value in (
+            row.artifact_id,
+            row.puzzle_id,
+            row.source_id,
+            row.source_revision,
+            row.source_object_id,
+            row.source_path,
+            row.source_url,
+            row.author,
+            row.retrieved_at,
+            row.claimed_cost,
+            row.claimed_cycles,
+            row.claimed_area,
+            row.claimed_instructions,
+            row.rights_status,
+        )
+    )
+
+
 def ingest_artifacts(
     candidates: Iterable[ObservedArtifactCandidate],
     object_root: Path,
 ) -> IngestionResult:
-    artifacts: list[ArtifactRecord] = []
-    provenance: list[ArtifactProvenance] = []
+    materialized: list[_IngestedCandidate] = []
     for candidate in candidates:
         digest, byte_length, object_key = _stream_to_object(candidate, object_root)
-        artifact_id = _artifact_id(candidate.artifact_kind, digest)
-        artifacts.append(
-            ArtifactRecord(
-                artifact_kind=candidate.artifact_kind,
-                artifact_id=artifact_id,
-                puzzle_id=candidate.puzzle_id,
+        materialized.append(
+            _IngestedCandidate(
+                candidate=candidate,
+                artifact_id=_artifact_id(candidate.artifact_kind, digest),
                 sha256=digest,
                 byte_length=byte_length,
-                artifact_format=candidate.artifact_format,
-                rights_status=candidate.rights_status,
                 object_key=object_key,
             )
         )
-        provenance.append(_provenance(candidate, artifact_id))
-    return IngestionResult(tuple(artifacts), tuple(provenance))
+
+    groups: dict[tuple[str, str], list[_IngestedCandidate]] = {}
+    for fact in materialized:
+        key = (fact.candidate.artifact_kind, fact.sha256)
+        groups.setdefault(key, []).append(fact)
+
+    artifacts: list[ArtifactRecord] = []
+    provenance: set[ArtifactProvenance] = set()
+    for group in groups.values():
+        first = group[0]
+        candidate = first.candidate
+        artifacts.append(
+            ArtifactRecord(
+                artifact_kind=candidate.artifact_kind,
+                artifact_id=first.artifact_id,
+                puzzle_id=candidate.puzzle_id,
+                sha256=first.sha256,
+                byte_length=first.byte_length,
+                artifact_format=candidate.artifact_format,
+                rights_status=_aggregate_rights(
+                    item.candidate.rights_status for item in group
+                ),
+                object_key=first.object_key,
+            )
+        )
+        provenance.update(_provenance(item.candidate, item.artifact_id) for item in group)
+
+    return IngestionResult(
+        artifacts=tuple(sorted(artifacts, key=_artifact_sort_key)),
+        provenance=tuple(sorted(provenance, key=_provenance_sort_key)),
+    )
