@@ -118,14 +118,14 @@ def test_fetch_unimplemented_source_returns_two(
                 "fetch",
                 "base-game-2026-06-16",
                 "--source",
-                "omsim",
+                "leaderboard-bot",
                 "--cache",
                 str(tmp_path / "cache"),
             ]
         )
         == 2
     )
-    assert "omsim" in capsys.readouterr().err
+    assert "leaderboard-bot" in capsys.readouterr().err
 
 
 def test_fetch_official_game_requires_explicit_source_root(
