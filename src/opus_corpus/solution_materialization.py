@@ -70,19 +70,7 @@ class _MetadataContext:
 
 def _load_receipts(root: Path, source: SolutionSourceLayout) -> tuple[CacheReceipt, ...]:
     cache = ContentAddressedCache(root)
-    receipt_root = root / "receipts" / source.source_id / source.pinned_revision
-    if not receipt_root.exists():
-        return ()
-    receipts: list[CacheReceipt] = []
-    for path in sorted(receipt_root.rglob("*.json")):
-        receipt = cache._read_receipt(path)
-        if receipt.source_id != source.source_id or receipt.revision != source.pinned_revision:
-            raise SolutionMaterializationError(
-                f"receipt identity mismatch under {source.source_id}@{source.pinned_revision}: "
-                f"{receipt.upstream_path}"
-            )
-        receipts.append(receipt)
-    return tuple(receipts)
+    return tuple(cache.iter_receipts(source.source_id, source.pinned_revision))
 
 
 def _mapped_receipts(
