@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,13 @@ def _write_manifest(root: Path, body: str) -> None:
     (root / "official-puzzles.toml").write_text(body, encoding="utf-8")
 
 
+def _only_revision(cache_root: Path) -> str:
+    revision_root = cache_root / "receipts" / "official-game"
+    revisions = sorted(path.name for path in revision_root.iterdir() if path.is_dir())
+    assert len(revisions) == 1
+    return revisions[0]
+
+
 def test_fetch_caches_exact_local_puzzle_bytes_with_provenance(tmp_path: Path):
     source_root = tmp_path / "official"
     cache_root = tmp_path / "cache"
@@ -74,12 +82,59 @@ path = "campaign/P002.puzzle"
     assert result.puzzles_covered == 2
 
     cache = ContentAddressedCache(cache_root)
+    revision = _only_revision(cache_root)
     receipt_path = cache.receipt_path(
-        "official-game", "local:fixture-build", "campaign/P001.puzzle"
+        "official-game", revision, "campaign/P001.puzzle"
     )
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     assert receipt["rights_status"] == "local_fetch_only"
     assert cache.object_path(receipt["sha256"]).read_bytes() == b"puzzle-one\x00"
+
+
+def test_fetch_caches_exact_manifest_as_source_fact(tmp_path: Path):
+    source_root = tmp_path / "official"
+    cache_root = tmp_path / "cache"
+    manifest_body = '''schema_version = 1
+snapshot_id = "fixture-build"
+[[puzzles]]
+puzzle_id = "om.puzzle.0001"
+path = "P001.puzzle"
+'''
+    _write_manifest(source_root, manifest_body)
+    (source_root / "P001.puzzle").write_bytes(b"one")
+
+    OfficialGameAdapter(source_root).fetch(_collection(tmp_path), cache_root)
+
+    cache = ContentAddressedCache(cache_root)
+    revision = _only_revision(cache_root)
+    receipt_path = cache.receipt_path(
+        "official-game", revision, "official-puzzles.toml"
+    )
+    assert receipt_path.is_file()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["rights_status"] == "local_fetch_only"
+    assert cache.object_path(receipt["sha256"]).read_bytes() == manifest_body.encode("utf-8")
+
+
+def test_fetch_uses_filesystem_safe_revision(tmp_path: Path):
+    source_root = tmp_path / "official"
+    cache_root = tmp_path / "cache"
+    _write_manifest(
+        source_root,
+        '''schema_version = 1
+snapshot_id = "fixture-build."
+[[puzzles]]
+puzzle_id = "om.puzzle.0001"
+path = "P001.puzzle"
+''',
+    )
+    (source_root / "P001.puzzle").write_bytes(b"one")
+
+    OfficialGameAdapter(source_root).fetch(_collection(tmp_path), cache_root)
+
+    revision = _only_revision(cache_root)
+    assert re.fullmatch(r"[A-Za-z0-9._-]+", revision)
+    assert not revision.endswith(".")
 
 
 def test_fetch_uses_relative_provenance_independent_of_local_root(tmp_path: Path):
@@ -98,8 +153,9 @@ path = "P001.puzzle"
         (source_root / "P001.puzzle").write_bytes(b"same exact bytes")
         OfficialGameAdapter(source_root).fetch(_collection(tmp_path), cache_root)
         cache = ContentAddressedCache(cache_root)
+        revision = _only_revision(cache_root)
         receipt_path = cache.receipt_path(
-            "official-game", "local:same-snapshot", "P001.puzzle"
+            "official-game", revision, "P001.puzzle"
         )
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         receipts.append((receipt_path.relative_to(cache_root), receipt["sha256"]))
@@ -217,6 +273,35 @@ path = "P001.puzzle"
     adapter.fetch(_collection(tmp_path), cache_root)
 
     puzzle_path.write_bytes(b"changed")
+    with pytest.raises(CacheIntegrityError, match="pinned source path changed"):
+        adapter.fetch(_collection(tmp_path), cache_root)
+
+
+def test_fetch_rejects_puzzle_id_remapping_within_same_local_snapshot(tmp_path: Path):
+    source_root = tmp_path / "official"
+    cache_root = tmp_path / "cache"
+    _write_manifest(
+        source_root,
+        '''schema_version = 1
+snapshot_id = "fixture"
+[[puzzles]]
+puzzle_id = "om.puzzle.0001"
+path = "P001.puzzle"
+''',
+    )
+    (source_root / "P001.puzzle").write_bytes(b"same bytes")
+    adapter = OfficialGameAdapter(source_root)
+    adapter.fetch(_collection(tmp_path), cache_root)
+
+    _write_manifest(
+        source_root,
+        '''schema_version = 1
+snapshot_id = "fixture"
+[[puzzles]]
+puzzle_id = "om.puzzle.0002"
+path = "P001.puzzle"
+''',
+    )
     with pytest.raises(CacheIntegrityError, match="pinned source path changed"):
         adapter.fetch(_collection(tmp_path), cache_root)
 
