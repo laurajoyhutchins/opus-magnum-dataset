@@ -25,7 +25,7 @@ def _from_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[
     converted: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
-        if payload_field and isinstance(item.get(payload_field), (bytes, bytearray)):
+        if payload_field and isinstance(item.get(payload_field), bytes | bytearray):
             item[payload_field] = base64.b64encode(bytes(item[payload_field])).decode("ascii")
         converted.append(item)
     return converted
