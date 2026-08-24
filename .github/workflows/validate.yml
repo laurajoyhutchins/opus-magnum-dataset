@@ -22,6 +22,8 @@ jobs:
         run: uv run ruff check .
       - name: Test
         run: uv run pytest -q
+      - name: Test pinned upstream contracts
+        run: uv run pytest -q -o addopts= -m upstream
       - name: Validate frozen collections
         run: uv run opus-corpus collections validate
       - name: Build and validate tiny release
