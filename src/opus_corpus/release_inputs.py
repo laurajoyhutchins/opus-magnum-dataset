@@ -64,7 +64,9 @@ def load_release_inputs(input_dir: Path, schemas_dir: Path) -> LoadedReleaseInpu
     for config_name in CONFIG_NAMES:
         path = input_dir / f"{config_name}.jsonl"
         if not path.is_file():
-            errors.append(ValidationError("input_missing", f"missing {path.name}", path.as_posix()))
+            errors.append(
+                ValidationError("input_missing", f"missing {path.name}", path.as_posix())
+            )
             continue
         schema = load_schema(schemas_dir, config_name)
         validator = Draft202012Validator(schema, format_checker=FormatChecker())
@@ -77,21 +79,29 @@ def load_release_inputs(input_dir: Path, schemas_dir: Path) -> LoadedReleaseInpu
             try:
                 row = json.loads(raw_line)
             except json.JSONDecodeError as exc:
-                errors.append(ValidationError("json_invalid", str(exc), path.as_posix(), line_number))
+                errors.append(
+                    ValidationError("json_invalid", str(exc), path.as_posix(), line_number)
+                )
                 continue
             if not isinstance(row, dict):
                 errors.append(
                     ValidationError(
-                        "schema_invalid", "row must be a JSON object", path.as_posix(), line_number
+                        "schema_invalid",
+                        "row must be a JSON object",
+                        path.as_posix(),
+                        line_number,
                     )
                 )
                 continue
             row_errors = sorted(
-                validator.iter_errors(row), key=lambda error: (list(error.path), error.message)
+                validator.iter_errors(row),
+                key=lambda error: (list(error.path), error.message),
             )
             for error in row_errors:
                 errors.append(
-                    ValidationError("schema_invalid", error.message, path.as_posix(), line_number)
+                    ValidationError(
+                        "schema_invalid", error.message, path.as_posix(), line_number
+                    )
                 )
             config_rows.append(row)
         if not config_rows:
