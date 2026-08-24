@@ -28,6 +28,19 @@ from .release_inputs import (
     sort_records,
 )
 
+DERIVED_COVERAGE_FIELDS = (
+    "puzzle_count",
+    "candidate_solution_count",
+    "verified_solution_count",
+    "rejected_solution_count",
+)
+CANONICAL_ID_FIELDS = {
+    "puzzles": "puzzle_id",
+    "solutions": "solution_id",
+    "observations": "observation_id",
+    "normalized": "normalized_solution_id",
+}
+
 
 @dataclass(frozen=True)
 class ConfigRelease:
@@ -101,6 +114,124 @@ class ReleaseManifest:
 
 def split_for_collection(collection_id: str) -> str:
     return collection_id.replace("-", "_")
+
+
+def derive_release_coverage(
+    collection: CollectionDefinition,
+    records: dict[str, list[dict[str, Any]]],
+    *,
+    release_kind: str,
+) -> dict[str, int]:
+    errors: list[ValidationError] = []
+    for config_name, identity_field in CANONICAL_ID_FIELDS.items():
+        seen: dict[Any, int] = {}
+        for index, row in enumerate(records.get(config_name, []), start=1):
+            identity = row.get(identity_field)
+            if identity is None:
+                continue
+            if identity in seen:
+                errors.append(
+                    ValidationError(
+                        "duplicate_canonical_id",
+                        f"duplicate {identity_field} {identity!r}; first seen on row "
+                        f"{seen[identity]}",
+                        config_name,
+                        index,
+                    )
+                )
+            else:
+                seen[identity] = index
+
+    expected_puzzle_ids = {
+        row["puzzle_id"] for row in collection.inventory_rows if row.get("puzzle_id")
+    }
+    actual_puzzle_ids = {
+        row.get("puzzle_id") for row in records.get("puzzles", []) if row.get("puzzle_id")
+    }
+    unexpected = sorted(actual_puzzle_ids - expected_puzzle_ids)
+    missing = sorted(expected_puzzle_ids - actual_puzzle_ids)
+    if release_kind == "fixture":
+        if unexpected:
+            errors.append(
+                ValidationError(
+                    "collection_coverage_mismatch",
+                    f"fixture contains puzzles outside collection: {unexpected}",
+                    "puzzles",
+                )
+            )
+    elif missing or unexpected:
+        details: list[str] = []
+        if missing:
+            details.append(f"missing puzzles: {missing}")
+        if unexpected:
+            details.append(f"unexpected puzzles: {unexpected}")
+        errors.append(
+            ValidationError(
+                "collection_coverage_mismatch",
+                "; ".join(details),
+                "puzzles",
+            )
+        )
+
+    if errors:
+        raise ReleaseValidationError(errors)
+
+    solutions = records.get("solutions", [])
+    verified_count = sum(row.get("verified") is True for row in solutions)
+    return {
+        "puzzle_count": len(records.get("puzzles", [])),
+        "candidate_solution_count": len(solutions),
+        "verified_solution_count": verified_count,
+        "rejected_solution_count": len(solutions) - verified_count,
+    }
+
+
+def derive_release_metadata(
+    collection: CollectionDefinition,
+    records: dict[str, list[dict[str, Any]]],
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    coverage = metadata.get("coverage", {})
+    if not isinstance(coverage, dict):
+        raise ReleaseValidationError(
+            [
+                ValidationError(
+                    "release_metadata_invalid",
+                    "coverage must be an object when supplied",
+                    "release-metadata.json",
+                )
+            ]
+        )
+    supplied = sorted(set(coverage) & set(DERIVED_COVERAGE_FIELDS))
+    if supplied:
+        raise ReleaseValidationError(
+            [
+                ValidationError(
+                    "release_metadata_derived_field",
+                    f"coverage fields are derived from canonical rows: {supplied}",
+                    "release-metadata.json",
+                )
+            ]
+        )
+    release_kind = metadata.get("release_kind", "release")
+    if not isinstance(release_kind, str) or not release_kind:
+        raise ReleaseValidationError(
+            [
+                ValidationError(
+                    "release_metadata_invalid",
+                    "release_kind must be a non-empty string",
+                    "release-metadata.json",
+                )
+            ]
+        )
+    derived = derive_release_coverage(
+        collection,
+        records,
+        release_kind=release_kind,
+    )
+    result = dict(metadata)
+    result["coverage"] = {**coverage, **derived}
+    return result
 
 
 def _logical_manifest_dict(manifest: ReleaseManifest) -> dict[str, Any]:
@@ -297,6 +428,7 @@ def build_release(
         raise ReleaseValidationError(collection_errors)
 
     release_metadata, release_metadata_sha256 = _load_release_metadata(input_dir)
+    release_metadata = derive_release_metadata(collection, loaded.records, release_metadata)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     split = split_for_collection(collection.collection_id)
@@ -461,6 +593,30 @@ def validate_release(
     if not errors:
         try:
             validate_referential_integrity(records)
+            expected_coverage = derive_release_coverage(
+                collection,
+                records,
+                release_kind=str(manifest.release_metadata.get("release_kind", "release")),
+            )
+            stored_coverage = manifest.release_metadata.get("coverage")
+            if not isinstance(stored_coverage, dict):
+                errors.append(
+                    ValidationError(
+                        "release_coverage_mismatch",
+                        "manifest release metadata has no coverage object",
+                        "release-manifest.json",
+                    )
+                )
+            else:
+                for field, expected in expected_coverage.items():
+                    if stored_coverage.get(field) != expected:
+                        errors.append(
+                            ValidationError(
+                                "release_coverage_mismatch",
+                                f"{field} expected {expected}, got {stored_coverage.get(field)!r}",
+                                "release-manifest.json",
+                            )
+                        )
         except ReleaseValidationError as exc:
             errors.extend(exc.errors)
     if compute_logical_release_hash(manifest) != manifest.logical_release_sha256:
