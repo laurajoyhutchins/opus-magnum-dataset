@@ -27,6 +27,7 @@ def manifest() -> ReleaseManifest:
         build_software_revision="deadbeef",
         build_config_sha256="b" * 64,
         payload_policy="metadata-only",
+        coverage_policy="complete",
         release_metadata={
             "verifier_revision": "omsim-rev",
             "validation_profile": "v1",
