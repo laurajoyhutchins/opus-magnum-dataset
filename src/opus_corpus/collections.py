@@ -47,7 +47,7 @@ def _load_schema(name: str) -> dict[str, Any]:
 
 
 def _jsonable(value: Any) -> Any:
-    if isinstance(value, (dt.date, dt.datetime)):
+    if isinstance(value, dt.date | dt.datetime):
         return value.isoformat()
     if isinstance(value, dict):
         return {key: _jsonable(item) for key, item in value.items()}
@@ -64,7 +64,10 @@ def _schema_errors(
     path: str,
     row: int | None = None,
 ) -> list[ValidationError]:
-    errors = sorted(validator.iter_errors(value), key=lambda error: (list(error.path), error.message))
+    errors = sorted(
+        validator.iter_errors(value),
+        key=lambda error: (list(error.path), error.message),
+    )
     return [ValidationError(code, error.message, path, row) for error in errors]
 
 
@@ -83,7 +86,12 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
     manifest = _jsonable(raw_manifest)
     manifest_validator = Draft202012Validator(_load_schema("collection-manifest.schema.json"))
     errors.extend(
-        _schema_errors(manifest_validator, manifest, code="manifest_schema_error", path=rel_manifest)
+        _schema_errors(
+            manifest_validator,
+            manifest,
+            code="manifest_schema_error",
+            path=rel_manifest,
+        )
     )
 
     inventory_name = manifest.get("inventory_file")
@@ -103,7 +111,11 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
     if inventory_path is not None:
         if not inventory_path.is_file():
             errors.append(
-                ValidationError("inventory_missing", f"inventory not found: {inventory_name}", rel_manifest)
+                ValidationError(
+                    "inventory_missing",
+                    f"inventory not found: {inventory_name}",
+                    rel_manifest,
+                )
             )
         else:
             expected_hash = manifest.get("inventory_sha256")
