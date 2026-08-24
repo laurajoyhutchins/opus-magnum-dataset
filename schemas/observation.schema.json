@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["observation_id", "artifact_kind", "artifact_id", "puzzle_id", "source_id", "source_revision", "source_object_id", "source_path", "source_url", "author", "retrieved_at", "claimed_cost", "claimed_cycles", "claimed_area", "claimed_instructions", "observed_sha256", "rights_status", "importer_version"],
+  "properties": {
+    "observation_id": {"type": "string", "minLength": 1},
+    "artifact_kind": {"enum": ["puzzle", "solution"]},
+    "artifact_id": {"type": "string", "minLength": 1},
+    "puzzle_id": {"type": ["string", "null"]},
+    "source_id": {"type": "string", "minLength": 1},
+    "source_revision": {"type": ["string", "null"]},
+    "source_object_id": {"type": ["string", "null"]},
+    "source_path": {"type": ["string", "null"]},
+    "source_url": {"type": ["string", "null"]},
+    "author": {"type": ["string", "null"]},
+    "retrieved_at": {"type": "string", "format": "date-time"},
+    "claimed_cost": {"type": ["integer", "null"], "minimum": 0},
+    "claimed_cycles": {"type": ["integer", "null"], "minimum": 0},
+    "claimed_area": {"type": ["integer", "null"], "minimum": 0},
+    "claimed_instructions": {"type": ["integer", "null"], "minimum": 0},
+    "observed_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "rights_status": {"enum": ["redistributable", "local_fetch_only", "unknown"]},
+    "importer_version": {"type": "string", "minLength": 1}
+  }
+}
