@@ -61,7 +61,12 @@ class CtypesLibverifyBackend:
             library = ctypes.CDLL(str(path))
         except (OSError, ValueError) as exc:
             raise LibverifyError(f"cannot load libverify shared library: {path}") from exc
-        return cls(library, digest)
+        try:
+            return cls(library, digest)
+        except AttributeError as exc:
+            raise LibverifyError(
+                f"libverify shared library is missing required ABI symbols: {path}"
+            ) from exc
 
     def _configure_abi(self) -> None:
         create = self._library.verifier_create_from_bytes
