@@ -19,7 +19,7 @@ def manifest() -> ReleaseManifest:
         for name in ("puzzles", "solutions", "observations", "normalized")
     }
     return ReleaseManifest(
-        format_version=1,
+        format_version=2,
         corpus_schema_version="0.1",
         collection_id="base-game-2026-06-16",
         collection_inventory_sha256="a" * 64,
@@ -27,6 +27,7 @@ def manifest() -> ReleaseManifest:
         build_software_revision="deadbeef",
         build_config_sha256="b" * 64,
         payload_policy="metadata-only",
+        coverage_policy="complete",
         release_metadata={
             "verifier_revision": "omsim-rev",
             "validation_profile": "v1",
@@ -37,6 +38,14 @@ def manifest() -> ReleaseManifest:
                 "candidate_solution_count": 1,
                 "verified_solution_count": 1,
                 "rejected_solution_count": 0,
+                "by_puzzle": {
+                    "om.puzzle.0001": {
+                        "candidate_solution_count": 1,
+                        "verified_solution_count": 1,
+                        "rejected_solution_count": 0,
+                        "state": "verified",
+                    }
+                },
                 "summary": "Fixture coverage.",
             },
             "known_limitations": ["Fixture only."],
@@ -65,3 +74,14 @@ def test_card_uses_release_metadata_not_checked_in_counts():
     assert "Verifier revision: `omsim-rev`" in card
     assert "Logical release hash: `" + "f" * 64 + "`" in card
     assert "Payload policy: `metadata-only`" in card
+    assert "Coverage policy: `complete`" in card
+
+
+def test_card_points_to_per_puzzle_coverage_in_manifest():
+    card = render_dataset_card(
+        manifest(), {"title": "Opus Magnum Corpus", "purpose": "Benchmarking."}
+    )
+    assert (
+        "Per-puzzle coverage: `release-manifest.json` → "
+        "`release_metadata.coverage.by_puzzle`" in card
+    )

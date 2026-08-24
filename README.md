@@ -16,7 +16,7 @@ The `opus-corpus` CLI owns collection validation and generated releases:
 
 ```text
 opus-corpus collections validate [manifest]
-opus-corpus release build <collection> --input <path> --output <path> --payload-policy metadata-only
+opus-corpus release build <collection> --input <path> --output <path> --payload-policy metadata-only [--coverage-policy complete|subset]
 opus-corpus release validate <collection> --output <path>
 opus-corpus release stage <collection> --output <path> --destination <path>
 opus-corpus release publish <collection> --output <path>
@@ -25,6 +25,8 @@ opus-corpus release publish <collection> --output <path>
 A release materializes four independently loadable configs: `puzzles`, `solutions`, `observations`, and `normalized`. Collection IDs become immutable Hugging Face split names, so `base-game-2026-06-16` maps to `base_game_2026_06_16` rather than a generic `train` split.
 
 Generated release state includes deterministic logical-record hashes, a release manifest, Parquet output hashes, and a generated dataset card. Hugging Face is a downstream distribution surface; GitHub repository facts and canonical build inputs remain authoritative.
+
+Coverage policy is explicit build state. `complete` is the default and requires the exact frozen collection plus at least one verified solution for every puzzle. `subset` is an explicit development/fixture mode and is recorded in the release manifest. Human-editable release metadata cannot relax the build policy. Per-puzzle candidate, verified, rejected, and coverage-state facts are derived into `release_metadata.coverage.by_puzzle` in the generated manifest.
 
 ## Payload policy
 
@@ -46,13 +48,14 @@ uv run pytest -q
 uv run opus-corpus collections validate
 ```
 
-To exercise the tiny release factory locally:
+To exercise the tiny release factory locally, opt into subset coverage explicitly:
 
 ```bash
 uv run opus-corpus release build base-game-2026-06-16 \
   --input fixtures/tiny-corpus \
   --output .tmp-release \
-  --payload-policy metadata-only
+  --payload-policy metadata-only \
+  --coverage-policy subset
 uv run opus-corpus release validate base-game-2026-06-16 --output .tmp-release
 uv run opus-corpus release stage base-game-2026-06-16 \
   --output .tmp-release \

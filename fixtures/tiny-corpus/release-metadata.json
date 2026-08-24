@@ -7,10 +7,6 @@
   "normalizer_version": "fixture-normalizer",
   "source_classes": [{"source_id": "fixture", "revision": "fixture-rev"}],
   "coverage": {
-    "puzzle_count": 1,
-    "candidate_solution_count": 1,
-    "verified_solution_count": 1,
-    "rejected_solution_count": 0,
     "summary": "Tiny development fixture; not a complete collection release."
   },
   "known_limitations": [

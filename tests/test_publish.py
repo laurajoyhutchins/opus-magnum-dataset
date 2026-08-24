@@ -11,7 +11,7 @@ from opus_corpus.publish import publish_release, stage_release
 from opus_corpus.release import ConfigRelease, ReleaseManifest
 
 
-def manifest() -> ReleaseManifest:
+def manifest(coverage_policy: str = "complete") -> ReleaseManifest:
     configs = {
         name: ConfigRelease(
             schema_path=f"schemas/{name}.schema.json",
@@ -26,7 +26,7 @@ def manifest() -> ReleaseManifest:
         for name in ("puzzles", "solutions", "observations", "normalized")
     }
     return ReleaseManifest(
-        1,
+        2,
         "0.1",
         "base-game-2026-06-16",
         "e" * 64,
@@ -34,6 +34,7 @@ def manifest() -> ReleaseManifest:
         None,
         "f" * 64,
         "metadata-only",
+        coverage_policy,
         {"coverage": {}, "known_limitations": []},
         "0" * 64,
         configs,
@@ -76,7 +77,7 @@ def config(tmp_path: Path, repo_id: str = "CHANGE_ME") -> CorpusConfig:
 def test_stage_contains_only_projection_allowlist(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    release = manifest()
+    release = manifest("subset")
     output = tmp_path / "out"
     output.mkdir()
     (output / "release-manifest.json").write_text("{}", encoding="utf-8")
@@ -102,6 +103,24 @@ def test_stage_contains_only_projection_allowlist(
         "data/observations/base_game_2026_06_16-00000-of-00001.parquet",
         "data/normalized/base_game_2026_06_16-00000-of-00001.parquet",
     }
+
+
+def test_publish_rejects_subset_before_staging_or_hub_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    release = manifest("subset")
+    monkeypatch.setattr("opus_corpus.publish.validate_release", lambda *_: release)
+
+    def fail_stage(*_args, **_kwargs):
+        raise AssertionError("subset release reached staging")
+
+    monkeypatch.setattr("opus_corpus.publish.stage_release", fail_stage)
+    with pytest.raises(PublicationError, match="complete"):
+        publish_release(
+            collection(tmp_path),
+            tmp_path / "out",
+            config(tmp_path, "owner/dataset"),
+        )
 
 
 @pytest.mark.parametrize(

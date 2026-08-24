@@ -26,6 +26,6 @@ jobs:
         run: uv run opus-corpus collections validate
       - name: Build and validate tiny release
         run: |
-          uv run opus-corpus release build base-game-2026-06-16 --input fixtures/tiny-corpus --output .tmp-release --payload-policy metadata-only
+          uv run opus-corpus release build base-game-2026-06-16 --input fixtures/tiny-corpus --output .tmp-release --payload-policy metadata-only --coverage-policy subset
           uv run opus-corpus release validate base-game-2026-06-16 --output .tmp-release
           uv run opus-corpus release stage base-game-2026-06-16 --output .tmp-release --destination .tmp-stage

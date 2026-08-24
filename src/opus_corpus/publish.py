@@ -54,6 +54,10 @@ def publish_release(
     token: str | None = None,
 ) -> str:
     validate_repo_id(config.huggingface_repo_id)
+    manifest = validate_release(collection, output_dir, config)
+    if manifest.coverage_policy != "complete":
+        raise PublicationError("only complete coverage releases may be published")
+
     from huggingface_hub import HfApi
 
     with tempfile.TemporaryDirectory(prefix="opus-corpus-hub-") as temporary_directory:
