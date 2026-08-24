@@ -494,7 +494,7 @@ def build_release(
         )
 
     manifest = ReleaseManifest(
-        format_version=1,
+        format_version=2,
         corpus_schema_version=release_metadata["corpus_schema_version"],
         collection_id=collection.collection_id,
         collection_inventory_sha256=collection.inventory_sha256,
