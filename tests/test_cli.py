@@ -82,6 +82,8 @@ def test_tiny_fixture_end_to_end_when_pyarrow_and_repo_collection_are_present(tm
                 str(output),
                 "--payload-policy",
                 "metadata-only",
+                "--coverage-policy",
+                "subset",
             ]
         )
         == 0
