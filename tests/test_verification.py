@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import json
-from pathlib import Path
 from typing import Any
 
-SCHEMA_PATH = Path("schemas/verification.schema.json")
+from opus_corpus.schema_resources import load_schema_resource
 
 
 def jsonschema_module() -> Any:
@@ -19,8 +17,7 @@ def verification_module() -> Any:
 
 def schema_validator() -> Any:
     jsonschema = jsonschema_module()
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    jsonschema.Draft202012Validator.check_schema(schema)
+    schema = load_schema_resource("verification.schema.json").schema
     return jsonschema.Draft202012Validator(schema)
 
 
