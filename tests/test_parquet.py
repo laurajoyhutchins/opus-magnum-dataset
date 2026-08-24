@@ -59,6 +59,7 @@ def test_tiny_release_builds_and_validates(tmp_path: Path):
         "metadata-only",
         coverage_policy="subset",
     )
+    assert built.format_version == 2
     assert set(built.configs) == {"puzzles", "solutions", "observations", "normalized"}
     assert built.split == "base_game_2026_06_16"
     assert built.coverage_policy == "subset"
