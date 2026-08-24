@@ -19,8 +19,8 @@ This is the static concurrency map plus a coarse execution snapshot. It defines 
         │
         └────→ [READY] WP-04 SolutionArtifact + Observation materialization ─┐
                                                                              │
-[IN PROGRESS] WP-05 omsim puzzle source ────────┐                            │
-[LANDED] WP-06 molecule-db semantic source (#18) ├→ WP-08 PuzzleArtifact     │
+[LANDED] WP-05 omsim puzzle source (#19) ─────┐                              │
+[LANDED] WP-06 molecule-db semantic source (#18) ├→ [READY] WP-08 PuzzleArtifact
 [LANDED] WP-07 official/local puzzle-byte path (#16) ┘ coverage/materialization
                                                     │                        │
 [LANDED] WP-01 ────────────────────────────────────┼──────┐                 │
@@ -51,7 +51,7 @@ All four hardening issues should settle before WP-11 begins modifying the
 release boundary in earnest.
 ```
 
-The claimable architectural lanes are WP-04 and WP-05. WP-01, WP-02, WP-03, WP-06, and WP-07 are settled foundations on `main`; WP-08 remains blocked on WP-05. Downstream packets should consume the landed interfaces rather than reimplementing upstream behavior.
+The claimable architectural lanes are WP-04 and WP-08. WP-01, WP-02, WP-03, WP-05, WP-06, and WP-07 are settled foundations on `main`. Downstream packets should consume the landed interfaces rather than reimplementing upstream behavior.
 
 The hardening issues are independent of the canonical-materialization dependency spine, but not all are safe to implement simultaneously. Issues #20 and #21 both modify staging behavior, and #21 and #23 both modify release validation. Their sequencing above is for collision avoidance, not because one issue is semantically required by the next. Issue #22 has a separate schema/package surface and can proceed beside them.
 
@@ -69,6 +69,7 @@ These capabilities already exist and should be consumed rather than recreated:
 - [x] Explicit source fetch CLI.
 - [x] Pinned `om-archive` acquisition.
 - [x] Pinned `om-leaderboard` acquisition.
+- [x] Pinned `omsim` campaign puzzle-definition acquisition from PR #19.
 - [x] Source-adapter contract and fail-closed stubs for unimplemented sources.
 - [x] Normalized-puzzle schema and deterministic serialization seam.
 - [x] Exact `PuzzleArtifact` lineage requirement for normalized puzzle rows.
@@ -87,10 +88,10 @@ Each open packet owns one capability. A worker may change adjacent code only whe
 | **WP-02 Normalized-solution contract** | **Settled** | WP-01 | Strict normalized-solution schema, deterministic identity, `SolutionNormalizer` seam | parsed/identified solution inputs → parser-independent normalization contract | `.solution` parser, verifier implementation, acquisition, release wiring | PR #14 merged with contract tests green |
 | **WP-03 Artifact materializer core** | **Settled** | landed content-addressed cache | Shared canonical artifact/provenance materialization primitive and content-derived identity | cached immutable objects + receipts → canonical artifact/provenance records | source-specific parsers, second object store, verification, normalization, release projection | PR #15 merged with exact-byte identity, provenance merge, corruption/conflict, deterministic ordering, and local-root tests green |
 | **WP-04 SolutionArtifact + Observation materialization** | **Ready** | WP-03 | Deterministic conversion of acquired solution/metadata facts into canonical solution artifacts and observations | `om-archive` / `om-leaderboard` cached facts → `SolutionArtifact` + `Observation` records | source acquisition mechanisms, puzzle-definition adapters, verification, normalization | overlapping sources dedupe by bytes while observations and source claims remain preserved |
-| **WP-05 omsim puzzle source** | **In progress** | landed acquisition/cache primitives | Pinned `omsim` puzzle-definition acquisition/adapter behavior | pinned `omsim` source → cached puzzle-definition facts | canonical artifact schemas, solution parsing, verifier semantics, release rows | source mapping is deterministic, idempotent, rights-aware, and covered by fixtures/tests |
+| **WP-05 omsim puzzle source** | **Settled** | landed acquisition/cache primitives | Pinned `omsim` puzzle-definition acquisition/adapter behavior | pinned `omsim` source → cached puzzle-definition facts | canonical artifact schemas, solution parsing, verifier semantics, release rows | PR #19 merged with deterministic/idempotent, rights-aware acquisition tests green |
 | **WP-06 molecule-db semantic source** | **Settled** | landed acquisition/cache primitives | Pinned molecule-db semantic acquisition/adapter behavior | pinned molecule-db source → cached semantic puzzle evidence | exact official-byte claims, canonical artifact schemas, verification, release rows | PR #18 merged with semantic acquisition/reconciliation tests green |
 | **WP-07 Official/local puzzle-byte path** | **Settled** | landed acquisition/cache primitives | Explicit local acquisition path for exact official puzzle bytes where needed | local permitted official bytes → cached immutable puzzle-byte facts | invented game fields, semantic substitution, alternate object storage, verification | PR #16 merged with exact-byte, provenance, rights, portability, and fail-closed regression coverage green |
-| **WP-08 PuzzleArtifact coverage/materialization** | **Blocked on WP-05** | WP-03, WP-05, WP-06, WP-07 | Canonical puzzle artifact materialization and deterministic verifier-usable coverage | cached puzzle facts/evidence → `PuzzleArtifact` records + derived coverage | new fetch/cache mechanisms, verifier execution, release projections | every required puzzle can resolve a verifier-usable artifact or the coverage computation fails explicitly |
+| **WP-08 PuzzleArtifact coverage/materialization** | **Ready** | WP-03, WP-05, WP-06, WP-07 | Canonical puzzle artifact materialization and deterministic verifier-usable coverage | cached puzzle facts/evidence → `PuzzleArtifact` records + derived coverage | new fetch/cache mechanisms, verifier execution, release projections | every required puzzle can resolve a verifier-usable artifact or the coverage computation fails explicitly |
 | **WP-09 Verification implementation** | Blocked | WP-01, WP-04, WP-08 | Pinned `omsim`/`libverify` implementation behind `Verifier`; canonical verification records | exact puzzle + solution artifacts → deterministic `Verification` records | source acquisition, canonical artifact storage, normalized schema, release selection logic | parse/simulation success and failure are retained, metrics are recomputed, repeat runs are deterministic |
 | **WP-10 Solution parser + normalizer** | Blocked | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | exact `SolutionArtifact` → normalized solution record | verifier authority, acquisition/cache, release materialization, model-specific serializers | normalized records carry exact artifact lineage/version; normalization failures do not alter verification facts |
 | **WP-11 Release materialization** | Blocked | WP-04, WP-08, WP-09, WP-10 | Deterministic projection from canonical entities into the existing four release inputs | canonical artifacts/observations/verifications/normalized records → release rows | new canonical stores, alternate release formats, source adapters, manual coverage state | repeated offline materialization yields identical canonical rows/manifest hashes and existing release validation passes |
@@ -102,7 +103,7 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 
 | Issue | Execution | Surface | Relationship to work graph |
 | --- | --- | --- | --- |
-| [#20 Reject overlapping source and destination paths when staging releases](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/20) | Open; first in release-hardening sequence | `publish.py`, stage CLI | Independent of active WP-05; settle before #21 and WP-11 |
+| [#20 Reject overlapping source and destination paths when staging releases](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/20) | Open; first in release-hardening sequence | `publish.py`, stage CLI | Independent of WP-04/WP-08; settle before #21 and WP-11 |
 | [#21 Constrain release manifest paths to the release root](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/21) | Open; after #20 | `release.py`, `publish.py` | Independent semantics, serialized after #20 to avoid staging-surface collision; settle before #23/WP-11 |
 | [#22 Unify schema resolution and remove repository-layout dependency](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/22) | Open; parallel | `collections.py`, `release_inputs.py`, config, packaging | Separate surface; may proceed beside architectural packets and release hardening |
 | [#23 Reject unsupported release manifest format versions](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/23) | Open; after #21 | `release.py` | Independent semantics, serialized after #21 to avoid release-validation collision; settle before WP-11 |
@@ -125,9 +126,10 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 
 - [x] WP-03: establish the one canonical artifact-materialization path on top of the existing content-addressed acquisition cache. Landed in PR #15.
 - [ ] WP-04: materialize `om-archive` / `om-leaderboard` cached facts into canonical `SolutionArtifact` + `Observation` records. **Ready.**
-- [ ] WP-05: implement the `omsim` puzzle-definition source against the shared acquisition/cache boundary. **In progress.**
+- [x] WP-05: implement the `omsim` puzzle-definition source against the shared acquisition/cache boundary. Landed in PR #19.
 - [x] WP-06: implement the molecule-db semantic source. Landed in PR #18.
 - [x] WP-07: implement the official/local exact puzzle-byte acquisition path. Landed in PR #16.
+- [ ] WP-08: materialize verifier-usable `PuzzleArtifact` coverage from cached puzzle facts. **Ready.**
 
 ### Release and package hardening
 
@@ -182,7 +184,7 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 
 ### Complete verifier-ready puzzle-definition coverage
 
-- [ ] Implement the `omsim` puzzle-definition adapter against the shared acquisition/cache boundary.
+- [x] Implement the `omsim` puzzle-definition adapter against the shared acquisition/cache boundary.
 - [x] Implement the molecule-db semantic adapter against the shared acquisition/cache boundary.
 - [x] Define the official-game/local puzzle-byte acquisition path for exact official `.puzzle` fidelity where required.
 - [x] Keep exact puzzle bytes distinct from semantic evidence such as molecule topology.
