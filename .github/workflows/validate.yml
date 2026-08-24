@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -26,9 +29,14 @@ jobs:
           uv run opus-corpus release build base-game-2026-06-16 --input fixtures/tiny-corpus --output .tmp-release --payload-policy metadata-only
           uv run opus-corpus release validate base-game-2026-06-16 --output .tmp-release
           uv run opus-corpus release stage base-game-2026-06-16 --output .tmp-release --destination .tmp-stage
-      - name: Upload bootstrap lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: uv-lock-bootstrap
-          path: uv.lock
-          if-no-files-found: error
+      - name: Commit bootstrap lockfile
+        if: github.event_name == 'push'
+        run: |
+          if git ls-files --error-unmatch uv.lock >/dev/null 2>&1; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "build: commit uv lockfile"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
