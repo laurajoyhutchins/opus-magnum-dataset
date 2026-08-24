@@ -7,15 +7,14 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from . import release_configs as _release_configs
 from .errors import ReleaseValidationError, ValidationError
 from .hashing import sha256_file
-from .release_configs import (
-    CONFIG_NAMES,
-    SCHEMA_FILES as SCHEMA_FILES,
-    SORT_KEYS as SORT_KEYS,
-    get_release_config,
-)
 from .schema_resources import load_schema_resource
+
+CONFIG_NAMES = _release_configs.CONFIG_NAMES
+SCHEMA_FILES = _release_configs.SCHEMA_FILES
+SORT_KEYS = _release_configs.SORT_KEYS
 
 _OBSERVATION_OPTIONAL_NULL_FIELDS = (
     "source_role",
@@ -33,11 +32,12 @@ class LoadedReleaseInputs:
 
 
 def load_schema(config_name: str) -> dict[str, Any]:
-    return load_schema_resource(get_release_config(config_name).schema_resource).schema
+    spec = _release_configs.get_release_config(config_name)
+    return load_schema_resource(spec.schema_resource).schema
 
 
 def sort_records(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    keys = get_release_config(config_name).sort_key
+    keys = _release_configs.get_release_config(config_name).sort_key
     return sorted(rows, key=lambda row: tuple(str(row.get(key, "")) for key in keys))
 
 
