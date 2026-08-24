@@ -1,0 +1,30 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sync environment
+        run: uv sync --all-extras
+      - name: Lint
+        run: uv run ruff check .
+      - name: Test
+        run: uv run pytest -q
+      - name: Validate frozen collections
+        run: uv run opus-corpus collections validate
+      - name: Build and validate tiny release
+        run: |
+          uv run opus-corpus release build base-game-2026-06-16 --input fixtures/tiny-corpus --output .tmp-release --payload-policy metadata-only
+          uv run opus-corpus release validate base-game-2026-06-16 --output .tmp-release
+          uv run opus-corpus release stage base-game-2026-06-16 --output .tmp-release --destination .tmp-stage
+      - name: Emit lockfile for bootstrap
+        run: python -c 'import base64, pathlib; print("UVLOCK_BASE64=" + base64.b64encode(pathlib.Path("uv.lock").read_bytes()).decode())'
