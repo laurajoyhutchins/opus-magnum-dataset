@@ -10,7 +10,7 @@ import pytest
 from opus_corpus.adapters.base import AcquisitionResult
 from opus_corpus.adapters.omsim import OmsimAdapter
 from opus_corpus.collections import CollectionDefinition
-from opus_corpus.github_source import AcquisitionError
+from opus_corpus.github_source import AcquisitionError, iter_tarball_members
 
 
 def fixture_collection() -> CollectionDefinition:
@@ -64,6 +64,13 @@ def make_tarball(files: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
+def mock_tarball(monkeypatch, tarball: bytes) -> None:
+    monkeypatch.setattr(
+        "opus_corpus.adapters.omsim.iter_github_tarball_members",
+        lambda owner, repo, revision: iter_tarball_members(io.BytesIO(tarball)),
+    )
+
+
 def test_fetch_stores_only_collection_campaign_puzzle_fixtures(tmp_path, monkeypatch):
     tarball = make_tarball(
         {
@@ -74,10 +81,7 @@ def test_fetch_stores_only_collection_campaign_puzzle_fixtures(tmp_path, monkeyp
             "test/puzzle/campaign/ch1-and-prologue/readme.txt": b"ignore",
         }
     )
-    monkeypatch.setattr(
-        "opus_corpus.adapters.omsim.download_github_tarball",
-        lambda owner, repo, revision: tarball,
-    )
+    mock_tarball(monkeypatch, tarball)
 
     result = OmsimAdapter().fetch(fixture_collection(), tmp_path)
 
@@ -109,10 +113,7 @@ def test_fetch_rejects_duplicate_campaign_fixture_for_same_game_id(tmp_path, mon
             "test/puzzle/campaign/b/P007.puzzle": b"second",
         }
     )
-    monkeypatch.setattr(
-        "opus_corpus.adapters.omsim.download_github_tarball",
-        lambda owner, repo, revision: tarball,
-    )
+    mock_tarball(monkeypatch, tarball)
 
     with pytest.raises(AcquisitionError, match="multiple campaign fixtures.*P007"):
         OmsimAdapter().fetch(fixture_collection(), tmp_path)
@@ -127,13 +128,13 @@ def test_fetch_is_idempotent_for_same_pinned_source(tmp_path, monkeypatch):
     )
     calls: list[tuple[str, str, str]] = []
 
-    def fake_download(owner: str, repo: str, revision: str) -> bytes:
+    def fake_members(owner: str, repo: str, revision: str):
         calls.append((owner, repo, revision))
-        return tarball
+        return iter_tarball_members(io.BytesIO(tarball))
 
     monkeypatch.setattr(
-        "opus_corpus.adapters.omsim.download_github_tarball",
-        fake_download,
+        "opus_corpus.adapters.omsim.iter_github_tarball_members",
+        fake_members,
     )
     adapter = OmsimAdapter()
 
