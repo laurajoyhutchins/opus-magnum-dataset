@@ -34,6 +34,7 @@ def manifest() -> ReleaseManifest:
         None,
         "f" * 64,
         "metadata-only",
+        "complete",
         {"coverage": {}, "known_limitations": []},
         "0" * 64,
         configs,
