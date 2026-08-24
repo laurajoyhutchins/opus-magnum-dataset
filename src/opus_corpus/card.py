@@ -80,7 +80,8 @@ def render_dataset_card(manifest: ReleaseManifest, card_settings: Mapping[str, A
 
     rights = _text(
         card_settings.get("rights_caveat"),
-        "Raw bytes are included only when the release payload policy and per-artifact rights status permit redistribution.",
+        "Raw bytes are included only when the release payload policy and per-artifact "
+        "rights status permit redistribution.",
     )
     reproducibility = _text(
         card_settings.get("reproducibility_command"),
