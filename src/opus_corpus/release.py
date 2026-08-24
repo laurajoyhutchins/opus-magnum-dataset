@@ -28,6 +28,7 @@ from .release_inputs import (
     sort_records,
 )
 
+RELEASE_MANIFEST_FORMAT_VERSION = 2
 COVERAGE_POLICIES = ("complete", "subset")
 DERIVED_COVERAGE_FIELDS = (
     "puzzle_count",
@@ -494,7 +495,7 @@ def build_release(
         )
 
     manifest = ReleaseManifest(
-        format_version=2,
+        format_version=RELEASE_MANIFEST_FORMAT_VERSION,
         corpus_schema_version=release_metadata["corpus_schema_version"],
         collection_id=collection.collection_id,
         collection_inventory_sha256=collection.inventory_sha256,
@@ -538,6 +539,18 @@ def validate_release(
 ) -> ReleaseManifest:
     output_dir = Path(output_dir)
     manifest = _read_manifest(output_dir)
+    if manifest.format_version != RELEASE_MANIFEST_FORMAT_VERSION:
+        raise ReleaseValidationError(
+            [
+                ValidationError(
+                    "release_manifest_format_unsupported",
+                    f"unsupported format_version {manifest.format_version}; supported "
+                    f"format_version is {RELEASE_MANIFEST_FORMAT_VERSION}",
+                    "release-manifest.json",
+                )
+            ]
+        )
+
     errors: list[ValidationError] = []
     if manifest.collection_id != collection.collection_id:
         errors.append(
