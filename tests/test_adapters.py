@@ -13,7 +13,9 @@ EXPECTED_REVISIONS = {
     "molecule-db": "6f3cd8068428ef96ac6426d092c3523da359ec76",
     "official-game": None,
 }
-UNIMPLEMENTED_SOURCES = sorted(set(EXPECTED_REVISIONS) - {"om-archive"})
+UNIMPLEMENTED_SOURCES = sorted(
+    set(EXPECTED_REVISIONS) - {"om-archive", "om-leaderboard"}
+)
 
 
 def _collection(tmp_path: Path) -> CollectionDefinition:
