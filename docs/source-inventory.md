@@ -22,7 +22,7 @@ The authoritative repository inventory is `collections/base-game-2026-06-16.csv`
 | Source | Pinned revision | Confirmed collection coverage | Primary role | Raw payload policy |
 | --- | --- | ---: | --- | --- |
 | `F43nd1r/zachtronics-leaderboard-bot` | `ca40dee95da584270eb3be1c4b74e2be63afa7e6` | 166/166 identities | Membership evidence, upstream identifiers, grouping, record/frontier metadata | Do not assume executable solution payload redistribution |
-| `ianh/omsim` | `758f4a4b4c9e24f50294801da774a0960c922bab` | 36/36 campaign synthesis puzzle fixtures; additional historical Journal test fixtures are not counted as catalog coverage | Verification authority and campaign puzzle transcription source | Puzzle fixture redistribution rights unresolved; default `local-fetch-only` |
+| `ianh/omsim` | `758f4a4b4c9e24f50294801da774a0960c922bab` | 36/36 campaign synthesis puzzle fixtures acquired; additional historical Journal test fixtures are not counted as catalog coverage | Verification authority and campaign puzzle transcription source | Puzzle fixture redistribution rights unresolved; default `local-fetch-only` |
 | `F43nd1r/om-archive` | `44006a0eeb0051337640443d1b0576ea24c983f6` | 91/166 puzzles with 2,302 acquired solution candidates | Historical human solution archive | No repository-wide content license observed; default `local-fetch-only` |
 | `F43nd1r/om-leaderboard` | `0cfd371ef66cf94eac3f7a7a06bc9ab959495576` | 166/166 puzzles with 15,525 acquired solution candidates and 15,521 JSON metadata records; verification pending | Current human solution payloads plus score, data-path, display-link, and modification metadata | Repository declares Unlicense, but applicability to submitted player solution bytes is not assumed; default raw `.solution` policy remains `local-fetch-only` pending source-specific rights evidence |
 | `fenhl/molecule-db` | `6f3cd8068428ef96ac6426d092c3523da359ec76` | Current official-puzzle semantic data including Journal CVIII; exact official `.puzzle` byte coverage is not claimed | Independent problem-definition evidence for puzzle identity, collection association, and reagent/product molecule topology | Relevant source files are MIT-licensed; this does not establish redistribution rights for official game bytes |
@@ -84,7 +84,11 @@ Therefore:
 
 ## `omsim` coverage
 
-`omsim` is the planned executable verification authority. Its current test fixture tree contains transcriptions for all 36 scored campaign synthesis puzzles. It also contains some historical Journal fixtures, but the fixture tree is not a complete current base-game catalog and is therefore not used to determine collection membership.
+The pinned `omsim` revision is the planned executable verification authority and the implemented campaign transcription source. Mechanical acquisition against revision `758f4a4b4c9e24f50294801da774a0960c922bab` yields 36 `.puzzle` candidates across all 36 scored campaign synthesis puzzles.
+
+The acquisition contract maps only `test/puzzle/campaign/**/<game_puzzle_id>.puzzle` files to frozen campaign identities, caches the exact matching bytes through the shared content-addressed cache, and records them as `local-fetch-only`. Historical Journal fixtures and non-collection puzzle files are deliberately ignored. If more than one campaign fixture claims the same game puzzle ID, acquisition fails before mutating the cache. Repeating acquisition from the same pinned source is idempotent and leaves receipt/object bytes unchanged.
+
+The fixture tree also contains some historical Journal fixtures, but it is not a complete current base-game catalog and is therefore not used to determine collection membership or to claim Journal coverage.
 
 The verifier implementation and the puzzle fixture payloads have separate rights questions. The software's permissive/public-domain-style grant does not itself establish redistribution rights for commercial game content represented by puzzle fixtures.
 

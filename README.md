@@ -8,19 +8,22 @@ This repository is the **factory and specification**, not a hand-maintained data
 
 The collection contract and generic release shell are implemented. The repository can validate the frozen collection and can build, validate, stage, and publish a four-config Hugging Face-compatible release from canonical JSONL inputs.
 
-Full upstream acquisition, `omsim` verification, normalization, and complete solution coverage are still future slices. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those source-specific stages are connected.
+Source acquisition now includes pinned community/archive inputs, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical artifact materialization, complete `omsim` puzzle acquisition, deterministic verification, normalization, and complete solution coverage remain downstream slices. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those stages are connected end to end.
 
 ## Implemented release shell
 
-The `opus-corpus` CLI owns collection validation and generated releases:
+The `opus-corpus` CLI owns collection validation, source acquisition, and generated releases:
 
 ```text
 opus-corpus collections validate [manifest]
+opus-corpus fetch <collection> --source <source> --cache <path> [--source-root <path>]
 opus-corpus release build <collection> --input <path> --output <path> --payload-policy metadata-only [--coverage-policy complete|subset]
 opus-corpus release validate <collection> --output <path>
 opus-corpus release stage <collection> --output <path> --destination <path>
 opus-corpus release publish <collection> --output <path>
 ```
+
+`--source-root` is required only for the `official-game` adapter. That adapter consumes a strict local `official-puzzles.toml`, preserves the manifest itself as an immutable source fact, and stores exact local puzzle bytes with `local_fetch_only` rights through the shared content-addressed cache.
 
 A release materializes four independently loadable configs: `puzzles`, `solutions`, `observations`, and `normalized`. Collection IDs become immutable Hugging Face split names, so `base-game-2026-06-16` maps to `base_game_2026_06_16` rather than a generic `train` split.
 
@@ -81,15 +84,18 @@ Generated release directories are projections and should not be treated as repos
 - [`docs/dataset-spec.md`](docs/dataset-spec.md) — canonical corpus model, invariants, validation, provenance, reproducibility, and release acceptance criteria.
 - [`docs/hugging-face-export.md`](docs/hugging-face-export.md) — loading-script-free Hugging Face / Parquet publication contract.
 - [`docs/source-inventory.md`](docs/source-inventory.md) — frozen collection coverage and rights boundaries.
+- [`docs/official-puzzle-acquisition.md`](docs/official-puzzle-acquisition.md) — explicit local official-byte manifest, provenance, cache identity, and rights contract.
 
-## Planned source classes
+## Source classes
 
-Initial adapters are expected for:
+Implemented acquisition paths include:
 
-- `omsim` / `libverify` for built-in puzzle transcriptions and deterministic verification.
-- `om-archive` for historical community solutions.
-- Zachtronics Leaderboards for current record/frontier observations.
-- OpusSolver for clearly identified machine-generated baselines.
+- `om-archive` for historical community solutions;
+- Zachtronics Leaderboards for current record/frontier observations;
+- molecule-db for semantic puzzle evidence without claiming exact official byte identity;
+- `official-game` for explicitly mapped local official `.puzzle` bytes with `local_fetch_only` rights.
+
+Planned source work includes `omsim` / `libverify` puzzle definitions and deterministic verification, plus clearly identified machine-generated baselines such as OpusSolver output.
 
 Source adapters do not define the dataset schema. They translate upstream facts into the canonical model.
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from opus_corpus.adapters.base import AcquisitionResult
+from opus_corpus.adapters.official_game import OfficialGameAdapter
 from opus_corpus.adapters.om_archive import OmArchiveAdapter
 from opus_corpus.cli import main
 
@@ -117,14 +118,81 @@ def test_fetch_unimplemented_source_returns_two(
                 "fetch",
                 "base-game-2026-06-16",
                 "--source",
-                "omsim",
+                "leaderboard-bot",
                 "--cache",
                 str(tmp_path / "cache"),
             ]
         )
         == 2
     )
-    assert "omsim" in capsys.readouterr().err
+    assert "leaderboard-bot" in capsys.readouterr().err
+
+
+def test_fetch_official_game_requires_explicit_source_root(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    root = Path(__file__).resolve().parents[1]
+    config = root / "corpus.toml"
+
+    assert (
+        main(
+            [
+                "--config",
+                str(config),
+                "fetch",
+                "base-game-2026-06-16",
+                "--source",
+                "official-game",
+                "--cache",
+                str(tmp_path / "cache"),
+            ]
+        )
+        == 2
+    )
+    assert "--source-root" in capsys.readouterr().err
+
+
+def test_fetch_official_game_passes_explicit_source_root(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    root = Path(__file__).resolve().parents[1]
+    config = root / "corpus.toml"
+    cache = tmp_path / "cache"
+    source_root = tmp_path / "official"
+
+    def fake_fetch(self, collection, cache_root):
+        assert self.source_root == source_root
+        assert collection.collection_id == "base-game-2026-06-16"
+        assert cache_root == cache
+        return AcquisitionResult(
+            source_id="official-game",
+            candidate_count=1,
+            puzzles_covered=1,
+        )
+
+    monkeypatch.setattr(OfficialGameAdapter, "fetch", fake_fetch)
+
+    assert (
+        main(
+            [
+                "--config",
+                str(config),
+                "fetch",
+                "base-game-2026-06-16",
+                "--source",
+                "official-game",
+                "--cache",
+                str(cache),
+                "--source-root",
+                str(source_root),
+            ]
+        )
+        == 0
+    )
+    assert "official-game" in capsys.readouterr().out
 
 
 def test_tiny_fixture_end_to_end_when_pyarrow_and_repo_collection_are_present(tmp_path: Path):

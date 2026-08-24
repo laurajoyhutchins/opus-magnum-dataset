@@ -9,6 +9,7 @@ from .card import render_dataset_card
 from .collections import CollectionDefinition
 from .config import CorpusConfig
 from .errors import PublicationError
+from .path_safety import resolve_disjoint_trees
 from .release import validate_release
 
 _PLACEHOLDERS = {"CHANGE_ME", "YOUR_USERNAME/YOUR_DATASET"}
@@ -28,9 +29,12 @@ def stage_release(
     destination: Path,
     config: CorpusConfig,
 ) -> Path:
+    try:
+        output_dir, destination = resolve_disjoint_trees(output_dir, destination)
+    except ValueError as exc:
+        raise PublicationError(str(exc)) from exc
+
     manifest = validate_release(collection, output_dir, config)
-    output_dir = Path(output_dir)
-    destination = Path(destination).resolve()
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
