@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["puzzle_id", "display_name", "kind", "aliases", "canonical_puzzle_artifact_id", "puzzle_sha256", "puzzle_bytes", "rights_status", "collection_id"],
+  "properties": {
+    "puzzle_id": {"type": "string", "pattern": "^om\\.puzzle\\.\\d{4}$"},
+    "display_name": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "aliases": {"type": "array", "items": {"type": "object"}},
+    "canonical_puzzle_artifact_id": {"type": ["string", "null"]},
+    "puzzle_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "puzzle_bytes": {"type": ["string", "null"], "contentEncoding": "base64"},
+    "rights_status": {"enum": ["redistributable", "local_fetch_only", "unknown"]},
+    "collection_id": {"type": "string", "minLength": 1}
+  }
+}
