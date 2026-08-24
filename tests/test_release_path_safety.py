@@ -8,6 +8,8 @@ import pytest
 from opus_corpus.collections import CollectionDefinition
 from opus_corpus.errors import ReleaseValidationError
 from opus_corpus.release import ConfigRelease, ReleaseManifest, validate_release
+from opus_corpus.release_inputs import SCHEMA_FILES
+from opus_corpus.schema_resources import load_schema_resource
 
 
 def _collection(tmp_path: Path) -> CollectionDefinition:
@@ -23,10 +25,12 @@ def _collection(tmp_path: Path) -> CollectionDefinition:
 
 
 def _manifest(parquet_path: str) -> ReleaseManifest:
-    configs = {
-        name: ConfigRelease(
-            schema_path=f"schemas/{name}.schema.json",
-            schema_sha256="a" * 64,
+    configs: dict[str, ConfigRelease] = {}
+    for name in ("puzzles", "solutions", "observations", "normalized"):
+        schema_resource = load_schema_resource(SCHEMA_FILES[name])
+        configs[name] = ConfigRelease(
+            schema_path=schema_resource.logical_path,
+            schema_sha256=schema_resource.sha256,
             records_sha256="b" * 64,
             row_count=0,
             parquet_path=(
@@ -38,8 +42,6 @@ def _manifest(parquet_path: str) -> ReleaseManifest:
             source_path=f"fixtures/{name}.jsonl",
             source_sha256="c" * 64,
         )
-        for name in ("puzzles", "solutions", "observations", "normalized")
-    }
     return ReleaseManifest(
         format_version=2,
         corpus_schema_version="0.1",
@@ -75,7 +77,7 @@ def test_validate_release_rejects_symlink_escape_before_parquet_read(
         raise AssertionError("unsafe manifest path reached Parquet reader")
 
     monkeypatch.setattr("opus_corpus.release.read_parquet", fail_read)
-    cfg = SimpleNamespace(path=tmp_path / "corpus.toml", schemas_dir=tmp_path / "schemas")
+    cfg = SimpleNamespace(path=tmp_path / "corpus.toml")
 
     with pytest.raises(ReleaseValidationError) as exc:
         validate_release(_collection(tmp_path), output, cfg)
