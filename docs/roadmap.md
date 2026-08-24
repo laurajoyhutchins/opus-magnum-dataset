@@ -35,7 +35,7 @@ Each layer has one authority. Upstream sources provide immutable facts, reposito
 The repository already has the durable outer structure needed by the roadmap:
 
 - the immutable 166-puzzle `base-game-2026-06-16` collection;
-- canonical collection and release schemas;
+- canonical collection and release schemas packaged as repository resources;
 - explicit complete/subset coverage policy;
 - rights-aware payload policy;
 - deterministic release manifests, Parquet materialization, validation, staging, and publication machinery;
@@ -43,12 +43,20 @@ The repository already has the durable outer structure needed by the roadmap:
 - one authoritative exact-byte `ContentStore` shared by acquisition and canonical artifact materialization;
 - deterministic content-derived artifact identity, exact-byte deduplication, provenance preservation, conservative rights folding, and fail-closed artifact conflicts from PR #15;
 - pinned `om-archive` and `om-leaderboard` acquisition;
+- pinned `omsim` campaign puzzle-definition acquisition;
+- pinned `molecule-db` semantic acquisition and topology reconciliation;
+- an explicit local `official-game` path for exact official `.puzzle` bytes;
 - source-adapter contracts with fail-closed unimplemented sources;
-- normalized-puzzle and deterministic serialization seams.
+- a canonical Verification contract and simulator-independent `Verifier` seam;
+- a strict normalized-solution contract and parser-independent `SolutionNormalizer` seam;
+- normalized-puzzle and deterministic serialization seams;
+- a documented benchmark protocol boundary for future research-grade evaluation.
 
 The remaining work is primarily the source-specific canonical middle between the shared artifact/provenance core and the existing release factory.
 
 ## Milestone 1: Canonical verification and solution-normalization contracts
+
+**Status:** landed.
 
 **Goal:** Fix the boundaries before connecting parser- or simulator-specific implementations.
 
@@ -65,6 +73,8 @@ Exit criteria:
 No `.solution` parser or `omsim` integration is required to exit this milestone.
 
 ## Milestone 2: Canonical artifact materialization
+
+**Status:** shared core landed; source-specific solution/observation and puzzle-artifact materialization remain.
 
 **Goal:** Convert acquired source facts into the canonical artifact/provenance model without introducing a second storage mechanism.
 
@@ -83,7 +93,11 @@ Exit criteria:
 
 ## Milestone 3: Authoritative puzzle-definition acquisition
 
+**Status:** acquisition sources landed; complete verifier-usable `PuzzleArtifact` coverage remains.
+
 **Goal:** Provide verifier-ready puzzle artifacts for the complete frozen collection while keeping exact bytes distinct from semantic problem evidence.
+
+The `omsim`, `molecule-db`, and local official-byte acquisition paths are implemented. This milestone now depends on deterministic canonical puzzle-artifact materialization and coverage resolution rather than additional source-specific storage mechanisms.
 
 Exit criteria:
 
@@ -143,9 +157,11 @@ Exit criteria:
 
 This milestone is the v1 release boundary.
 
-## Milestone 7: Research-grade derived views
+## Milestone 7: Research-grade derived views and benchmarks
 
 **Goal:** Turn the canonical corpus into useful benchmark and ML research surfaces without adding hand-maintained datasets.
+
+The benchmark architecture is now drafted in [`benchmark-protocol.md`](benchmark-protocol.md). It separates protocol from collection identity, starts with verifier-backed Solve evaluation, preserves Opus Magnum's multi-objective metrics, and treats public base-game results separately from claims about held-out generalization.
 
 Candidate derived views include:
 
@@ -159,13 +175,16 @@ Candidate derived views include:
 - normalized puzzle and solution representations for model training;
 - deterministic model-oriented serialization formats derived from normalized records.
 
+Benchmark work should begin with the narrow v0.1 scope in `benchmark-protocol.md`: Solve, one-shot plus one bounded interactive profile, a deterministic normalized-puzzle serialization, exact verifier-backed correctness, explicit failure taxonomy, and multi-objective quality reporting.
+
 Exit criteria:
 
 - Each view is generated from canonical facts by versioned deterministic software.
 - Selection and frontier predicates are explicit and testable.
 - No view is maintained by agents or manual bookkeeping.
 - Model-oriented text or token formats remain serializers over normalized records, not parallel canonical datasets.
-- Benchmark train/validation/test splits are added only after an explicit methodology is designed and versioned.
+- Benchmark protocol, collection, serializer, verifier, attempt policy, and reporting identity are all explicit.
+- Benchmark train/validation/test splits are added only after an explicit leakage-aware methodology is designed and versioned.
 
 ## Milestone 8: Expand beyond the frozen base game
 
@@ -203,7 +222,7 @@ contracts
 
 Independent source adapters may advance in parallel when they consume the existing acquisition primitives. They must not create alternate caches, artifact stores, reconciliation systems, or hand-maintained projections.
 
-Likewise, research on normalized representations may proceed before the complete release, but no experimental representation becomes an authority or blocks verifier-backed canonical materialization.
+Likewise, research on normalized representations and benchmark serializers may proceed before the complete release, but no experimental representation becomes an authority or blocks verifier-backed canonical materialization.
 
 ## Decision rules
 
@@ -211,7 +230,7 @@ When choosing implementation work, prefer the option that preserves these invari
 
 1. **One authoritative path.** Reuse existing acquisition, storage, canonicalization, verification, and release primitives before adding another mechanism.
 2. **Software derives state.** Repeated bookkeeping, reconciliation, counting, materialization, and known recovery behavior belong in deterministic software.
-3. **Agents do judgment work.** Use reasoning for research, design, synthesis, and novel implementation, not maintenance of generated indexes or status projections.
+3. **Reasoning is for judgment work.** Use reasoning for research, design, synthesis, and novel implementation, not maintenance of generated indexes or status projections.
 4. **Fail closed.** Unknown puzzle fields, ambiguous identities, corrupt cached objects, verifier failures, and rights uncertainty remain explicit rather than silently repaired.
 5. **Preserve evidence.** Source claims and verifier-derived facts may disagree; both are retained with distinct provenance.
 6. **Keep rights orthogonal to metadata utility.** Restricted raw bytes do not prevent provenance, hashes, verified metrics, or other permitted derived facts from being published.
