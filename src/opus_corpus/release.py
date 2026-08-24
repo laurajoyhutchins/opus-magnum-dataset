@@ -21,7 +21,8 @@ from .hashing import (
 from .parquet import read_parquet, write_parquet
 from .path_safety import resolve_confined_path
 from .payload import validate_payload_policy
-from .release_inputs import CONFIG_NAMES, SCHEMA_FILES, load_release_inputs, sort_records
+from .release_configs import CANONICAL_ID_FIELDS, CONFIG_NAMES, SCHEMA_FILES
+from .release_inputs import load_release_inputs, sort_records
 from .schema_resources import load_schema_resource
 
 RELEASE_MANIFEST_FORMAT_VERSION = 2
@@ -33,12 +34,6 @@ DERIVED_COVERAGE_FIELDS = (
     "rejected_solution_count",
     "by_puzzle",
 )
-CANONICAL_ID_FIELDS = {
-    "puzzles": "puzzle_id",
-    "solutions": "solution_id",
-    "observations": "observation_id",
-    "normalized": "normalized_solution_id",
-}
 
 
 @dataclass(frozen=True)

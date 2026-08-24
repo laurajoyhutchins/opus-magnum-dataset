@@ -7,12 +7,12 @@ from typing import Any
 
 from .config import CorpusConfig
 from .hashing import canonical_json_bytes
-
-PAYLOAD_FIELDS = {"puzzles": "puzzle_bytes", "solutions": "solution_bytes"}
+from .release_configs import PAYLOAD_FIELDS as PAYLOAD_FIELDS
+from .release_configs import get_release_config
 
 
 def _to_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    payload_field = PAYLOAD_FIELDS.get(config_name)
+    payload_field = get_release_config(config_name).payload_field
     converted: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
@@ -31,7 +31,7 @@ def _to_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[st
 
 
 def _from_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    payload_field = PAYLOAD_FIELDS.get(config_name)
+    payload_field = get_release_config(config_name).payload_field
     converted: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
