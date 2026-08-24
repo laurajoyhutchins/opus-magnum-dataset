@@ -9,21 +9,9 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from .errors import ReleaseValidationError, ValidationError
 from .hashing import sha256_file
+from .release_configs import CONFIG_NAMES, SCHEMA_FILES, SORT_KEYS, get_release_config
 from .schema_resources import load_schema_resource
 
-CONFIG_NAMES = ("puzzles", "solutions", "observations", "normalized")
-SCHEMA_FILES = {
-    "puzzles": "puzzle.schema.json",
-    "solutions": "solution.schema.json",
-    "observations": "observation.schema.json",
-    "normalized": "normalized.schema.json",
-}
-SORT_KEYS = {
-    "puzzles": ("puzzle_id",),
-    "solutions": ("puzzle_id", "solution_id"),
-    "observations": ("artifact_id", "observation_id"),
-    "normalized": ("puzzle_id", "solution_id"),
-}
 _OBSERVATION_OPTIONAL_NULL_FIELDS = (
     "source_role",
     "associated_artifact_path",
@@ -40,14 +28,11 @@ class LoadedReleaseInputs:
 
 
 def load_schema(config_name: str) -> dict[str, Any]:
-    return load_schema_resource(SCHEMA_FILES[config_name]).schema
+    return load_schema_resource(get_release_config(config_name).schema_resource).schema
 
 
 def sort_records(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    try:
-        keys = SORT_KEYS[config_name]
-    except KeyError as exc:
-        raise ValueError(f"unknown config {config_name!r}") from exc
+    keys = get_release_config(config_name).sort_key
     return sorted(rows, key=lambda row: tuple(str(row.get(key, "")) for key in keys))
 
 
