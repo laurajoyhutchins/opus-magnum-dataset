@@ -32,8 +32,11 @@ def load_schema_resource(name: str) -> SchemaResource:
 
     try:
         schema = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ConfigurationError(f"invalid schema resource {name}: {exc}") from exc
+    try:
         Draft202012Validator.check_schema(schema)
-    except (UnicodeDecodeError, json.JSONDecodeError, Exception) as exc:
+    except Exception as exc:
         raise ConfigurationError(f"invalid schema resource {name}: {exc}") from exc
 
     if not isinstance(schema, dict):
