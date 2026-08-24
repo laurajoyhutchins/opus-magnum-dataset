@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
-import json
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +11,7 @@ from jsonschema import Draft202012Validator
 
 from .errors import CollectionValidationError, ValidationError
 from .hashing import sha256_file
+from .schema_resources import load_schema_resource
 
 INVENTORY_HEADER = [
     "puzzle_id",
@@ -33,17 +33,6 @@ class CollectionDefinition:
     inventory_path: Path
     inventory_rows: tuple[dict[str, str], ...]
     manifest: dict[str, Any]
-
-
-def _schemas_root() -> Path:
-    return Path(__file__).resolve().parents[2] / "schemas"
-
-
-def _load_schema(name: str) -> dict[str, Any]:
-    path = _schemas_root() / name
-    schema = json.loads(path.read_text(encoding="utf-8"))
-    Draft202012Validator.check_schema(schema)
-    return schema
 
 
 def _jsonable(value: Any) -> Any:
@@ -84,7 +73,9 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
         ) from exc
 
     manifest = _jsonable(raw_manifest)
-    manifest_validator = Draft202012Validator(_load_schema("collection-manifest.schema.json"))
+    manifest_validator = Draft202012Validator(
+        load_schema_resource("collection-manifest.schema.json").schema
+    )
     errors.extend(
         _schema_errors(
             manifest_validator,
@@ -147,7 +138,7 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
                     )
                 else:
                     row_validator = Draft202012Validator(
-                        _load_schema("collection-inventory-row.schema.json")
+                        load_schema_resource("collection-inventory-row.schema.json").schema
                     )
                     for line_number, values in enumerate(parsed[1:], start=2):
                         if len(values) != len(INVENTORY_HEADER):
