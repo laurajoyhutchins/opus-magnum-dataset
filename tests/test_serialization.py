@@ -60,6 +60,14 @@ def test_normalized_puzzle_schema_excludes_source_provenance():
     assert errors
 
 
+def test_normalized_puzzle_schema_requires_puzzle_artifact_identity():
+    root = Path(__file__).resolve().parents[1]
+    schema_path = root / "schemas" / "normalized-puzzle.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    errors = list(Draft202012Validator(schema).iter_errors(_normalized_puzzle()))
+    assert errors, "normalized puzzles must identify the exact source puzzle artifact"
+
+
 def test_canonical_json_serializer_is_deterministic_for_puzzles():
     from opus_corpus.serialization import CanonicalJsonSerializer
 
