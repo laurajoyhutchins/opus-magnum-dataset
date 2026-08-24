@@ -6,7 +6,7 @@ from .content_store import ContentStore, ContentStoreError
 from .errors import CorpusError
 from .hashing import sha256_bytes
 from .ingestion import ArtifactRecord
-from .verification import VerificationInput, VerificationResult, Verifier
+from .verification import VerificationInput, VerificationResult, Verifier, verification_id
 
 
 class VerificationMaterializationError(CorpusError):
@@ -93,6 +93,18 @@ def _validate_result(
     if result.validation_profile != validation_profile:
         raise VerificationMaterializationError(
             f"{solution.artifact_id}: verifier returned the wrong validation profile"
+        )
+    expected_id = verification_id(
+        puzzle_artifact_id=result.puzzle_artifact_id,
+        solution_id=result.solution_id,
+        verifier_implementation=result.verifier_implementation,
+        verifier_revision=result.verifier_revision,
+        verifier_sha256=result.verifier_sha256,
+        validation_profile=result.validation_profile,
+    )
+    if result.verification_id != expected_id:
+        raise VerificationMaterializationError(
+            f"{solution.artifact_id}: verifier returned an invalid verification identity"
         )
 
 
