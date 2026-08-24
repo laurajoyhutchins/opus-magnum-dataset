@@ -6,12 +6,15 @@
   "properties": {
     "observation_id": {"type": "string", "minLength": 1},
     "artifact_kind": {"enum": ["puzzle", "solution"]},
-    "artifact_id": {"type": "string", "minLength": 1},
+    "artifact_id": {"type": ["string", "null"], "minLength": 1},
     "puzzle_id": {"type": ["string", "null"]},
+    "source_role": {"enum": ["artifact", "metadata"]},
     "source_id": {"type": "string", "minLength": 1},
     "source_revision": {"type": ["string", "null"]},
     "source_object_id": {"type": ["string", "null"]},
     "source_path": {"type": ["string", "null"]},
+    "associated_artifact_path": {"type": ["string", "null"]},
+    "source_declared_puzzle_id": {"type": ["string", "null"]},
     "source_url": {"type": ["string", "null"]},
     "author": {"type": ["string", "null"]},
     "retrieved_at": {"type": "string", "format": "date-time"},
@@ -20,7 +23,23 @@
     "claimed_area": {"type": ["integer", "null"], "minimum": 0},
     "claimed_instructions": {"type": ["integer", "null"], "minimum": 0},
     "observed_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "source_evidence_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "source_evidence_byte_length": {"type": ["integer", "null"], "minimum": 0},
     "rights_status": {"enum": ["redistributable", "local_fetch_only", "unknown"]},
     "importer_version": {"type": "string", "minLength": 1}
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"source_role": {"const": "metadata"}},
+        "required": ["source_role"]
+      },
+      "then": {
+        "properties": {"artifact_id": {"type": ["string", "null"], "minLength": 1}}
+      },
+      "else": {
+        "properties": {"artifact_id": {"type": "string", "minLength": 1}}
+      }
+    }
+  ]
 }
