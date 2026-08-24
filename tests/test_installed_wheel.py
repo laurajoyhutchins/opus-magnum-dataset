@@ -36,7 +36,9 @@ def _copy_collection_fixture(project_root: Path, runtime_dir: Path) -> Path:
     return manifest_path
 
 
-def _run_from_site(site_dir: Path, runtime_dir: Path, code: str) -> subprocess.CompletedProcess[str]:
+def _run_from_site(
+    site_dir: Path, runtime_dir: Path, code: str
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(site_dir)
     return subprocess.run(
