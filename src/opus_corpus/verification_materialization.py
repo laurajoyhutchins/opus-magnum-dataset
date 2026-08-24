@@ -6,7 +6,7 @@ from .content_store import ContentStore, ContentStoreError
 from .errors import CorpusError
 from .hashing import sha256_bytes
 from .ingestion import ArtifactRecord
-from .verification import Verifier, VerificationInput, VerificationResult
+from .verification import VerificationInput, VerificationResult, Verifier
 
 
 class VerificationMaterializationError(CorpusError):
