@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from opus_corpus.cache import CacheReceipt, ContentAddressedCache
-from opus_corpus.content_store import ContentStore
+from opus_corpus.content_store import ContentStore, ContentStoreError
 
 try:
     from opus_corpus.solution_materialization import (
@@ -264,7 +264,7 @@ def test_corrupt_solution_object_fails_closed(
     )
     ContentAddressedCache(tmp_path).object_path(receipt.sha256).write_bytes(b"corrupt")
 
-    with pytest.raises(Exception, match="content object|corrupt"):
+    with pytest.raises(ContentStoreError, match="content object|corrupt"):
         materialize_solution_facts(collection, tmp_path)
 
 
