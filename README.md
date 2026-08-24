@@ -16,7 +16,7 @@ The `opus-corpus` CLI owns collection validation and generated releases:
 
 ```text
 opus-corpus collections validate [manifest]
-opus-corpus release build <collection> --input <path> --output <path> --payload-policy metadata-only
+opus-corpus release build <collection> --input <path> --output <path> --payload-policy metadata-only --coverage-policy complete
 opus-corpus release validate <collection> --output <path>
 opus-corpus release stage <collection> --output <path> --destination <path>
 opus-corpus release publish <collection> --output <path>
@@ -26,14 +26,16 @@ A release materializes four independently loadable configs: `puzzles`, `solution
 
 Generated release state includes deterministic logical-record hashes, a release manifest, Parquet output hashes, and a generated dataset card. Hugging Face is a downstream distribution surface; GitHub repository facts and canonical build inputs remain authoritative.
 
-## Payload policy
+## Payload and coverage policy
 
 Every build selects an explicit payload policy:
 
 - `metadata-only` requires raw puzzle and solution byte fields to be null.
 - `include-permitted` allows raw bytes only for rows whose `rights_status` is exactly `redistributable`.
 
-The release validator reapplies the payload policy after reading generated Parquet so staging cannot bypass rights checks.
+Release coverage is also explicit. `--coverage-policy complete` is the default and requires the emitted puzzle set to equal the frozen collection plus at least one verified solution for every puzzle. `--coverage-policy subset` is reserved for deliberate partial slices such as the tiny development fixture. Coverage policy is recorded in the generated release manifest, and per-puzzle candidate/verified/rejected coverage is derived from canonical rows.
+
+The release validator reapplies the payload and coverage policies after reading generated Parquet so staging cannot bypass either gate.
 
 ## Development
 
@@ -52,7 +54,8 @@ To exercise the tiny release factory locally:
 uv run opus-corpus release build base-game-2026-06-16 \
   --input fixtures/tiny-corpus \
   --output .tmp-release \
-  --payload-policy metadata-only
+  --payload-policy metadata-only \
+  --coverage-policy subset
 uv run opus-corpus release validate base-game-2026-06-16 --output .tmp-release
 uv run opus-corpus release stage base-game-2026-06-16 \
   --output .tmp-release \
