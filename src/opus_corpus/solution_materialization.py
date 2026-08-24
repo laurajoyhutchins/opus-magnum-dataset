@@ -210,11 +210,18 @@ def _resolve_data_path(
     metadata_path: str,
     data_path: str | None,
     solutions: dict[str, tuple[str, CacheReceipt]],
+    directories: dict[str, str],
     puzzle_id: str,
 ) -> tuple[str | None, CacheReceipt | None]:
     if data_path is None:
         return None, None
     metadata_parent = PurePosixPath(metadata_path).parent
+    declared_parent = PurePosixPath(data_path).parent.as_posix()
+    declared_puzzle_id = directories.get(declared_parent)
+    if declared_puzzle_id is not None and declared_puzzle_id != puzzle_id:
+        raise SolutionMaterializationError(
+            f"metadata {metadata_path} dataPath points to a different puzzle"
+        )
     candidates = {data_path, (metadata_parent / data_path).as_posix()}
     matches = [(path, solutions[path]) for path in sorted(candidates) if path in solutions]
     if len(matches) > 1:
@@ -342,6 +349,7 @@ def materialize_solution_facts(collection: Any, cache_root: Path) -> SolutionMat
             metadata_receipt.upstream_path,
             data_path,
             leaderboard_solutions,
+            leaderboard_directories,
             puzzle_id,
         )
         if solution_receipt is None:
