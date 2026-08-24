@@ -1,6 +1,6 @@
-from .base import AdapterNotImplementedError, SourceAdapter
+from .base import AdapterDataError, AdapterNotImplementedError, SourceAdapter
 from .github import AdapterFetchError, GitHubSourceAdapter
-from .leaderboard_bot import LeaderboardBotAdapter
+from .leaderboard_bot import LeaderboardBotAdapter, LeaderboardPuzzle
 from .molecule_db import MoleculeDbAdapter
 from .official_game import OfficialGameAdapter
 from .om_archive import OmArchiveAdapter
@@ -21,10 +21,12 @@ ADAPTERS: dict[str, type[SourceAdapter]] = {
 
 __all__ = [
     "ADAPTERS",
+    "AdapterDataError",
     "AdapterFetchError",
     "AdapterNotImplementedError",
     "GitHubSourceAdapter",
     "LeaderboardBotAdapter",
+    "LeaderboardPuzzle",
     "MoleculeDbAdapter",
     "OfficialGameAdapter",
     "OmArchiveAdapter",
