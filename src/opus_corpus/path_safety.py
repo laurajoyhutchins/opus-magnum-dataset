@@ -19,8 +19,8 @@ def resolve_disjoint_trees(source: Path, destination: Path) -> tuple[Path, Path]
 
 def resolve_confined_path(root: Path, relative_path: str) -> Path:
     manifest_path = PurePosixPath(relative_path)
-    if not relative_path or manifest_path.is_absolute():
-        raise ValueError(f"manifest path must be relative: {relative_path!r}")
+    if not relative_path or "\\" in relative_path or manifest_path.is_absolute():
+        raise ValueError(f"manifest path must be a relative POSIX path: {relative_path!r}")
     if manifest_path.as_posix() != relative_path or ".." in manifest_path.parts:
         raise ValueError(f"manifest path must be normalized: {relative_path!r}")
 
