@@ -201,12 +201,6 @@ class MoleculeDbAdapter(SourceAdapter):
             joined = ", ".join(missing)
             raise MoleculeDbDataError(f"pinned molecule-db source is missing {joined}")
 
-        semantics = self.parse_collection_semantics(
-            collection,
-            puzzle_source=files[_PUZZLE_MODEL_PATH],
-            molecules_source=files[_MOLECULE_MODEL_PATH],
-        )
-
         cache = ContentAddressedCache(cache_root)
         for upstream_path in _REQUIRED_SOURCE_PATHS:
             cache.put_bytes(
@@ -216,6 +210,12 @@ class MoleculeDbAdapter(SourceAdapter):
                 files[upstream_path],
                 rights_status="local_fetch_only",
             )
+
+        semantics = self.parse_collection_semantics(
+            collection,
+            puzzle_source=files[_PUZZLE_MODEL_PATH],
+            molecules_source=files[_MOLECULE_MODEL_PATH],
+        )
 
         return AcquisitionResult(
             source_id=self.source_id,
