@@ -6,6 +6,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from .content_store import ContentStore, ContentStoreError
 from .errors import CorpusError
 
 
@@ -29,9 +30,10 @@ class ContentAddressedCache:
 
     def __init__(self, root: Path):
         self.root = Path(root)
+        self.store = ContentStore(self.root)
 
     def object_path(self, sha256: str) -> Path:
-        return self.root / "objects" / "sha256" / sha256[:2] / sha256[2:]
+        return self.store.object_path(sha256)
 
     def receipt_path(self, source_id: str, revision: str, upstream_path: str) -> Path:
         identity = f"{source_id}\0{revision}\0{upstream_path}".encode()
@@ -47,15 +49,10 @@ class ContentAddressedCache:
         *,
         rights_status: str,
     ) -> CacheReceipt:
-        digest = hashlib.sha256(payload).hexdigest()
-        object_path = self.object_path(digest)
-        object_path.parent.mkdir(parents=True, exist_ok=True)
-        if object_path.exists():
-            cached = object_path.read_bytes()
-            if hashlib.sha256(cached).hexdigest() != digest:
-                raise CacheIntegrityError(f"corrupt cache object for sha256 {digest}")
-        else:
-            object_path.write_bytes(payload)
+        try:
+            stored = self.store.put_bytes(payload)
+        except ContentStoreError as exc:
+            raise CacheIntegrityError(str(exc)) from exc
 
         receipt_path = self.receipt_path(source_id, revision, upstream_path)
         if receipt_path.exists():
@@ -64,8 +61,8 @@ class ContentAddressedCache:
                 source_id,
                 revision,
                 upstream_path,
-                digest,
-                len(payload),
+                stored.sha256,
+                stored.byte_length,
                 rights_status,
             )
             observed = (
@@ -86,8 +83,8 @@ class ContentAddressedCache:
             source_id=source_id,
             revision=revision,
             upstream_path=upstream_path,
-            sha256=digest,
-            byte_length=len(payload),
+            sha256=stored.sha256,
+            byte_length=stored.byte_length,
             rights_status=rights_status,
             retrieved_at=dt.datetime.now(dt.UTC).isoformat(),
         )
