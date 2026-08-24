@@ -132,7 +132,12 @@ def test_libverify_preserves_parse_failures(source: str, expected_code: str):
 
     assert result.parse_status == "failed"
     assert result.simulation_status == "not_run"
-    assert (result.cost, result.instructions, result.cycles, result.area) == (None, None, None, None)
+    assert (result.cost, result.instructions, result.cycles, result.area) == (
+        None,
+        None,
+        None,
+        None,
+    )
     assert result.error_code == expected_code
     assert result.error_detail == "invalid bytes"
     assert result.vanilla_constructible is None
@@ -150,7 +155,12 @@ def test_libverify_preserves_structured_simulation_failure_and_discards_partial_
 
     assert result.parse_status == "passed"
     assert result.simulation_status == "failed"
-    assert (result.cost, result.instructions, result.cycles, result.area) == (None, None, None, None)
+    assert (result.cost, result.instructions, result.cycles, result.area) == (
+        None,
+        None,
+        None,
+        None,
+    )
     assert result.error_code == "simulation_failed"
     assert result.error_detail == "collision on cycle 12 at -3 4"
     assert backend.evaluated_metrics == ["cost", "instructions", "cycles"]
