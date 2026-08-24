@@ -5,7 +5,7 @@ effective_date = "2026-06-16"
 status = "frozen"
 puzzle_count = 166
 inventory_file = "base-game-2026-06-16.csv"
-inventory_sha256 = "b5eb005215726699232255ded092347a70232443d462838640315137745d821f"
+inventory_sha256 = "caf85b7070eb8ae6d86aa6f266e7ab355061bcbaebf945ba47687de9b0fca01a"
 
 scope = "All leaderboard-addressable built-in synthesis puzzles in Campaign, Journal XCIX, and Journal CVIII as of the publication of Journal CVIII Issue XII on 2026-06-16."
 excludes = ["tutorial-micro-lessons", "de-re-metallica", "custom", "workshop", "tournament"]
