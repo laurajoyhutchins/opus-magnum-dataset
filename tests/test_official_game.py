@@ -219,3 +219,28 @@ path = "P001.puzzle"
     puzzle_path.write_bytes(b"changed")
     with pytest.raises(CacheIntegrityError, match="pinned source path changed"):
         adapter.fetch(_collection(tmp_path), cache_root)
+
+
+def test_invalid_manifest_does_not_partially_mutate_cache(tmp_path: Path):
+    source_root = tmp_path / "official"
+    cache_root = tmp_path / "cache"
+    _write_manifest(
+        source_root,
+        '''schema_version = 1
+snapshot_id = "fixture"
+[[puzzles]]
+puzzle_id = "om.puzzle.0001"
+path = "P001.puzzle"
+[[puzzles]]
+puzzle_id = "om.puzzle.0001"
+path = "copy/P001.puzzle"
+''',
+    )
+    (source_root / "P001.puzzle").write_bytes(b"one")
+    (source_root / "copy").mkdir()
+    (source_root / "copy/P001.puzzle").write_bytes(b"duplicate")
+
+    with pytest.raises(OfficialGameAcquisitionError, match="duplicate puzzle_id"):
+        OfficialGameAdapter(source_root).fetch(_collection(tmp_path), cache_root)
+
+    assert not cache_root.exists()
