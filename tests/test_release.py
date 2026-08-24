@@ -31,7 +31,7 @@ def sample_manifest() -> ReleaseManifest:
         for name in ("puzzles", "solutions", "observations", "normalized")
     }
     manifest = ReleaseManifest(
-        format_version=1,
+        format_version=2,
         corpus_schema_version="0.1",
         collection_id="base-game-2026-06-16",
         collection_inventory_sha256="a" * 64,
