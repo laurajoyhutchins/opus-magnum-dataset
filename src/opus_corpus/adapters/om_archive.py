@@ -4,7 +4,7 @@ from pathlib import Path, PurePosixPath
 
 from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
-from ..github_source import download_github_tarball, tarball_files
+from ..github_source import iter_github_tarball_members
 from ..solution_sources import OM_ARCHIVE_SOURCE
 from .base import AcquisitionResult, SourceAdapter
 
@@ -15,27 +15,27 @@ class OmArchiveAdapter(SourceAdapter):
     pinned_revision = source_layout.pinned_revision
 
     def fetch(self, collection: CollectionDefinition, cache_root: Path) -> AcquisitionResult:
-        tarball = download_github_tarball(
-            "F43nd1r",
-            "om-archive",
-            self.pinned_revision,
-        )
-        files = tarball_files(tarball, suffix=".solution")
         expected_directories = self._expected_directories(collection)
         cache = ContentAddressedCache(cache_root)
         covered: set[str] = set()
         candidate_count = 0
 
-        for upstream_path, payload in files.items():
-            parent = PurePosixPath(upstream_path).parent.as_posix()
-            puzzle_id = expected_directories.get(parent)
+        for upstream_path, member in iter_github_tarball_members(
+            "F43nd1r",
+            "om-archive",
+            self.pinned_revision,
+        ):
+            path = PurePosixPath(upstream_path)
+            if path.suffix != ".solution":
+                continue
+            puzzle_id = expected_directories.get(path.parent.as_posix())
             if puzzle_id is None:
                 continue
             cache.put_bytes(
                 self.source_id,
                 self.pinned_revision,
                 upstream_path,
-                payload,
+                member.read(),
                 rights_status="local_fetch_only",
             )
             covered.add(puzzle_id)
