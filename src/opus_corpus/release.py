@@ -378,6 +378,9 @@ def validate_referential_integrity(
     for index, row in enumerate(records.get("observations", []), start=1):
         artifact_kind = row.get("artifact_kind")
         artifact_id = row.get("artifact_id")
+        metadata_only = row.get("source_role") == "metadata" and artifact_id is None
+        if metadata_only:
+            continue
         if artifact_kind == "solution" and artifact_id not in solutions:
             errors.append(
                 ValidationError(
