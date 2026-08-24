@@ -7,23 +7,15 @@ from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from . import release_configs as _release_configs
 from .errors import ReleaseValidationError, ValidationError
 from .hashing import sha256_file
 from .schema_resources import load_schema_resource
 
-CONFIG_NAMES = ("puzzles", "solutions", "observations", "normalized")
-SCHEMA_FILES = {
-    "puzzles": "puzzle.schema.json",
-    "solutions": "solution.schema.json",
-    "observations": "observation.schema.json",
-    "normalized": "normalized.schema.json",
-}
-SORT_KEYS = {
-    "puzzles": ("puzzle_id",),
-    "solutions": ("puzzle_id", "solution_id"),
-    "observations": ("artifact_id", "observation_id"),
-    "normalized": ("puzzle_id", "solution_id"),
-}
+CONFIG_NAMES = _release_configs.CONFIG_NAMES
+SCHEMA_FILES = _release_configs.SCHEMA_FILES
+SORT_KEYS = _release_configs.SORT_KEYS
+
 _OBSERVATION_OPTIONAL_NULL_FIELDS = (
     "source_role",
     "associated_artifact_path",
@@ -40,14 +32,12 @@ class LoadedReleaseInputs:
 
 
 def load_schema(config_name: str) -> dict[str, Any]:
-    return load_schema_resource(SCHEMA_FILES[config_name]).schema
+    spec = _release_configs.get_release_config(config_name)
+    return load_schema_resource(spec.schema_resource).schema
 
 
 def sort_records(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    try:
-        keys = SORT_KEYS[config_name]
-    except KeyError as exc:
-        raise ValueError(f"unknown config {config_name!r}") from exc
+    keys = _release_configs.get_release_config(config_name).sort_key
     return sorted(rows, key=lambda row: tuple(str(row.get(key, "")) for key in keys))
 
 
