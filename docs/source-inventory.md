@@ -23,11 +23,11 @@ The authoritative repository inventory is `collections/base-game-2026-06-16.csv`
 | --- | --- | ---: | --- | --- |
 | `F43nd1r/zachtronics-leaderboard-bot` | `ca40dee95da584270eb3be1c4b74e2be63afa7e6` | 166/166 identities | Membership evidence, upstream identifiers, grouping, record/frontier metadata | Do not assume executable solution payload redistribution |
 | `ianh/omsim` | `758f4a4b4c9e24f50294801da774a0960c922bab` | 36/36 campaign synthesis puzzle fixtures; additional historical Journal test fixtures are not counted as catalog coverage | Verification authority and campaign puzzle transcription source | Puzzle fixture redistribution rights unresolved; default `local-fetch-only` |
-| `F43nd1r/om-archive` | `44006a0eeb0051337640443d1b0576ea24c983f6` | 91/166 puzzles with acquired solution candidates | Historical human solution archive | No repository-wide content license observed; default `local-fetch-only` |
-| `F43nd1r/om-leaderboard` | `0cfd371ef66cf94eac3f7a7a06bc9ab959495576` | Candidate acquisition source for the 75 puzzles outside `om-archive` coverage, plus overlapping records; full per-puzzle payload reconciliation is required before claiming verified coverage | Current human solution payloads plus score, data-path, display-link, and modification metadata | Repository declares Unlicense, but applicability to submitted player solution bytes is not assumed; default raw `.solution` policy remains `local-fetch-only` pending source-specific rights evidence |
+| `F43nd1r/om-archive` | `44006a0eeb0051337640443d1b0576ea24c983f6` | 91/166 puzzles with 2,302 acquired solution candidates | Historical human solution archive | No repository-wide content license observed; default `local-fetch-only` |
+| `F43nd1r/om-leaderboard` | `0cfd371ef66cf94eac3f7a7a06bc9ab959495576` | 166/166 puzzles with 15,525 acquired solution candidates and 15,521 JSON metadata records; verification pending | Current human solution payloads plus score, data-path, display-link, and modification metadata | Repository declares Unlicense, but applicability to submitted player solution bytes is not assumed; default raw `.solution` policy remains `local-fetch-only` pending source-specific rights evidence |
 | `fenhl/molecule-db` | `6f3cd8068428ef96ac6426d092c3523da359ec76` | Current official-puzzle semantic data including Journal CVIII; exact official `.puzzle` byte coverage is not claimed | Independent problem-definition evidence for puzzle identity, collection association, and reagent/product molecule topology | Relevant source files are MIT-licensed; this does not establish redistribution rights for official game bytes |
 
-Coverage numbers describe confirmed puzzle-level source coverage, not the number of solutions and not a claim that every source artifact is valid or redistributable.
+Coverage numbers describe confirmed puzzle-level source coverage, not a claim that every source artifact is valid or redistributable. Candidate and metadata-record counts are pinned-revision acquisition facts, not verifier-success counts.
 
 ## `om-archive` coverage
 
@@ -44,24 +44,28 @@ Relative to the frozen 166-puzzle collection, 75 puzzles are outside the archive
 - Journal XCIX Issues X–XII: 15
 - Journal CVIII Issues I–XII: 60
 
-Those 75 are gaps in `om-archive`, not collection-membership gaps and no longer unknown source locations. The current `om-leaderboard` repository provides candidate acquisition paths for the missing solution classes. They remain unverified until the ingestion adapter mechanically reconciles every expected puzzle key, acquires a raw `.solution`, and validates it against the pinned verifier.
+Those 75 are a derived comparison between the frozen collection and acquired `om-archive` facts, not a source definition. Independent `om-leaderboard` acquisition contains executable candidates for all 75, as well as overlapping candidates for the 91 puzzles represented by `om-archive`. Verification remains pending until acquired payloads are paired with authoritative puzzle definitions and passed through the pinned verifier.
 
 ## Current leaderboard solution acquisition
 
-The pinned `F43nd1r/om-leaderboard` revision contains leaderboard directories for Journal XCIX Issues X–XII and Journal CVIII Issues I–XII, as well as overlapping sources such as Stabilized Water. Inspected puzzle directories contain paired `.json` observation metadata and `.solution` payloads, including Stabilized Water, Touchstone, and the final Journal CVIII issue.
+The pinned `F43nd1r/om-leaderboard` revision contains collection-matching material across all campaign, appendix, Journal XCIX, and Journal CVIII groups. Its adapter is source-independent: it maps every frozen collection row to the corresponding leaderboard directory using only the source layout plus the canonical group and leaderboard key. It does not encode or consult `om-archive` coverage.
 
-The `.json` records expose factual score fields and a `dataPath` that points to the corresponding `.solution`. These claims are observations only. The dataset must recompute metrics from the acquired executable payload rather than trusting filenames or JSON score fields.
+A live acquisition against revision `0cfd371ef66cf94eac3f7a7a06bc9ab959495576` produced 15,525 `.solution` candidates across all 166 collection puzzles and 15,521 JSON metadata records. Overlapping source facts are retained rather than suppressed. Among the 75 puzzles that are derived gaps in `om-archive`, an earlier diagnostic identified four `JOURNAL_X/BEAUTY_SALVE` solution candidates with no same-basename JSON and no JSON `dataPath` reference to them; those executable source facts remain valid acquisition candidates.
 
-The ingestion adapter must derive coverage mechanically from the frozen collection manifest. For each puzzle that is outside `om-archive` coverage, it must:
+The `.json` records expose claimed score fields and source associations such as `dataPath`. These claims are observations only. Acquisition hashes and caches raw JSON bytes without interpreting the claims as verified metrics. JSON records are retained even when no same-basename `.solution` exists, because source-fact preservation is independent of later pairing and verification.
 
-1. Map the canonical puzzle key to its leaderboard group and slug from the pinned puzzle model.
-2. Enumerate the pinned `om-leaderboard` puzzle directory.
-3. Require at least one `.solution` candidate and retain the adjacent `.json` as a separate source observation when available.
-4. Hash raw bytes before parsing.
-5. Verify candidate solutions against the pinned puzzle artifact and pinned verifier.
-6. Fail closed if an expected puzzle has no executable candidate or no verifier-successful candidate.
+The implemented acquisition contract:
 
-This turns the previous discovery problem into deterministic acquisition and verification work.
+1. Derives source directories for all 166 frozen collection identities from canonical group and leaderboard keys using the leaderboard repository layout.
+2. Downloads the exact pinned repository tarball and enumerates it deterministically.
+3. Caches every `.solution` and `.json` file directly under those collection-matching puzzle directories as `local-fetch-only` source bytes.
+4. Preserves overlapping facts also present in `om-archive` and preserves unpaired JSON metadata rather than treating either as redundant.
+5. Ignores source material outside the frozen collection.
+6. Reports source-local candidate and puzzle coverage without imposing completeness assumptions derived from another adapter.
+
+Archive gaps, cross-source overlaps, exact-byte deduplication, and release completeness are downstream derived state. A releasable build must still fail if the collection lacks required verifier-successful coverage; the acquisition adapter itself does not turn another source's coverage into its own contract.
+
+Verification is the next stage: acquired candidates still need authoritative puzzle artifacts, pinned `omsim` execution, recomputed metrics, canonical artifact/observation materialization, and release integration.
 
 ## Problem-definition acquisition
 
