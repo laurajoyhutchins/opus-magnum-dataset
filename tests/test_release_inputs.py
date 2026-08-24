@@ -104,7 +104,7 @@ def test_invalid_payload_policy_is_rejected():
 
 def test_load_release_inputs_validates_all_four_configs():
     root = Path(__file__).resolve().parents[1]
-    loaded = load_release_inputs(root / "fixtures/tiny-corpus", root / "schemas")
+    loaded = load_release_inputs(root / "fixtures/tiny-corpus")
     assert set(loaded.records) == set(CONFIG_NAMES)
     assert all(loaded.records[name] for name in CONFIG_NAMES)
 
@@ -120,5 +120,5 @@ def test_schema_invalid_row_reports_config_and_line(tmp_path: Path):
         json.dumps({"puzzle_id": "bad"}) + "\n", encoding="utf-8"
     )
     with pytest.raises(ReleaseValidationError) as exc:
-        load_release_inputs(fixture, root / "schemas")
+        load_release_inputs(fixture)
     assert "schema_invalid" in {error.code for error in exc.value.errors}
