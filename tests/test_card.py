@@ -66,3 +66,4 @@ def test_card_uses_release_metadata_not_checked_in_counts():
     assert "Verifier revision: `omsim-rev`" in card
     assert "Logical release hash: `" + "f" * 64 + "`" in card
     assert "Payload policy: `metadata-only`" in card
+    assert "Coverage policy: `complete`" in card
