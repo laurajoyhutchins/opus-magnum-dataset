@@ -423,7 +423,7 @@ class MoleculeDbAdapter(SourceAdapter):
                 start_r=int(match.group("start_r")),
                 end_q=int(match.group("end_q")),
                 end_r=int(match.group("end_r")),
-                bond_type=match.group("type").strip(),
+                bond_type=" ".join(match.group("type").split()),
             )
             endpoints = {
                 (bond.start_q, bond.start_r),
