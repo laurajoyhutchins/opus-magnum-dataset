@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+import importlib
 import inspect
 import json
 from pathlib import Path
-
-import jsonschema
-import pytest
-
-import opus_corpus.verification as verification
+from typing import Any
 
 
 SCHEMA_PATH = Path("schemas/verification.schema.json")
 
 
-def schema_validator() -> jsonschema.Draft202012Validator:
+def jsonschema_module() -> Any:
+    return importlib.import_module("jsonschema")
+
+
+def verification_module() -> Any:
+    return importlib.import_module("opus_corpus.verification")
+
+
+def schema_validator() -> Any:
+    jsonschema = jsonschema_module()
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator.check_schema(schema)
     return jsonschema.Draft202012Validator(schema)
@@ -39,6 +45,15 @@ def successful_record() -> dict[str, object]:
         "error_code": None,
         "error_detail": None,
     }
+
+
+def assert_schema_rejects(record: dict[str, object]) -> None:
+    validation_error = jsonschema_module().ValidationError
+    try:
+        schema_validator().validate(record)
+    except validation_error:
+        return
+    raise AssertionError("verification schema unexpectedly accepted invalid record")
 
 
 def test_verification_schema_accepts_successful_record():
@@ -67,15 +82,13 @@ def test_verification_schema_accepts_failed_parse_with_null_metrics():
 def test_verification_schema_rejects_unknown_fields():
     record = successful_record()
     record["source_claimed_cycles"] = 17
-    with pytest.raises(jsonschema.ValidationError):
-        schema_validator().validate(record)
+    assert_schema_rejects(record)
 
 
 def test_verification_schema_rejects_invalid_status():
     record = successful_record()
     record["simulation_status"] = "unknown"
-    with pytest.raises(jsonschema.ValidationError):
-        schema_validator().validate(record)
+    assert_schema_rejects(record)
 
 
 def identity_fields() -> dict[str, str | None]:
@@ -90,6 +103,7 @@ def identity_fields() -> dict[str, str | None]:
 
 
 def test_verification_id_is_deterministic():
+    verification = verification_module()
     fields = identity_fields()
     assert verification.verification_id(**fields) == verification.verification_id(**fields)
     value = verification.verification_id(**fields)
@@ -97,27 +111,26 @@ def test_verification_id_is_deterministic():
     assert len(value.removeprefix("om.verification.")) == 64
 
 
-@pytest.mark.parametrize(
-    ("field", "replacement"),
-    [
-        ("puzzle_artifact_id", "om.puzzle-artifact." + "4" * 64),
-        ("solution_id", "om.solution." + "5" * 64),
-        ("verifier_implementation", "libverify"),
-        ("verifier_revision", "rev-b"),
-        ("verifier_sha256", "6" * 64),
-        ("validation_profile", "record-v1"),
-    ],
-)
-def test_verification_id_changes_when_evaluation_identity_changes(
-    field: str, replacement: str
-):
+def test_verification_id_changes_when_evaluation_identity_changes():
+    verification = verification_module()
+    replacements = {
+        "puzzle_artifact_id": "om.puzzle-artifact." + "4" * 64,
+        "solution_id": "om.solution." + "5" * 64,
+        "verifier_implementation": "libverify",
+        "verifier_revision": "rev-b",
+        "verifier_sha256": "6" * 64,
+        "validation_profile": "record-v1",
+    }
     baseline = identity_fields()
-    changed = dict(baseline)
-    changed[field] = replacement
-    assert verification.verification_id(**changed) != verification.verification_id(**baseline)
+    baseline_id = verification.verification_id(**baseline)
+    for field, replacement in replacements.items():
+        changed = dict(baseline)
+        changed[field] = replacement
+        assert verification.verification_id(**changed) != baseline_id
 
 
 def test_verification_id_excludes_result_fields_from_its_interface():
+    verification = verification_module()
     assert tuple(inspect.signature(verification.verification_id).parameters) == (
         "puzzle_artifact_id",
         "solution_id",
@@ -129,10 +142,10 @@ def test_verification_id_excludes_result_fields_from_its_interface():
 
 
 def test_verifier_protocol_is_simulator_independent():
+    verification = verification_module()
+
     class FakeVerifier:
-        def verify(
-            self, value: verification.VerificationInput
-        ) -> verification.VerificationResult:
+        def verify(self, value: Any) -> Any:
             identity = {
                 "puzzle_artifact_id": value.puzzle_artifact_id,
                 "solution_id": value.solution_id,
@@ -161,10 +174,7 @@ def test_verifier_protocol_is_simulator_independent():
                 error_detail=None,
             )
 
-    def run(
-        verifier: verification.Verifier,
-        value: verification.VerificationInput,
-    ) -> verification.VerificationResult:
+    def run(verifier: Any, value: Any) -> Any:
         return verifier.verify(value)
 
     value = verification.VerificationInput(
