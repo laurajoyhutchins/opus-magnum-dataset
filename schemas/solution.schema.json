@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["solution_id", "solution_sha256", "puzzle_id", "puzzle_artifact_id", "solution_format", "solution_bytes", "rights_status", "verified", "validation_profile", "verifier_revision", "cost", "cycles", "area", "instructions", "vanilla_constructible", "record_eligible", "normalized_solution_id", "source_count", "collection_id"],
+  "properties": {
+    "solution_id": {"type": "string", "minLength": 1},
+    "solution_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "puzzle_id": {"type": "string", "pattern": "^om\\.puzzle\\.\\d{4}$"},
+    "puzzle_artifact_id": {"type": "string", "minLength": 1},
+    "solution_format": {"type": "string", "minLength": 1},
+    "solution_bytes": {"type": ["string", "null"], "contentEncoding": "base64"},
+    "rights_status": {"enum": ["redistributable", "local_fetch_only", "unknown"]},
+    "verified": {"type": "boolean"},
+    "validation_profile": {"type": "string", "minLength": 1},
+    "verifier_revision": {"type": "string", "minLength": 1},
+    "cost": {"type": ["integer", "null"], "minimum": 0},
+    "cycles": {"type": ["integer", "null"], "minimum": 0},
+    "area": {"type": ["integer", "null"], "minimum": 0},
+    "instructions": {"type": ["integer", "null"], "minimum": 0},
+    "vanilla_constructible": {"type": ["boolean", "null"]},
+    "record_eligible": {"type": ["boolean", "null"]},
+    "normalized_solution_id": {"type": ["string", "null"]},
+    "source_count": {"type": "integer", "minimum": 1},
+    "collection_id": {"type": "string", "minLength": 1}
+  }
+}
