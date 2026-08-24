@@ -52,7 +52,10 @@ class GitHubSourceAdapter(SourceAdapter):
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             payload = self.download(self.archive_url)
-            with tempfile.TemporaryDirectory(prefix=f".{revision}.", dir=target.parent) as temp_name:
+            with tempfile.TemporaryDirectory(
+                prefix=f".{revision}.",
+                dir=target.parent,
+            ) as temp_name:
                 extraction_root = Path(temp_name) / "extract"
                 extraction_root.mkdir()
                 with tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz") as archive:
