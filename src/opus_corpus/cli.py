@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from .adapters import ADAPTERS
+from .adapters import ADAPTERS, OfficialGameAdapter
 from .collections import validate_all_collections, validate_collection
 from .config import load_config
 from .errors import ConfigurationError, CorpusError, PublicationError, ValidationFailure
@@ -27,6 +27,10 @@ def _parser() -> argparse.ArgumentParser:
     fetch.add_argument("collection")
     fetch.add_argument("--source", required=True, choices=tuple(sorted(ADAPTERS)))
     fetch.add_argument("--cache", default=".cache")
+    fetch.add_argument(
+        "--source-root",
+        help="explicit local source root used by the official-game adapter",
+    )
 
     release = commands.add_parser("release")
     release_commands = release.add_subparsers(dest="release_command", required=True)
@@ -80,7 +84,16 @@ def _run(args: argparse.Namespace) -> int:
 
     config, collection = _collection_from_id(args.config, args.collection)
     if args.command == "fetch":
-        result = ADAPTERS[args.source]().fetch(collection, Path(args.cache))
+        if args.source == "official-game":
+            if not args.source_root:
+                raise ConfigurationError(
+                    "official-game acquisition requires --source-root "
+                    "pointing to local puzzle bytes"
+                )
+            adapter = OfficialGameAdapter(Path(args.source_root))
+        else:
+            adapter = ADAPTERS[args.source]()
+        result = adapter.fetch(collection, Path(args.cache))
         print(
             f"fetched {result.source_id}: {result.candidate_count} candidates across "
             f"{result.puzzles_covered} puzzles"

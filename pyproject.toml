@@ -26,8 +26,11 @@ build-backend = "hatchling.build"
 packages = ["src/opus_corpus"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q -m 'not upstream'"
 testpaths = ["tests"]
+markers = [
+  "upstream: tests that require pinned external source access",
+]
 
 [tool.ruff]
 target-version = "py312"

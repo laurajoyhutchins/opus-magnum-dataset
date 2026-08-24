@@ -40,11 +40,13 @@ The repository already has the durable outer structure needed by the roadmap:
 - rights-aware payload policy;
 - deterministic release manifests, Parquet materialization, validation, staging, and publication machinery;
 - a single content-addressed acquisition cache with immutable provenance receipts;
+- one authoritative exact-byte `ContentStore` shared by acquisition and canonical artifact materialization;
+- deterministic content-derived artifact identity, exact-byte deduplication, provenance preservation, conservative rights folding, and fail-closed artifact conflicts from PR #15;
 - pinned `om-archive` and `om-leaderboard` acquisition;
 - source-adapter contracts with fail-closed unimplemented sources;
 - normalized-puzzle and deterministic serialization seams.
 
-The remaining work is primarily the canonical middle between acquired bytes and the existing release factory.
+The remaining work is primarily the source-specific canonical middle between the shared artifact/provenance core and the existing release factory.
 
 ## Milestone 1: Canonical verification and solution-normalization contracts
 
@@ -65,6 +67,8 @@ No `.solution` parser or `omsim` integration is required to exit this milestone.
 ## Milestone 2: Canonical artifact materialization
 
 **Goal:** Convert acquired source facts into the canonical artifact/provenance model without introducing a second storage mechanism.
+
+The shared core of this milestone landed in PR #15. Acquisition and materialization now share one exact-byte `ContentStore`; receipt-based ingestion provides deterministic content-derived identity, exact-byte deduplication with multi-source provenance, conservative artifact-rights aggregation, and fail-closed integrity/identity/format handling. The remaining milestone work is source-specific orchestration and projection into concrete `SolutionArtifact`, `Observation`, and verifier-usable `PuzzleArtifact` records in WP-04 and WP-08.
 
 Exit criteria:
 

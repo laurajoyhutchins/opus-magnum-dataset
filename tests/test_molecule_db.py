@@ -3,14 +3,17 @@ from __future__ import annotations
 import io
 import json
 import tarfile
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
 from opus_corpus import github_source
 from opus_corpus.adapters.molecule_db import MoleculeDbAdapter
-from opus_corpus.collections import CollectionDefinition
+from opus_corpus.collections import CollectionDefinition, validate_collection
 from opus_corpus.errors import CorpusError
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 PUZZLE_SOURCE = b'''\
 puzzles! {
@@ -98,6 +101,58 @@ def test_fetch_caches_only_semantic_source_files_with_provenance(monkeypatch, tm
     assert {item["upstream_path"] for item in observed} == {"src/puzzle.rs", "src/molecules.rs"}
     assert {item["revision"] for item in observed} == {MoleculeDbAdapter.pinned_revision}
     assert {item["rights_status"] for item in observed} == {"local_fetch_only"}
+
+
+def test_fetch_caches_semantic_source_files_before_reconciliation_failure(
+    monkeypatch, tmp_path: Path
+):
+    payload = _tarball(
+        {
+            "src/puzzle.rs": PUZZLE_SOURCE,
+            "src/molecules.rs": MOLECULE_SOURCE,
+        }
+    )
+    monkeypatch.setattr(github_source, "download_github_tarball", lambda *args: payload)
+    cache_root = tmp_path / "cache"
+
+    with pytest.raises(CorpusError, match="P999.*missing"):
+        MoleculeDbAdapter().fetch(_collection(tmp_path, game_puzzle_id="P999"), cache_root)
+
+    receipts = sorted((cache_root / "receipts" / "molecule-db").rglob("*.json"))
+    assert len(receipts) == 2
+    observed = [json.loads(path.read_text()) for path in receipts]
+    assert {item["upstream_path"] for item in observed} == {"src/puzzle.rs", "src/molecules.rs"}
+
+
+@pytest.mark.upstream
+def test_pinned_source_reconciles_frozen_base_game_collection():
+    adapter = MoleculeDbAdapter()
+    tarball = github_source.download_github_tarball(
+        "fenhl",
+        "molecule-db",
+        adapter.pinned_revision,
+    )
+    files = github_source.tarball_files(tarball)
+    observed_hashes = {
+        path: sha256(files[path]).hexdigest()
+        for path in ("src/molecules.rs", "src/puzzle.rs")
+    }
+    assert observed_hashes == {
+        "src/molecules.rs": "09dbca0f67ba16178f98da0f2a94f642e3114f61a0a3d79c434d8411df175a58",
+        "src/puzzle.rs": "d6fd2f8d99731081f5d76ab47fbd67c2c19f02f73e04cdb1bdd1ad4534096f11",
+    }
+
+    collection = validate_collection(REPO_ROOT / "collections" / "base-game-2026-06-16.toml")
+    semantics = adapter.parse_collection_semantics(
+        collection,
+        puzzle_source=files["src/puzzle.rs"],
+        molecules_source=files["src/molecules.rs"],
+    )
+
+    assert len(semantics) == collection.puzzle_count == 166
+    assert tuple(item.game_puzzle_id for item in semantics) == tuple(
+        row["game_puzzle_id"] for row in collection.inventory_rows
+    )
 
 
 def test_parse_collection_semantics_reconciles_topology_by_game_puzzle_id(tmp_path: Path):
