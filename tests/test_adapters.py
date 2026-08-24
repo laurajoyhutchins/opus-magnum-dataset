@@ -14,7 +14,7 @@ EXPECTED_REVISIONS = {
     "official-game": None,
 }
 UNIMPLEMENTED_SOURCES = sorted(
-    set(EXPECTED_REVISIONS) - {"om-archive", "om-leaderboard"}
+    set(EXPECTED_REVISIONS) - {"om-archive", "om-leaderboard", "official-game"}
 )
 
 
