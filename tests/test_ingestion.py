@@ -191,7 +191,12 @@ def test_artifact_rights_local_fetch_only_outranks_other_statuses(tmp_path: Path
         [
             _candidate(sources[0], source_id="a", source_path="a", rights_status="redistributable"),
             _candidate(sources[1], source_id="b", source_path="b", rights_status="unknown"),
-            _candidate(sources[2], source_id="c", source_path="c", rights_status="local_fetch_only"),
+            _candidate(
+                sources[2],
+                source_id="c",
+                source_path="c",
+                rights_status="local_fetch_only",
+            ),
         ],
         tmp_path / "objects",
     )
