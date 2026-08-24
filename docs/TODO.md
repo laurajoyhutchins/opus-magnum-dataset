@@ -20,7 +20,7 @@ WP-03 Artifact materializer core
         └────→ WP-04 SolutionArtifact + Observation materialization ────┐
                                                                         │
 WP-05 omsim puzzle source ────────────────┐                             │
-WP-06 molecule-db semantic source ────────┼→ WP-08 PuzzleArtifact       │
+[LANDED] WP-06 molecule-db semantic source (#18) ─┼→ WP-08 PuzzleArtifact       │
 WP-07 official/local puzzle-byte path ────┘     coverage/materialization │
                                                     │                   │
 [LANDED] WP-01 ────────────────────────────────────┼──────┐            │
@@ -39,7 +39,7 @@ WP-10 ────────────────────────�
                                             WP-12 Complete v1 release
 ```
 
-The currently claimable parallel lanes are WP-03, WP-05, WP-06, and WP-07. WP-01 and WP-02 are settled foundations on `main`. Downstream packets should not start by reimplementing missing upstream behavior; they should consume the declared interfaces when those dependencies settle.
+The currently claimable parallel lanes are WP-03, WP-05, and WP-07. WP-01, WP-02, and WP-06 are settled foundations on `main`. Downstream packets should not start by reimplementing missing upstream behavior; they should consume the declared interfaces when those dependencies settle.
 
 ### Landed foundations
 
@@ -58,6 +58,7 @@ These capabilities already exist and should be consumed rather than recreated:
 - [x] Exact `PuzzleArtifact` lineage requirement for normalized puzzle rows.
 - [x] Canonical Verification contract from PR #13.
 - [x] Strict normalized-solution contract and `SolutionNormalizer` seam from PR #14.
+- [x] Pinned molecule-db semantic acquisition and topology reconciliation from PR #18.
 
 ### Claimable work packets
 
@@ -70,7 +71,7 @@ Each open packet owns one capability. A worker may change adjacent code only whe
 | **WP-03 Artifact materializer core** | **Ready** | landed content-addressed cache | Shared canonical artifact/provenance materialization primitive and content-derived identity | cached immutable objects + receipts → canonical artifact/provenance records | source-specific parsers, second object store, verification, normalization, release projection | exact-byte identity, provenance merge, corruption/conflict, ordering, and local-root invariants are tested |
 | **WP-04 SolutionArtifact + Observation materialization** | Blocked | WP-03 | Deterministic conversion of acquired solution/metadata facts into canonical solution artifacts and observations | `om-archive` / `om-leaderboard` cached facts → `SolutionArtifact` + `Observation` records | source acquisition mechanisms, puzzle-definition adapters, verification, normalization | overlapping sources dedupe by bytes while observations and source claims remain preserved |
 | **WP-05 omsim puzzle source** | **Ready** | landed acquisition/cache primitives | Pinned `omsim` puzzle-definition acquisition/adapter behavior | pinned `omsim` source → cached puzzle-definition facts | canonical artifact schemas, solution parsing, verifier semantics, release rows | source mapping is deterministic, idempotent, rights-aware, and covered by fixtures/tests |
-| **WP-06 molecule-db semantic source** | **Ready** | landed acquisition/cache primitives | Pinned molecule-db semantic acquisition/adapter behavior | pinned molecule-db source → cached semantic puzzle evidence | exact official-byte claims, canonical artifact schemas, verification, release rows | semantic topology evidence is deterministic, provenance-bearing, and never presented as exact `.puzzle` identity |
+| **WP-06 molecule-db semantic source** | **Settled** | landed acquisition/cache primitives | Pinned molecule-db semantic acquisition/adapter behavior | pinned molecule-db source → cached semantic puzzle evidence | exact official-byte claims, canonical artifact schemas, verification, release rows | PR #18 merged with semantic acquisition/reconciliation tests green |
 | **WP-07 Official/local puzzle-byte path** | **Ready** | landed acquisition/cache primitives | Explicit local acquisition path for exact official puzzle bytes where needed | local permitted official bytes → cached immutable puzzle-byte facts | invented game fields, semantic substitution, alternate object storage, verification | exact bytes enter the existing cache with provenance/rights metadata and fail closed on ambiguity |
 | **WP-08 PuzzleArtifact coverage/materialization** | Blocked | WP-03, WP-05, WP-06, WP-07 | Canonical puzzle artifact materialization and deterministic verifier-usable coverage | cached puzzle facts/evidence → `PuzzleArtifact` records + derived coverage | new fetch/cache mechanisms, verifier execution, release projections | every required puzzle can resolve a verifier-usable artifact or the coverage computation fails explicitly |
 | **WP-09 Verification implementation** | Blocked | WP-01, WP-04, WP-08 | Pinned `omsim`/`libverify` implementation behind `Verifier`; canonical verification records | exact puzzle + solution artifacts → deterministic `Verification` records | source acquisition, canonical artifact storage, normalized schema, release selection logic | parse/simulation success and failure are retained, metrics are recomputed, repeat runs are deterministic |
@@ -132,7 +133,7 @@ Each open packet owns one capability. A worker may change adjacent code only whe
 ### Complete verifier-ready puzzle-definition coverage
 
 - [ ] Implement the `omsim` puzzle-definition adapter against the shared acquisition/cache boundary.
-- [ ] Implement the molecule-db semantic adapter against the shared acquisition/cache boundary.
+- [x] Implement the molecule-db semantic adapter against the shared acquisition/cache boundary.
 - [ ] Define the official-game/local puzzle-byte acquisition path for exact official `.puzzle` fidelity where required.
 - [ ] Keep exact puzzle bytes distinct from semantic evidence such as molecule topology.
 - [ ] Generate deterministic puzzle-artifact coverage from canonical facts.
