@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
 from ..errors import CorpusError
+from ..hashing import sha256_bytes
 from .base import AcquisitionResult, SourceAdapter
 
 _MANIFEST_NAME = "official-puzzles.toml"
@@ -34,9 +35,9 @@ class OfficialGameAdapter(SourceAdapter):
             )
 
         source_root = Path(self.source_root).resolve()
-        manifest = self._load_manifest(source_root)
+        manifest, manifest_bytes = self._load_manifest(source_root)
         snapshot_id = manifest["snapshot_id"]
-        revision = f"local:{snapshot_id}"
+        revision = f"local-{sha256_bytes(snapshot_id.encode('utf-8'))}"
         collection_ids = {row["puzzle_id"] for row in collection.inventory_rows}
         seen_puzzle_ids: set[str] = set()
         seen_paths: set[str] = set()
@@ -72,6 +73,13 @@ class OfficialGameAdapter(SourceAdapter):
             prepared.append((relative_path, payload))
 
         cache = ContentAddressedCache(cache_root)
+        cache.put_bytes(
+            self.source_id,
+            revision,
+            _MANIFEST_NAME,
+            manifest_bytes,
+            rights_status="local_fetch_only",
+        )
         for relative_path, payload in prepared:
             cache.put_bytes(
                 self.source_id,
@@ -88,12 +96,12 @@ class OfficialGameAdapter(SourceAdapter):
         )
 
     @staticmethod
-    def _load_manifest(source_root: Path) -> dict:
+    def _load_manifest(source_root: Path) -> tuple[dict, bytes]:
         manifest_path = source_root / _MANIFEST_NAME
         try:
-            with manifest_path.open("rb") as handle:
-                manifest = tomllib.load(handle)
-        except (OSError, tomllib.TOMLDecodeError) as exc:
+            manifest_bytes = manifest_path.read_bytes()
+            manifest = tomllib.loads(manifest_bytes.decode("utf-8"))
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
             raise OfficialGameAcquisitionError(
                 f"invalid official-game manifest: {manifest_path}"
             ) from exc
@@ -114,7 +122,7 @@ class OfficialGameAdapter(SourceAdapter):
             raise OfficialGameAcquisitionError(
                 f"{_MANIFEST_NAME} puzzles must contain at least one explicit mapping"
             )
-        return manifest
+        return manifest, manifest_bytes
 
     @staticmethod
     def _validate_mapping(
