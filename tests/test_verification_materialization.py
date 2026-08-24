@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import pytest
 
@@ -50,6 +50,13 @@ class RecordingVerifier:
             error_code=None,
             error_detail=None,
         )
+
+
+@dataclass
+class ForgedIdentityVerifier(RecordingVerifier):
+    def verify(self, value: VerificationInput) -> VerificationResult:
+        result = super().verify(value)
+        return replace(result, verification_id="om.verification." + "0" * 64)
 
 
 def artifact(
@@ -120,6 +127,20 @@ def test_materialization_pairs_exact_artifact_bytes_and_is_input_order_independe
         solution_a.artifact_id,
         solution_b.artifact_id,
     }
+
+
+def test_materialization_rejects_a_forged_verification_identity(tmp_path):
+    store = ContentStore(tmp_path / "cache")
+    puzzle = artifact(store, kind="puzzle", puzzle_id="om.puzzle.1", payload=b"puzzle")
+    solution = artifact(store, kind="solution", puzzle_id="om.puzzle.1", payload=b"solution")
+
+    with pytest.raises(VerificationMaterializationError, match="verification identity"):
+        materialize_verifications(
+            [puzzle, solution],
+            store=store,
+            verifier=ForgedIdentityVerifier(),
+            validation_profile="fixture-profile",
+        )
 
 
 def test_materialization_fails_when_solution_has_no_puzzle_artifact(tmp_path):
