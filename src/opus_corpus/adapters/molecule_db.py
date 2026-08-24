@@ -29,7 +29,7 @@ _BOND_RE = re.compile(
     r"q:\s*(?P<start_q>-?\d+)\s*,\s*r:\s*(?P<start_r>-?\d+)\s*\}\s*,\s*"
     r"end:\s*HexIndex\s*\{\s*q:\s*(?P<end_q>-?\d+)\s*,\s*"
     r"r:\s*(?P<end_r>-?\d+)\s*\}\s*,\s*"
-    r"ty:\s*BondType::(?P<type>[A-Za-z][A-Za-z0-9_]*)\s*\}\s*$"
+    r"ty:\s*BondType::(?P<type>[A-Za-z][A-Za-z0-9_]*)\s*,?\s*\}\s*$"
 )
 _APPEARANCE_RE = re.compile(
     rf"^\s*\(\s*Puzzle::(?P<variant>[A-Za-z][A-Za-z0-9_]*)\s*,\s*"
