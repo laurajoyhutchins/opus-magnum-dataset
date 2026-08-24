@@ -30,6 +30,12 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--input", required=True)
     build.add_argument("--output", required=True)
     build.add_argument("--payload-policy", choices=("metadata-only", "include-permitted"))
+    build.add_argument(
+        "--coverage-policy",
+        choices=("complete", "subset"),
+        default="complete",
+        help="require verified coverage for the full collection or allow an explicit subset",
+    )
 
     validate = release_commands.add_parser("validate")
     validate.add_argument("collection")
@@ -75,6 +81,7 @@ def _run(args: argparse.Namespace) -> int:
             Path(args.output),
             config,
             policy,
+            coverage_policy=args.coverage_policy,
         )
         print(
             f"built {manifest.collection_id} ({manifest.split}) "
