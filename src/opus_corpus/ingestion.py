@@ -167,11 +167,11 @@ def _stream_to_object(
         else:
             try:
                 os.link(temp_path, target)
-            except FileExistsError:
+            except FileExistsError as exc:
                 if not target.is_file() or _sha256_path(target) != hex_digest:
                     raise ArtifactIngestionError(
                         f"content store object {object_key} does not match its digest"
-                    )
+                    ) from exc
         return hex_digest, byte_length, object_key
     except ArtifactIngestionError:
         raise
