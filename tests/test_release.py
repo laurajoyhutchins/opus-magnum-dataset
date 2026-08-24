@@ -39,6 +39,7 @@ def sample_manifest() -> ReleaseManifest:
         build_software_revision=None,
         build_config_sha256="b" * 64,
         payload_policy="metadata-only",
+        coverage_policy="complete",
         release_metadata={"coverage": {"puzzle_count": 1}},
         release_metadata_sha256="c" * 64,
         configs=configs,
@@ -118,6 +119,13 @@ def test_logical_release_hash_changes_with_record_hash():
     assert compute_logical_release_hash(changed) != original.logical_release_sha256
 
 
+def test_logical_release_hash_changes_with_coverage_policy():
+    original = sample_manifest()
+    changed = ReleaseManifest.from_dict(original.to_dict())
+    changed = ReleaseManifest.from_dict({**changed.to_dict(), "coverage_policy": "subset"})
+    assert compute_logical_release_hash(changed) != original.logical_release_sha256
+
+
 def test_referential_integrity_rejects_dangling_solution_puzzle():
     value = {
         "puzzles": [{"puzzle_id": "om.puzzle.0001"}],
@@ -146,33 +154,66 @@ def test_release_coverage_is_derived_from_canonical_rows():
     coverage = derive_release_coverage(
         collection("om.puzzle.0001"),
         records(),
-        release_kind="release",
+        coverage_policy="complete",
     )
     assert coverage == {
         "puzzle_count": 1,
         "candidate_solution_count": 2,
         "verified_solution_count": 1,
         "rejected_solution_count": 1,
+        "by_puzzle": {
+            "om.puzzle.0001": {
+                "candidate_solution_count": 2,
+                "verified_solution_count": 1,
+                "rejected_solution_count": 1,
+                "state": "verified",
+            }
+        },
     }
 
 
-def test_full_release_requires_exact_collection_puzzle_set():
+def test_complete_release_requires_exact_collection_puzzle_set():
     with pytest.raises(ReleaseValidationError) as exc:
         derive_release_coverage(
             collection("om.puzzle.0001", "om.puzzle.0002"),
             records(),
-            release_kind="release",
+            coverage_policy="complete",
         )
     assert "collection_coverage_mismatch" in {error.code for error in exc.value.errors}
 
 
-def test_fixture_release_may_cover_collection_subset():
+def test_complete_release_requires_verified_solution_for_every_puzzle():
+    value = records(
+        puzzle_ids=("om.puzzle.0001", "om.puzzle.0002"),
+        solutions=[
+            {"solution_id": "s1", "puzzle_id": "om.puzzle.0001", "verified": True},
+            {"solution_id": "s2", "puzzle_id": "om.puzzle.0002", "verified": False},
+        ],
+    )
+    with pytest.raises(ReleaseValidationError) as exc:
+        derive_release_coverage(
+            collection("om.puzzle.0001", "om.puzzle.0002"),
+            value,
+            coverage_policy="complete",
+        )
+    assert "collection_verified_coverage_incomplete" in {
+        error.code for error in exc.value.errors
+    }
+
+
+def test_subset_release_may_cover_collection_subset_and_reports_all_puzzles():
     coverage = derive_release_coverage(
         collection("om.puzzle.0001", "om.puzzle.0002"),
         records(),
-        release_kind="fixture",
+        coverage_policy="subset",
     )
     assert coverage["puzzle_count"] == 1
+    assert coverage["by_puzzle"]["om.puzzle.0002"] == {
+        "candidate_solution_count": 0,
+        "verified_solution_count": 0,
+        "rejected_solution_count": 0,
+        "state": "uncovered",
+    }
 
 
 @pytest.mark.parametrize(
@@ -211,7 +252,7 @@ def test_release_coverage_rejects_duplicate_canonical_ids(
         derive_release_coverage(
             collection("om.puzzle.0001"),
             value,
-            release_kind="fixture",
+            coverage_policy="subset",
         )
     errors = [error for error in exc.value.errors if error.code == "duplicate_canonical_id"]
     assert errors
@@ -228,8 +269,24 @@ def test_release_metadata_rejects_hand_maintained_coverage_counts():
                 "corpus_schema_version": "0.1",
                 "coverage": {"puzzle_count": 99, "summary": "human prose is allowed"},
             },
+            coverage_policy="complete",
         )
     assert "release_metadata_derived_field" in {error.code for error in exc.value.errors}
+
+
+def test_release_metadata_release_kind_cannot_relax_complete_coverage():
+    with pytest.raises(ReleaseValidationError) as exc:
+        derive_release_metadata(
+            collection("om.puzzle.0001", "om.puzzle.0002"),
+            records(),
+            {
+                "release_kind": "fixture",
+                "corpus_schema_version": "0.1",
+                "coverage": {"summary": "descriptive metadata only"},
+            },
+            coverage_policy="complete",
+        )
+    assert "collection_coverage_mismatch" in {error.code for error in exc.value.errors}
 
 
 def test_release_metadata_preserves_coverage_summary_and_adds_derived_counts():
@@ -241,6 +298,7 @@ def test_release_metadata_preserves_coverage_summary_and_adds_derived_counts():
             "corpus_schema_version": "0.1",
             "coverage": {"summary": "human prose is allowed"},
         },
+        coverage_policy="complete",
     )
     assert metadata["coverage"] == {
         "summary": "human prose is allowed",
@@ -248,4 +306,12 @@ def test_release_metadata_preserves_coverage_summary_and_adds_derived_counts():
         "candidate_solution_count": 2,
         "verified_solution_count": 1,
         "rejected_solution_count": 1,
+        "by_puzzle": {
+            "om.puzzle.0001": {
+                "candidate_solution_count": 2,
+                "verified_solution_count": 1,
+                "rejected_solution_count": 1,
+                "state": "verified",
+            }
+        },
     }
