@@ -3,6 +3,8 @@ name = "opus-magnum-corpus"
 version = "0.1.0"
 description = "Deterministic Opus Magnum corpus build and Hugging Face publication tooling"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE", "RIGHTS.md"]
 dependencies = [
   "huggingface-hub==1.16.1",
   "jsonschema==4.26.0",

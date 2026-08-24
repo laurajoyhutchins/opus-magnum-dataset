@@ -40,6 +40,12 @@ Every build selects an explicit payload policy:
 
 The release validator reapplies the payload policy after reading generated Parquet so staging cannot bypass rights checks.
 
+## License and rights
+
+The project's repository-authored material is licensed under the [MIT License](LICENSE). That repository license does not grant blanket rights to official game content, player-authored solutions, or other third-party source artifacts.
+
+[`RIGHTS.md`](RIGHTS.md) is the repository-wide authority for license scope and redistribution policy. Source-specific rights evidence remains documented with provenance, and generated releases must preserve per-artifact rights rather than infer a dataset license from the repository's MIT license.
+
 ## Development
 
 Python 3.12 is the supported runtime. From the committed lockfile environment:
@@ -88,13 +94,14 @@ Generated release directories are projections and should not be treated as repos
 
 ## Documents
 
+- [`RIGHTS.md`](RIGHTS.md) — repository license scope and authoritative redistribution policy.
 - [`docs/README.md`](docs/README.md) — map of current contracts, planning documents, and dated historical design notes.
 - [`docs/TODO.md`](docs/TODO.md) — dependency/concurrency work graph and current landed/ready/blocked implementation snapshot.
 - [`docs/roadmap.md`](docs/roadmap.md) — dependency-ordered path from the current corpus factory to the first complete release and later research expansion.
 - [`docs/dataset-spec.md`](docs/dataset-spec.md) — canonical corpus model, invariants, validation, provenance, reproducibility, and release acceptance criteria.
 - [`docs/benchmark-protocol.md`](docs/benchmark-protocol.md) — versioned benchmark boundary, Solve-first evaluation protocol, metrics, attempt policies, contamination guidance, and result requirements.
 - [`docs/hugging-face-export.md`](docs/hugging-face-export.md) — loading-script-free Hugging Face / Parquet publication contract.
-- [`docs/source-inventory.md`](docs/source-inventory.md) — frozen collection coverage and rights boundaries.
+- [`docs/source-inventory.md`](docs/source-inventory.md) — frozen collection coverage and source-specific rights evidence.
 - [`docs/molecule-db-acquisition.md`](docs/molecule-db-acquisition.md) — pinned semantic-source evidence, reconciliation, cache ordering, and upstream test contract.
 - [`docs/official-puzzle-acquisition.md`](docs/official-puzzle-acquisition.md) — explicit local official-byte manifest, provenance, cache identity, and rights contract.
 

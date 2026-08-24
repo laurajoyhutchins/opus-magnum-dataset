@@ -22,9 +22,9 @@ The authoritative repository inventory is `collections/base-game-2026-06-16.csv`
 | Source | Pinned revision | Confirmed collection coverage | Primary role | Raw payload policy |
 | --- | --- | ---: | --- | --- |
 | `F43nd1r/zachtronics-leaderboard-bot` | `ca40dee95da584270eb3be1c4b74e2be63afa7e6` | 166/166 identities | Membership evidence, upstream identifiers, grouping, record/frontier metadata | Do not assume executable solution payload redistribution |
-| `ianh/omsim` | `758f4a4b4c9e24f50294801da774a0960c922bab` | 36/36 campaign synthesis puzzle fixtures acquired; additional historical Journal test fixtures are not counted as catalog coverage | Verification authority and campaign puzzle transcription source | Puzzle fixture redistribution rights unresolved; default `local-fetch-only` |
-| `F43nd1r/om-archive` | `44006a0eeb0051337640443d1b0576ea24c983f6` | 91/166 puzzles with 2,302 acquired solution candidates | Historical human solution archive | No repository-wide content license observed; default `local-fetch-only` |
-| `F43nd1r/om-leaderboard` | `0cfd371ef66cf94eac3f7a7a06bc9ab959495576` | 166/166 puzzles with 15,525 acquired solution candidates and 15,521 JSON metadata records; verification pending | Current human solution payloads plus score, data-path, display-link, and modification metadata | Repository declares Unlicense, but applicability to submitted player solution bytes is not assumed; default raw `.solution` policy remains `local-fetch-only` pending source-specific rights evidence |
+| `ianh/omsim` | `758f4a4b4c9e24f50294801da774a0960c922bab` | 36/36 campaign synthesis puzzle fixtures acquired; additional historical Journal test fixtures are not counted as catalog coverage | Verification authority and campaign puzzle transcription source | Puzzle fixture redistribution rights unresolved; default `local_fetch_only` |
+| `F43nd1r/om-archive` | `44006a0eeb0051337640443d1b0576ea24c983f6` | 91/166 puzzles with 2,302 acquired solution candidates | Historical human solution archive | No repository-wide content license observed; default `local_fetch_only` |
+| `F43nd1r/om-leaderboard` | `0cfd371ef66cf94eac3f7a7a06bc9ab959495576` | 166/166 puzzles with 15,525 acquired solution candidates and 15,521 JSON metadata records; verification pending | Current human solution payloads plus score, data-path, display-link, and modification metadata | Repository declares Unlicense, but applicability to submitted player solution bytes is not assumed; default raw `.solution` policy remains `local_fetch_only` pending source-specific rights evidence |
 | `fenhl/molecule-db` | `6f3cd8068428ef96ac6426d092c3523da359ec76` | Current official-puzzle semantic data including Journal CVIII; exact official `.puzzle` byte coverage is not claimed | Independent problem-definition evidence for puzzle identity, collection association, and reagent/product molecule topology | Relevant source files are MIT-licensed; this does not establish redistribution rights for official game bytes |
 
 Coverage numbers describe confirmed puzzle-level source coverage, not a claim that every source artifact is valid or redistributable. Candidate and metadata-record counts are pinned-revision acquisition facts, not verifier-success counts.
@@ -58,7 +58,7 @@ The implemented acquisition contract:
 
 1. Derives source directories for all 166 frozen collection identities from canonical group and leaderboard keys using the leaderboard repository layout.
 2. Downloads the exact pinned repository tarball and enumerates it deterministically.
-3. Caches every `.solution` and `.json` file directly under those collection-matching puzzle directories as `local-fetch-only` source bytes.
+3. Caches every `.solution` and `.json` file directly under those collection-matching puzzle directories as `local_fetch_only` source bytes.
 4. Preserves overlapping facts also present in `om-archive` and preserves unpaired JSON metadata rather than treating either as redundant.
 5. Ignores source material outside the frozen collection.
 6. Reports source-local candidate and puzzle coverage without imposing completeness assumptions derived from another adapter.
@@ -79,32 +79,30 @@ Therefore:
 
 - Use the pinned leaderboard-bot model for canonical puzzle identity, upstream ID, group, and puzzle type.
 - Use the pinned molecule database as independent evidence for reagent/product semantic structure.
-- Use locally acquired official puzzle bytes when exact binary fidelity is required, keeping those bytes `local-fetch-only` unless redistribution rights are established.
+- Use locally acquired official puzzle bytes when exact binary fidelity is required, keeping those bytes `local_fetch_only` unless redistribution rights are established.
 - Validate any generated normalized Journal problem representation by pairing it with at least one independently acquired solution and running the pinned verifier. Generation must fail rather than silently fill unknown game fields.
 
 ## `omsim` coverage
 
 The pinned `omsim` revision is the planned executable verification authority and the implemented campaign transcription source. Mechanical acquisition against revision `758f4a4b4c9e24f50294801da774a0960c922bab` yields 36 `.puzzle` candidates across all 36 scored campaign synthesis puzzles.
 
-The acquisition contract maps only `test/puzzle/campaign/**/<game_puzzle_id>.puzzle` files to frozen campaign identities, caches the exact matching bytes through the shared content-addressed cache, and records them as `local-fetch-only`. Historical Journal fixtures and non-collection puzzle files are deliberately ignored. If more than one campaign fixture claims the same game puzzle ID, acquisition fails before mutating the cache. Repeating acquisition from the same pinned source is idempotent and leaves receipt/object bytes unchanged.
+The acquisition contract maps only `test/puzzle/campaign/**/<game_puzzle_id>.puzzle` files to frozen campaign identities, caches the exact matching bytes through the shared content-addressed cache, and records them as `local_fetch_only`. Historical Journal fixtures and non-collection puzzle files are deliberately ignored. If more than one campaign fixture claims the same game puzzle ID, acquisition fails before mutating the cache. Repeating acquisition from the same pinned source is idempotent and leaves receipt/object bytes unchanged.
 
 The fixture tree also contains some historical Journal fixtures, but it is not a complete current base-game catalog and is therefore not used to determine collection membership or to claim Journal coverage.
 
 The verifier implementation and the puzzle fixture payloads have separate rights questions. The software's permissive/public-domain-style grant does not itself establish redistribution rights for commercial game content represented by puzzle fixtures.
 
-## Rights and redistribution policy
+## Source-specific rights evidence
 
-This project records rights status per source and per artifact class. Until source-specific permission or another clear basis is established:
+[`../RIGHTS.md`](../RIGHTS.md) defines the repository-wide license scope, the meanings of `rights_status`, and the fail-closed redistribution policy. This section records evidence specific to the pinned sources; it is not a second policy authority.
 
-- Official game puzzle bytes are `local-fetch-only`.
-- `om-archive` solution bytes are `local-fetch-only`.
-- `om-leaderboard` raw solution bytes are `local-fetch-only` unless contribution or submission terms establish that the repository license applies to those payloads. Its root Unlicense declaration is useful evidence but is not, by itself, treated as conclusive provenance for every player-submitted solution.
-- Leaderboard metadata may be observed, hashed, and published as provenance-bearing factual observations; claimed metrics remain distinct from verifier-derived metrics.
-- MIT-licensed `molecule-db` source may be used as a semantic evidence source subject to its license, but that license does not relicense official game content represented by derived facts.
-- Hugging Face exports must omit raw `puzzle_bytes` and `solution_bytes` for artifacts whose redistribution status is unresolved.
-- Rights status is evidence, not a global repository switch. A later source may permit payload publication without changing the policy for other sources.
+- Official game puzzle bytes have no independently established redistribution grant in this corpus and remain `local_fetch_only`.
+- No repository-wide content license has been observed for `om-archive`; its solution payloads remain `local_fetch_only`.
+- `om-leaderboard` declares the Unlicense at its repository root, but the corpus does not assume that declaration conclusively covers every player-submitted solution payload; raw `.solution` artifacts therefore remain `local_fetch_only` pending source-specific evidence.
+- Leaderboard metadata is retained as provenance-bearing factual observation material, with claimed metrics kept distinct from verifier-derived metrics.
+- Relevant `molecule-db` source files are MIT-licensed, but that source license does not relicense official game content represented by derived semantic facts.
 
-This document is a technical provenance policy, not a legal determination.
+Source-specific evidence can become more complete without changing the repository-wide policy. A later source or clearer grant may justify a different `rights_status` for a particular artifact without broadening rights for unrelated artifacts.
 
 ## Source precedence
 
