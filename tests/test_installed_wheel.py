@@ -50,6 +50,17 @@ def _run_from_site(
     )
 
 
+def test_wheel_contains_every_authoritative_schema(tmp_path: Path):
+    project_root = Path(__file__).resolve().parents[1]
+    site_dir = _build_wheel_site(project_root, tmp_path)
+    source_schema_dir = project_root / "src/opus_corpus/schemas"
+    installed_schema_dir = site_dir / "opus_corpus/schemas"
+
+    assert {path.name for path in installed_schema_dir.glob("*.json")} == {
+        path.name for path in source_schema_dir.glob("*.json")
+    }
+
+
 def test_collection_validation_from_installed_wheel_outside_checkout(tmp_path: Path):
     project_root = Path(__file__).resolve().parents[1]
     site_dir = _build_wheel_site(project_root, tmp_path)
