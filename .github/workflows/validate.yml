@@ -1,0 +1,31 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sync locked environment
+        run: uv sync --locked --all-extras
+      - name: Lint
+        run: uv run ruff check .
+      - name: Test
+        run: uv run pytest -q
+      - name: Validate frozen collections
+        run: uv run opus-corpus collections validate
+      - name: Build and validate tiny release
+        run: |
+          uv run opus-corpus release build base-game-2026-06-16 --input fixtures/tiny-corpus --output .tmp-release --payload-policy metadata-only
+          uv run opus-corpus release validate base-game-2026-06-16 --output .tmp-release
+          uv run opus-corpus release stage base-game-2026-06-16 --output .tmp-release --destination .tmp-stage

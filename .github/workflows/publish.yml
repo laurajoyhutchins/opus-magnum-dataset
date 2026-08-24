@@ -1,0 +1,41 @@
+name: publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      collection:
+        description: Frozen collection ID to publish
+        required: true
+        default: base-game-2026-06-16
+      input_path:
+        description: Canonical release input directory
+        required: true
+        default: fixtures/tiny-corpus
+      payload_policy:
+        description: Payload policy
+        required: true
+        type: choice
+        options:
+          - metadata-only
+          - include-permitted
+        default: metadata-only
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --all-extras --locked
+      - run: uv run opus-corpus collections validate
+      - name: Build and validate release
+        run: |
+          uv run opus-corpus release build "${{ inputs.collection }}" --input "${{ inputs.input_path }}" --output .publish-release --payload-policy "${{ inputs.payload_policy }}"
+          uv run opus-corpus release validate "${{ inputs.collection }}" --output .publish-release
+      - name: Publish generated projection
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run opus-corpus release publish "${{ inputs.collection }}" --output .publish-release

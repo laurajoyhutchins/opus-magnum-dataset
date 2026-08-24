@@ -2,11 +2,64 @@
 
 A reproducible, provenance-preserving corpus of Opus Magnum puzzles and solutions, designed for verification, benchmarking, search, and machine-learning research.
 
-This repository is the **factory and specification**, not the hand-maintained dataset. Authoritative source facts are ingested from pinned upstream sources, verified deterministically, and materialized into derived dataset artifacts.
+This repository is the **factory and specification**, not a hand-maintained dataset. Authoritative source facts are ingested from pinned upstream sources, verified deterministically, and materialized into generated dataset artifacts.
 
 ## Current phase
 
-**Design and specification only.** No ingestion or publication code should be added until the contracts in `docs/` are accepted.
+The collection contract and generic release shell are implemented. The repository can validate the frozen collection and can build, validate, stage, and publish a four-config Hugging Face-compatible release from canonical JSONL inputs.
+
+Full upstream acquisition, `omsim` verification, normalization, and complete solution coverage are still future slices. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those source-specific stages are connected.
+
+## Implemented release shell
+
+The `opus-corpus` CLI owns collection validation and generated releases:
+
+```text
+opus-corpus collections validate [manifest]
+opus-corpus release build <collection> --input <path> --output <path> --payload-policy metadata-only
+opus-corpus release validate <collection> --output <path>
+opus-corpus release stage <collection> --output <path> --destination <path>
+opus-corpus release publish <collection> --output <path>
+```
+
+A release materializes four independently loadable configs: `puzzles`, `solutions`, `observations`, and `normalized`. Collection IDs become immutable Hugging Face split names, so `base-game-2026-06-16` maps to `base_game_2026_06_16` rather than a generic `train` split.
+
+Generated release state includes deterministic logical-record hashes, a release manifest, Parquet output hashes, and a generated dataset card. Hugging Face is a downstream distribution surface; GitHub repository facts and canonical build inputs remain authoritative.
+
+## Payload policy
+
+Every build selects an explicit payload policy:
+
+- `metadata-only` requires raw puzzle and solution byte fields to be null.
+- `include-permitted` allows raw bytes only for rows whose `rights_status` is exactly `redistributable`.
+
+The release validator reapplies the payload policy after reading generated Parquet so staging cannot bypass rights checks.
+
+## Development
+
+Python 3.12 is the supported runtime. From the committed lockfile environment:
+
+```bash
+uv sync --all-extras --locked
+uv run ruff check .
+uv run pytest -q
+uv run opus-corpus collections validate
+```
+
+To exercise the tiny release factory locally:
+
+```bash
+uv run opus-corpus release build base-game-2026-06-16 \
+  --input fixtures/tiny-corpus \
+  --output .tmp-release \
+  --payload-policy metadata-only
+uv run opus-corpus release validate base-game-2026-06-16 --output .tmp-release
+uv run opus-corpus release stage base-game-2026-06-16 \
+  --output .tmp-release \
+  --destination .tmp-stage
+```
+
+Generated release directories are projections and should not be treated as repository authority.
 
 ## Design principles
 
@@ -23,6 +76,7 @@ This repository is the **factory and specification**, not the hand-maintained da
 
 - [`docs/dataset-spec.md`](docs/dataset-spec.md) — canonical corpus model, invariants, validation, provenance, reproducibility, and release acceptance criteria.
 - [`docs/hugging-face-export.md`](docs/hugging-face-export.md) — loading-script-free Hugging Face / Parquet publication contract.
+- [`docs/source-inventory.md`](docs/source-inventory.md) — frozen collection coverage and rights boundaries.
 
 ## Planned source classes
 
@@ -44,7 +98,3 @@ Source adapters do not define the dataset schema. They translate upstream facts 
 - A hand-curated folder of “best” solutions.
 - Treating leaderboard metadata as executable-solution truth.
 - Treating a mutable notion of “current base game” as a collection definition.
-
-## Status
-
-The repository intentionally has no dataset payload yet. The next implementation milestone, after specification acceptance, is to encode the schemas and one frozen collection manifest, then prove the pipeline on a tiny fixture corpus before importing full upstream archives.

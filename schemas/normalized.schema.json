@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["normalized_solution_id", "solution_id", "puzzle_id", "normalizer_version", "parts", "tracks", "programs", "summaries"],
+  "properties": {
+    "normalized_solution_id": {"type": "string", "minLength": 1},
+    "solution_id": {"type": "string", "minLength": 1},
+    "puzzle_id": {"type": "string", "pattern": "^om\\.puzzle\\.\\d{4}$"},
+    "normalizer_version": {"type": "string", "minLength": 1},
+    "parts": {"type": "array", "items": {"type": "object"}},
+    "tracks": {"type": "array", "items": {"type": "object"}},
+    "programs": {"type": "array", "items": {"type": "object"}},
+    "summaries": {"type": "object"}
+  }
+}
