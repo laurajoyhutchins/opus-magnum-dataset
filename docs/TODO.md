@@ -45,7 +45,7 @@ Independent hardening lane
       ↓  shared release.py surface; serialize to avoid branch collision
   #23 manifest format-version gate
 
-  #22 schema-resolution/package-layout fix  (may run in parallel)
+  [LANDED] #22 schema-resolution/package-layout fix (#26)  (independent)
 
 The remaining hardening issues should settle before WP-11 begins modifying
 release-boundary behavior in earnest.
@@ -53,7 +53,7 @@ release-boundary behavior in earnest.
 
 The claimable architectural lanes are WP-04 and WP-08. WP-01, WP-02, WP-03, WP-05, WP-06, and WP-07 are settled foundations on `main`. Downstream packets should consume the landed interfaces rather than reimplementing upstream behavior.
 
-Issue #20 has landed through PR #24. Issues #21 and #23 both modify release validation and remain serialized for collision avoidance, not because one is semantically required by the other. Issue #22 has a separate schema/package surface and can proceed beside them and beside WP-04/WP-08.
+Issues #20 and #22 have landed through PRs #24 and #26. Issues #21 and #23 both modify release validation and remain serialized for collision avoidance, not because one is semantically required by the other. The schema/package surface is now a settled package-resource boundary that architectural and release work should consume rather than reimplement.
 
 ### Landed foundations
 
@@ -78,6 +78,7 @@ These capabilities already exist and should be consumed rather than recreated:
 - [x] Pinned molecule-db semantic acquisition and topology reconciliation from PR #18.
 - [x] Explicit local official `.puzzle` acquisition with immutable manifest provenance, filesystem-safe snapshot identity, and `local_fetch_only` rights from PR #16.
 - [x] Release staging source/destination overlap protection with a shared canonical tree-overlap guard from PR #24 / issue #20.
+- [x] Package-native authoritative JSON Schemas with shared collection/release resolution and installed-wheel validation from PR #26 / issue #22.
 
 ### Claimable work packets
 
@@ -106,7 +107,7 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 | --- | --- | --- | --- |
 | [#20 Reject overlapping source and destination paths when staging releases](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/20) | **Settled** via PR #24 | `path_safety.py`, `publish.py`, stage CLI | Landed; #21 may now proceed on the staging/release path boundary |
 | [#21 Constrain release manifest paths to the release root](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/21) | **Ready**; next in release-hardening sequence | `release.py`, `publish.py` | Independent of WP-04/WP-08; settle before #23/WP-11 |
-| [#22 Unify schema resolution and remove repository-layout dependency](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/22) | Open; parallel | `collections.py`, `release_inputs.py`, config, packaging | Separate surface; may proceed beside architectural packets and release hardening |
+| [#22 Unify schema resolution and remove repository-layout dependency](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/22) | **Settled** via PR #26 | `schema_resources.py`, packaged schemas, collection/release validation | Landed; downstream code should consume the package-resource boundary rather than add schema-location configuration |
 | [#23 Reject unsupported release manifest format versions](https://github.com/laurajoyhutchins/opus-magnum-dataset/issues/23) | Open; after #21 | `release.py` | Independent semantics, serialized after #21 to avoid release-validation collision; settle before WP-11 |
 
 ### Agent execution rules
@@ -136,7 +137,7 @@ GitHub issues are the authority for their detailed acceptance criteria. This sec
 
 - [x] Issue #20: reject overlapping staging source/destination trees. Landed in PR #24.
 - [ ] Issue #21: constrain manifest-controlled artifact paths to the release root. **Ready.**
-- [ ] Issue #22: unify schema resolution and remove source-checkout/package-layout dependence.
+- [x] Issue #22: unify schema resolution and remove source-checkout/package-layout dependence. Landed in PR #26.
 - [ ] Issue #23: reject unsupported release-manifest format versions.
 
 ### Finished contract and materializer stack
