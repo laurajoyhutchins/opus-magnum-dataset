@@ -24,6 +24,13 @@ SORT_KEYS = {
     "observations": ("artifact_id", "observation_id"),
     "normalized": ("puzzle_id", "solution_id"),
 }
+_OBSERVATION_OPTIONAL_NULL_FIELDS = (
+    "source_role",
+    "associated_artifact_path",
+    "source_declared_puzzle_id",
+    "source_evidence_sha256",
+    "source_evidence_byte_length",
+)
 
 
 @dataclass(frozen=True)
@@ -42,6 +49,14 @@ def sort_records(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str,
     except KeyError as exc:
         raise ValueError(f"unknown config {config_name!r}") from exc
     return sorted(rows, key=lambda row: tuple(str(row.get(key, "")) for key in keys))
+
+
+def _canonicalize_row(config_name: str, row: dict[str, Any]) -> dict[str, Any]:
+    item = dict(row)
+    if config_name == "observations":
+        for field in _OBSERVATION_OPTIONAL_NULL_FIELDS:
+            item.setdefault(field, None)
+    return item
 
 
 def load_release_inputs(input_dir: Path) -> LoadedReleaseInputs:
@@ -91,7 +106,7 @@ def load_release_inputs(input_dir: Path) -> LoadedReleaseInputs:
                         "schema_invalid", error.message, path.as_posix(), line_number
                     )
                 )
-            config_rows.append(row)
+            config_rows.append(_canonicalize_row(config_name, row))
         if not config_rows:
             errors.append(
                 ValidationError("input_empty", f"{path.name} contains no rows", path.as_posix())
