@@ -118,5 +118,10 @@ def test_publication_temp_files_are_removed(tmp_path: Path) -> None:
     store = ContentStore(tmp_path)
     stored = store.put_bytes(b"payload")
     directory = store.object_path(stored.sha256).parent
+    temp_files = [
+        path
+        for path in directory.iterdir()
+        if path.name.startswith(f".{stored.sha256}.")
+    ]
 
-    assert [path for path in directory.iterdir() if path.name.startswith(f".{stored.sha256}.")] == []
+    assert temp_files == []
