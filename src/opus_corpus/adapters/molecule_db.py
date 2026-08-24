@@ -301,7 +301,8 @@ class MoleculeDbAdapter(GitHubSourceAdapter):
                 match = _APPEARANCE_RE.fullmatch(expression)
                 if match is None:
                     raise AdapterDataError(
-                        f"source adapter {self.source_id!r} encountered unparsed molecule appearance"
+                        f"source adapter {self.source_id!r} encountered unparsed "
+                        "molecule appearance"
                     )
                 reagent_count = int(match.group("reagents"))
                 product_count = int(match.group("products"))
