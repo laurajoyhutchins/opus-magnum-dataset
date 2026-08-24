@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 SCHEMA_PATH = Path("schemas/verification.schema.json")
 
 
