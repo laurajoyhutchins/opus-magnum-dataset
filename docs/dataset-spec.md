@@ -225,7 +225,7 @@ Build and export software must support metadata-only publication when raw bytes 
 
 The project must be able to publish hashes, provenance, computed metrics, normalized structures derived where legally appropriate, and acquisition recipes without publishing restricted source bytes.
 
-No repository-wide license should be interpreted as relicensing third-party puzzle or solution content.
+Repository-authored material is licensed under MIT, while [`../RIGHTS.md`](../RIGHTS.md) defines the repository-wide boundary between that license and third-party corpus material. The MIT license must not be interpreted as relicensing official puzzle bytes, externally authored solution payloads, or other upstream artifacts. `rights_status` remains a provenance-bearing publication policy fact, not a substitute copyright license.
 
 ## 10. Deduplication
 
@@ -417,16 +417,17 @@ Several early design choices are now settled by committed repository state:
 - first collection: immutable `base-game-2026-06-16` with 166 puzzle identities;
 - canonical puzzle IDs and aliases: committed in the frozen collection inventory;
 - implementation toolchain: Python 3.12 with a locked `uv` environment;
+- repository-authored material license: MIT, with third-party corpus scope and redistribution policy defined in `RIGHTS.md`;
 - schema authority: packaged repository JSON Schemas resolved through `opus_corpus.schema_resources`;
 - Parquet implementation: pinned `pyarrow==21.0.0` with `zstd` compression and deterministic logical row ordering;
 - release configs: `puzzles`, `solutions`, `observations`, and `normalized`;
-- default publication policy: `metadata-only`, with payload inclusion gated by per-artifact rights status.
+- default publication policy: `metadata-only`, with payload inclusion gated by per-artifact rights status;
+- benchmark architecture: verifier-backed protocol/collection separation and Solve-first v0.1 scope in `benchmark-protocol.md`.
 
 Remaining decisions that affect stable v1 behavior include:
 
-- repository code license and any accompanying third-party-content notices;
 - source-specific redistribution conclusions where rights remain unresolved;
-- exact pinned `omsim`/`libverify` verifier revision and validation-profile identity for v1;
+- exact pinned `omsim` / `libverify` verifier revision and validation-profile identity for v1;
 - publication policy for normalized structures derived from local-only bytes;
 - final Hugging Face namespace/repository identity and publication credentials/automation policy.
 
