@@ -142,6 +142,11 @@ def test_verification_id_excludes_result_fields_from_its_interface():
 
 def test_verifier_protocol_is_simulator_independent():
     verification = verification_module()
+    assert getattr(verification.Verifier, "_is_protocol", False)
+    assert tuple(inspect.signature(verification.Verifier.verify).parameters) == (
+        "self",
+        "value",
+    )
 
     class FakeVerifier:
         def verify(self, value: Any) -> Any:
