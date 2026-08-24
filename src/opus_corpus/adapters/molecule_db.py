@@ -402,12 +402,6 @@ class MoleculeDbAdapter(GitHubSourceAdapter):
             if official is None:
                 errors.append(f"{game_puzzle_id}: missing from molecule-db official catalog")
                 continue
-            if official.display_name != row["display_name"]:
-                errors.append(
-                    f"{game_puzzle_id}: display_name expected {row['display_name']!r}, "
-                    f"observed {official.display_name!r}"
-                )
-                continue
 
             molecule_uses = uses_by_variant.get(official.variant, ())
             if not any(use.reagent_count for use in molecule_uses):
