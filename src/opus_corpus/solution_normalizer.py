@@ -109,9 +109,8 @@ def _normalized_part(index: int, part: ParsedSolutionPart) -> dict[str, Any]:
     }
     if part.conduit_id is not None:
         parameters["conduit_id"] = part.conduit_id
-        parameters["conduit_coordinates"] = [
-            {"x": part.x + offset_x, "y": part.y + offset_y}
-            for offset_x, offset_y in part.conduit_offsets
+        parameters["conduit_offsets"] = [
+            {"x": offset_x, "y": offset_y} for offset_x, offset_y in part.conduit_offsets
         ]
 
     return {
