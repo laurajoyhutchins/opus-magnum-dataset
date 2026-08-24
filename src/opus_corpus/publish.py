@@ -9,7 +9,7 @@ from .card import render_dataset_card
 from .collections import CollectionDefinition
 from .config import CorpusConfig
 from .errors import PublicationError
-from .path_safety import resolve_disjoint_trees
+from .path_safety import resolve_confined_path, resolve_disjoint_trees
 from .release import validate_release
 
 _PLACEHOLDERS = {"CHANGE_ME", "YOUR_USERNAME/YOUR_DATASET"}
@@ -44,8 +44,11 @@ def stage_release(
     )
     shutil.copy2(output_dir / "release-manifest.json", destination / "release-manifest.json")
     for entry in manifest.configs.values():
-        source = output_dir / entry.parquet_path
-        target = destination / entry.parquet_path
+        try:
+            source = resolve_confined_path(output_dir, entry.parquet_path)
+            target = resolve_confined_path(destination, entry.parquet_path)
+        except ValueError as exc:
+            raise PublicationError(str(exc)) from exc
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
     return destination

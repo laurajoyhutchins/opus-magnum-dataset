@@ -19,10 +19,12 @@ from .hashing import (
     sha256_file,
 )
 from .parquet import read_parquet, write_parquet
+from .path_safety import resolve_confined_path
 from .payload import validate_payload_policy
 from .release_inputs import CONFIG_NAMES, SCHEMA_FILES, load_release_inputs, sort_records
 from .schema_resources import load_schema_resource
 
+RELEASE_MANIFEST_FORMAT_VERSION = 2
 COVERAGE_POLICIES = ("complete", "subset")
 DERIVED_COVERAGE_FIELDS = (
     "puzzle_count",
@@ -482,7 +484,7 @@ def build_release(
         )
 
     manifest = ReleaseManifest(
-        format_version=2,
+        format_version=RELEASE_MANIFEST_FORMAT_VERSION,
         corpus_schema_version=release_metadata["corpus_schema_version"],
         collection_id=collection.collection_id,
         collection_inventory_sha256=collection.inventory_sha256,
@@ -506,14 +508,37 @@ def build_release(
     return manifest
 
 
+def _ensure_supported_manifest_format(format_version: Any) -> None:
+    if format_version != RELEASE_MANIFEST_FORMAT_VERSION:
+        raise ReleaseValidationError(
+            [
+                ValidationError(
+                    "release_manifest_format_unsupported",
+                    f"unsupported format_version {format_version}; supported "
+                    f"format_version is {RELEASE_MANIFEST_FORMAT_VERSION}",
+                    "release-manifest.json",
+                )
+            ]
+        )
+
+
 def _read_manifest(output_dir: Path) -> ReleaseManifest:
     path = Path(output_dir) / "release-manifest.json"
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
             raise TypeError("manifest root must be an object")
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        raise ReleaseValidationError(
+            [ValidationError("release_manifest_invalid", str(exc), path.as_posix())]
+        ) from exc
+
+    if "format_version" in value:
+        _ensure_supported_manifest_format(value["format_version"])
+
+    try:
         return ReleaseManifest.from_dict(value)
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+    except (KeyError, TypeError) as exc:
         raise ReleaseValidationError(
             [ValidationError("release_manifest_invalid", str(exc), path.as_posix())]
         ) from exc
@@ -526,6 +551,8 @@ def validate_release(
 ) -> ReleaseManifest:
     output_dir = Path(output_dir)
     manifest = _read_manifest(output_dir)
+    _ensure_supported_manifest_format(manifest.format_version)
+
     errors: list[ValidationError] = []
     if manifest.collection_id != collection.collection_id:
         errors.append(
@@ -583,7 +610,17 @@ def validate_release(
                 )
             )
             continue
-        parquet_path = output_dir / entry.parquet_path
+        try:
+            parquet_path = resolve_confined_path(output_dir, entry.parquet_path)
+        except ValueError as exc:
+            errors.append(
+                ValidationError(
+                    "release_manifest_path_unsafe",
+                    str(exc),
+                    f"release-manifest.json#configs.{config_name}.parquet_path",
+                )
+            )
+            continue
         if not parquet_path.is_file():
             errors.append(
                 ValidationError(
