@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ctypes
+import hashlib
 from dataclasses import replace
 
 import pytest
@@ -7,6 +9,7 @@ import pytest
 from opus_corpus.libverify import (
     OMSIM_LIBVERIFY_PROFILE,
     OMSIM_LIBVERIFY_REVISION,
+    CtypesLibverifyBackend,
     LibverifyError,
     LibverifyVerifier,
 )
@@ -65,6 +68,31 @@ class ScriptedBackend:
             self.current_error = self.metric_error[1]
             return -1
         return self.metric_values[name]
+
+
+class FakeCFunction:
+    def __init__(self, return_value: object = None) -> None:
+        self.return_value = return_value
+        self.calls: list[tuple[object, ...]] = []
+        self.argtypes: list[object] | None = None
+        self.restype: object = None
+
+    def __call__(self, *args: object) -> object:
+        self.calls.append(args)
+        return self.return_value
+
+
+class FakeCLibrary:
+    def __init__(self, *, error: bytes | None = b"collision") -> None:
+        self.verifier_create_from_bytes = FakeCFunction(1234)
+        self.verifier_destroy = FakeCFunction()
+        self.verifier_set_cycle_limit = FakeCFunction()
+        self.verifier_error = FakeCFunction(error)
+        self.verifier_error_source = FakeCFunction(b"simulation" if error else None)
+        self.verifier_error_cycle = FakeCFunction(7 if error else 0)
+        self.verifier_error_location_u = FakeCFunction(-1 if error else 0)
+        self.verifier_error_location_v = FakeCFunction(2 if error else 0)
+        self.verifier_evaluate_metric = FakeCFunction(11)
 
 
 def verification_input(profile: str = OMSIM_LIBVERIFY_PROFILE) -> VerificationInput:
@@ -190,3 +218,65 @@ def test_libverify_repeat_evaluation_is_deterministic():
 
     assert first == second
     assert backend.destroyed == 2
+
+
+def test_ctypes_backend_hashes_library_configures_abi_and_preserves_embedded_nuls(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    library_path = tmp_path / "libverify.so"
+    library_bytes = b"native-library-fixture"
+    library_path.write_bytes(library_bytes)
+    fake = FakeCLibrary()
+    loaded_paths: list[str] = []
+
+    def load_library(path: str) -> FakeCLibrary:
+        loaded_paths.append(path)
+        return fake
+
+    monkeypatch.setattr("opus_corpus.libverify.ctypes.CDLL", load_library)
+
+    backend = CtypesLibverifyBackend.from_path(library_path)
+    handle = backend.create(b"puzzle\x00tail", b"solution\x00tail")
+
+    assert loaded_paths == [str(library_path)]
+    assert backend.binary_sha256 == hashlib.sha256(library_bytes).hexdigest()
+    create_args = fake.verifier_create_from_bytes.calls[0]
+    assert bytes(create_args[0].raw[: create_args[1]]) == b"puzzle\x00tail"
+    assert bytes(create_args[2].raw[: create_args[3]]) == b"solution\x00tail"
+    assert handle == 1234
+
+    backend.set_cycle_limit(handle, 150000)
+    assert fake.verifier_set_cycle_limit.calls == [(1234, 150000)]
+    assert backend.error(handle) == "collision"
+    assert backend.error_source(handle) == "simulation"
+    assert backend.error_cycle(handle) == 7
+    assert backend.error_location(handle) == (-1, 2)
+    assert backend.evaluate_metric(handle, "cost") == 11
+    assert fake.verifier_evaluate_metric.calls[-1] == (1234, b"cost")
+    backend.destroy(handle)
+    assert fake.verifier_destroy.calls == [(1234,)]
+
+    assert fake.verifier_create_from_bytes.argtypes == [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        ctypes.c_int,
+    ]
+    assert fake.verifier_create_from_bytes.restype is ctypes.c_void_p
+    assert fake.verifier_error.restype is ctypes.c_char_p
+    assert fake.verifier_error_source.restype is ctypes.c_char_p
+    assert fake.verifier_evaluate_metric.argtypes == [ctypes.c_void_p, ctypes.c_char_p]
+    assert fake.verifier_evaluate_metric.restype is ctypes.c_int
+
+
+def test_libverify_factory_loads_ctypes_backend(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    library_path = tmp_path / "libverify.so"
+    library_path.write_bytes(b"native-library-fixture")
+    fake = FakeCLibrary(error=None)
+    monkeypatch.setattr("opus_corpus.libverify.ctypes.CDLL", lambda path: fake)
+
+    result = LibverifyVerifier.from_library(library_path).verify(verification_input())
+
+    assert result.parse_status == "passed"
+    assert result.simulation_status == "passed"
+    assert (result.cost, result.instructions, result.cycles, result.area) == (11, 11, 11, 11)
