@@ -110,17 +110,27 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
             )
         else:
             expected_hash = manifest.get("inventory_sha256")
-            actual_hash = sha256_file(inventory_path)
-            if isinstance(expected_hash, str) and actual_hash != expected_hash:
+            try:
+                actual_hash = sha256_file(inventory_path)
+            except OSError as exc:
                 errors.append(
-                    ValidationError(
-                        "inventory_hash_mismatch",
-                        f"expected {expected_hash}, got {actual_hash}",
-                        inventory_path.as_posix(),
-                    )
+                    ValidationError("inventory_read_error", str(exc), inventory_path.as_posix())
                 )
+            else:
+                if isinstance(expected_hash, str) and actual_hash != expected_hash:
+                    errors.append(
+                        ValidationError(
+                            "inventory_hash_mismatch",
+                            f"expected {expected_hash}, got {actual_hash}",
+                            inventory_path.as_posix(),
+                        )
+                    )
             try:
                 text = inventory_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                errors.append(
+                    ValidationError("inventory_read_error", str(exc), inventory_path.as_posix())
+                )
             except UnicodeDecodeError as exc:
                 errors.append(
                     ValidationError("inventory_decode_error", str(exc), inventory_path.as_posix())
@@ -262,4 +272,10 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
 
 def validate_all_collections(root: Path) -> list[CollectionDefinition]:
     collection_dir = Path(root) / "collections"
-    return [validate_collection(path) for path in sorted(collection_dir.glob("*.toml"))]
+    try:
+        paths = sorted(collection_dir.glob("*.toml"))
+    except OSError as exc:
+        raise CollectionValidationError(
+            [ValidationError("collection_scan_error", str(exc), collection_dir.as_posix())]
+        ) from exc
+    return [validate_collection(path) for path in paths]
