@@ -269,6 +269,17 @@ def test_ctypes_backend_hashes_library_configures_abi_and_preserves_embedded_nul
     assert fake.verifier_evaluate_metric.restype is ctypes.c_int
 
 
+def test_ctypes_backend_reports_missing_required_abi_symbols_as_a_typed_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    library_path = tmp_path / "libverify.so"
+    library_path.write_bytes(b"native-library-fixture")
+    monkeypatch.setattr("opus_corpus.libverify.ctypes.CDLL", lambda path: object())
+
+    with pytest.raises(LibverifyError, match="ABI"):
+        CtypesLibverifyBackend.from_path(library_path)
+
+
 def test_libverify_factory_loads_ctypes_backend(monkeypatch: pytest.MonkeyPatch, tmp_path):
     library_path = tmp_path / "libverify.so"
     library_path.write_bytes(b"native-library-fixture")
