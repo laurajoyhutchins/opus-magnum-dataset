@@ -53,6 +53,7 @@ def render_dataset_card(manifest: ReleaseManifest, card_settings: Mapping[str, A
             f"- Logical release hash: `{manifest.logical_release_sha256}`",
             f"- Build software revision: `{_text(manifest.build_software_revision)}`",
             f"- Payload policy: `{manifest.payload_policy}`",
+            f"- Coverage policy: `{manifest.coverage_policy}`",
             f"- Verifier revision: `{_text(metadata.get('verifier_revision'))}`",
             f"- Validation profile: `{_text(metadata.get('validation_profile'))}`",
             f"- Normalizer version: `{_text(metadata.get('normalizer_version'))}`",
