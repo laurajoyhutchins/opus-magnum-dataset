@@ -20,9 +20,24 @@ puzzles! {
 MOLECULE_SOURCE = b'''\
 pub(crate) fn molecules() -> Vec<()> {
     vec![
-        (Molecule { atoms: collect![HexIndex { q: 0, r: 0 } => Atom::Salt, HexIndex { q: 1, r: 0 } => Atom::Fire], bonds: collect![Bond { start: HexIndex { q: 0, r: 0 }, end: HexIndex { q: 1, r: 0 }, ty: BondType::Normal }] }, vec![
-            (Puzzle::AlphaPuzzle, 1, 1, Some("Alpha Molecule")),
-        ]),
+        (
+            Molecule {
+                atoms: collect![
+                    HexIndex { q: 0, r: 0 } => Atom::Salt,
+                    HexIndex { q: 1, r: 0 } => Atom::Fire
+                ],
+                bonds: collect![
+                    Bond {
+                        start: HexIndex { q: 0, r: 0 },
+                        end: HexIndex { q: 1, r: 0 },
+                        ty: BondType::Normal
+                    }
+                ]
+            },
+            vec![
+                (Puzzle::AlphaPuzzle, 1, 1, Some("Alpha Molecule")),
+            ]
+        ),
     ]
 }
 '''
