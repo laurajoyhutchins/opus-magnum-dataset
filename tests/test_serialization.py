@@ -10,6 +10,7 @@ def _normalized_puzzle() -> dict[str, object]:
     return {
         "normalized_puzzle_id": "normalized-puzzle-0001",
         "puzzle_id": "om.puzzle.0001",
+        "puzzle_artifact_id": "puzzle-artifact-0001",
         "normalizer_version": "test-normalizer-v1",
         "allowed_parts": ["arm1", "bonder"],
         "reagents": [
@@ -58,6 +59,14 @@ def test_normalized_puzzle_schema_excludes_source_provenance():
     row = _normalized_puzzle() | {"source_uri": "https://example.invalid/source"}
     errors = list(Draft202012Validator(schema).iter_errors(row))
     assert errors
+
+
+def test_normalized_puzzle_schema_requires_puzzle_artifact_identity():
+    root = Path(__file__).resolve().parents[1]
+    schema_path = root / "schemas" / "normalized-puzzle.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    assert "puzzle_artifact_id" in schema["required"]
+    assert schema["properties"]["puzzle_artifact_id"] == {"type": "string", "minLength": 1}
 
 
 def test_canonical_json_serializer_is_deterministic_for_puzzles():

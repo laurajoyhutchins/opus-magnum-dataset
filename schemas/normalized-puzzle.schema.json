@@ -45,6 +45,7 @@
   "required": [
     "normalized_puzzle_id",
     "puzzle_id",
+    "puzzle_artifact_id",
     "normalizer_version",
     "allowed_parts",
     "reagents",
@@ -54,6 +55,7 @@
   "properties": {
     "normalized_puzzle_id": {"type": "string", "minLength": 1},
     "puzzle_id": {"type": "string", "pattern": "^om\\.puzzle\\.\\d{4}$"},
+    "puzzle_artifact_id": {"type": "string", "minLength": 1},
     "normalizer_version": {"type": "string", "minLength": 1},
     "allowed_parts": {
       "type": "array",

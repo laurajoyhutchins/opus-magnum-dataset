@@ -237,16 +237,38 @@ Do not collapse solutions merely because they are:
 
 Semantic equivalence may be added later as a separately versioned derived clustering algorithm.
 
-## 11. Normalized solution representation
+## 11. Normalized representations
 
-Normalization is a derived representation, not the identity of a solution artifact and not the verification authority.
+Normalization is derived state. It is neither artifact identity nor verification authority.
 
-The normalized schema should represent, at minimum:
+### 11.1 Normalized puzzle representation
+
+A normalized puzzle row must identify both the conceptual puzzle and the exact bytes from which it was derived. At minimum it records:
+
+- `normalized_puzzle_id`;
+- `puzzle_id`;
+- `puzzle_artifact_id`;
+- `normalizer_version`;
+- allowed parts/components;
+- reagent and product molecules with atom types, bonds, and axial hex coordinates;
+- puzzle-specific constraints.
+
+`puzzle_artifact_id` is derivation lineage to an exact `PuzzleArtifact`; it is not a replacement for upstream provenance. Source observations remain attached to the artifact layer.
+
+### 11.2 Normalized solution representation
+
+The normalized solution schema should represent, at minimum:
 
 - parts with type, position, orientation, and type-specific parameters;
 - tracks as coordinate sequences;
 - arm programs as arm identity plus cycle/opcode entries;
 - useful deterministic histograms and geometric summaries.
+
+### 11.3 Serialization projections
+
+Serializers are deterministic projections over normalized records. Serializer format and version are separate from normalizer version. The current baseline is canonical JSON; future compact or model-oriented text formats must be generated from the same normalized records rather than maintained as another authority.
+
+`normalized-puzzle.schema.json` defines the normalized puzzle domain contract. It does not, by itself, add a fifth release config; release wiring for normalized puzzles must be specified explicitly when the materialization pipeline is ready to emit them.
 
 The normalizer version must be recorded for every normalized row.
 
