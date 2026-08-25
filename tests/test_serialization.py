@@ -100,10 +100,10 @@ def test_canonical_json_serializer_is_deterministic_for_puzzles():
 
 
 def test_serializer_interface_covers_puzzles_and_solutions():
-    from opus_corpus.serialization import CanonicalJsonSerializer, NormalizedSerializer
+    from opus_corpus.serialization import CanonicalJsonSerializer, CorpusSerializer
 
     serializer = CanonicalJsonSerializer()
-    assert isinstance(serializer, NormalizedSerializer)
+    assert isinstance(serializer, CorpusSerializer)
     assert serializer.serialize_puzzle(_puzzle_definition()).startswith("{")
     assert serializer.serialize_solution(
         {
