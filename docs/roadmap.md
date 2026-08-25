@@ -13,11 +13,11 @@ pinned source acquisition
         ↓
 content-addressed source cache + provenance receipts
         ↓
-canonical semantic facts + exact PuzzleArtifact / SolutionArtifact / Observation records
+canonical PuzzleDefinition semantics + exact PuzzleArtifact / SolutionArtifact / Observation records
         ↓
 exact-artifact verification
         ↓
-normalized representations and deterministic derived views
+normalized solution representations and deterministic derived views
         ↓
 canonical release rows
         ↓
@@ -26,7 +26,7 @@ validated Parquet + manifest + dataset card
 Hugging Face and other downstream projections
 ```
 
-Each layer has one authority. Upstream sources provide immutable facts, repository software derives canonical and generated state, and publication surfaces remain projections.
+Each layer has one authority. Upstream sources provide immutable evidence, repository software reconciles canonical semantic facts and derives generated state, and publication surfaces remain projections. Exact puzzle bytes are provenance and verifier inputs; they are not the semantic authority for the problem definition.
 
 ## Milestone 1: Verification and normalization contracts
 
@@ -38,13 +38,15 @@ The contract layer fixes deterministic identities, strict schemas, implementatio
 
 **Goal:** Convert acquired source facts into canonical artifact/provenance records without introducing another byte store.
 
-Exact puzzle and solution bytes use one content-addressed storage path. Artifact identity is content-derived, exact-byte SHA-256 is the v1 deduplication boundary, multiple sources preserve multiple observations, and conflicting or corrupt facts fail closed.
+Exact puzzle and solution bytes use one content-addressed storage path. Artifact identity is content-derived, exact-byte SHA-256 is the v1 artifact deduplication boundary, multiple sources preserve multiple observations, and conflicting or corrupt facts fail closed. Artifact identity remains distinct from semantic puzzle identity.
 
-## Milestone 3: Puzzle-definition acquisition
+## Milestone 3: Puzzle-definition and artifact acquisition
 
-**Goal:** Acquire verifier-usable exact puzzle artifacts while keeping exact bytes distinct from semantic problem evidence.
+**Goal:** Materialize canonical semantic puzzle definitions while separately acquiring verifier-usable exact puzzle artifacts where required.
 
-Pinned and local source adapters translate upstream facts into the common acquisition/cache boundary. Semantic evidence may establish puzzle structure without pretending to be an exact official binary artifact. Exact artifacts retain explicit format, hash, rights, and provenance. Collection membership remains repository authority rather than being redefined by an adapter.
+Pinned and local source adapters translate upstream facts into the common acquisition/cache boundary. Semantic evidence may establish puzzle structure without pretending to be an exact official binary artifact. Exact artifacts retain explicit format, hash, rights, and provenance and remain the verifier input when byte identity is required. Multiple evidence sources reconcile through one deterministic `PuzzleDefinition` boundary; disagreement is preserved or fails closed rather than being silently overwritten. Collection membership remains repository authority rather than being redefined by an adapter.
+
+Semantic coverage, artifact coverage, and verifier-ready coverage are separate derived axes. A puzzle can be semantically complete without being executable by the exact-artifact verifier.
 
 ## Milestone 4: Deterministic verification
 
@@ -56,7 +58,7 @@ The verifier consumes exact puzzle/solution artifacts under a pinned implementat
 
 **Goal:** Derive normalized solution structures and canonical release inputs from canonical facts without a second corpus authority.
 
-Parsing and normalization retain exact artifact lineage and version identity. Release materialization projects canonical puzzle, solution, observation, verification-derived, and normalized facts into the existing release configs while preserving rights policy and deterministic ordering. Fixture data remains test data, not production authority.
+Parsing and normalization retain exact solution-artifact lineage and version identity. Release materialization projects canonical `PuzzleDefinition`, solution, observation, verification-derived, and normalized facts into the existing release configs while preserving rights policy and deterministic ordering. Exact puzzle artifacts remain provenance/publication concerns governed independently by payload rights. Fixture data remains test data, not production authority.
 
 ## Milestone 6: Complete frozen base-game release
 
@@ -65,11 +67,13 @@ Parsing and normalization retain exact artifact lineage and version identity. Re
 Exit criteria:
 
 - the frozen collection materializes from permitted, pinned cached inputs;
-- every required puzzle is present and has verifier-successful coverage, otherwise the complete build fails;
+- every required puzzle has a canonical semantic definition;
+- every required puzzle has verifier-ready exact artifact coverage before exact verification, otherwise the complete build fails;
+- every required puzzle has at least one verifier-successful solution, otherwise complete release acceptance fails;
 - every published artifact and solution is traceable to immutable source evidence;
 - headline metrics are recomputed by the pinned verifier rather than trusted from source metadata;
-- missing coverage and source/verifier discrepancies are derived and reported, never manually repaired;
-- the release manifest records collection, source, artifact, verifier, normalizer, coverage, and output identities needed for reproduction;
+- missing semantic, artifact, verifier-ready, and solution coverage plus source/verifier discrepancies are derived and reported, never manually repaired;
+- the release manifest records collection, source, semantic definition, artifact, verifier, normalizer, coverage, and output identities needed for reproduction;
 - rebuilding offline from the same authoritative inputs reproduces the canonical release manifest;
 - rights policy is enforced at publication time;
 - the Hugging Face projection satisfies [`hugging-face-export.md`](hugging-face-export.md).
@@ -84,12 +88,14 @@ The benchmark architecture in [`benchmark-protocol.md`](benchmark-protocol.md) s
 
 The first research wave is split into four capability boundaries:
 
-- **WP-13: deterministic puzzle serializer.** A versioned model-oriented serialization over canonical puzzle semantics, with golden and determinism tests. It is a projection, not a second dataset. The durable serialization contract lives in [`puzzle-serialization.md`](puzzle-serialization.md).
+- **WP-13: deterministic puzzle serializer.** A versioned model-oriented serialization over canonical `PuzzleDefinition` semantics, with golden and determinism tests. It is a projection, not a second dataset. The durable serialization contract lives in [`puzzle-serialization.md`](puzzle-serialization.md).
 - **WP-14: verifier-derived reference views.** Deterministic verified, constructibility/eligibility, best-known-metric, and Pareto-frontier views from canonical facts and explicit predicates.
 - **WP-15: benchmark result model and deterministic aggregation.** Stable benchmark/run/attempt/per-puzzle identities, failure taxonomy, and reproducible aggregate reporting independent from any particular model runner.
-- **WP-16: v0.1 Solve harness.** Consume the serializer, result model, and pinned verifier to execute exact-artifact Solve evaluation and emit deterministic reports. Reference views supply comparison metrics where the protocol requests them.
+- **WP-16: v0.1 Solve harness.** Consume the semantic puzzle serializer, deterministic candidate-output compiler, derived verifier-ready executable inventory, result model, and pinned verifier to execute exact-output Solve evaluation and emit deterministic reports. Reference views supply comparison metrics where the protocol requests them.
 
-WP-13, WP-14, and WP-15 are deliberately separable derived surfaces. WP-16 is the integration boundary downstream of the serializer and result model. Bounded interactive evaluation, Optimize, Frontier, Repair, and Constrained tracks should extend the same protocol only after the exact-output Solve path is stable.
+WP-13, WP-14, and WP-15 are deliberately separable derived surfaces. Candidate-output compilation and benchmark eligibility are deterministic supporting boundaries rather than runner prompt responsibilities. WP-16 is the integration boundary downstream of those primitives. Bounded interactive evaluation, Optimize, Frontier, Repair, and Constrained tracks should extend the same protocol only after the exact-output Solve path is stable.
+
+Missing exact artifacts do not block research over canonical semantic definitions. They only exclude affected puzzles from benchmark profiles whose correctness boundary requires exact-artifact verification, and that exclusion must be derived explicitly.
 
 Any train/validation/test projection requires an explicit leakage-aware methodology. Every research view must remain versioned, testable, and derivable from canonical facts.
 
@@ -103,7 +109,7 @@ Expansion rules:
 
 - express new scope through new immutable collection definitions rather than mutating the frozen base-game collection;
 - translate new source facts through existing acquisition and canonical boundaries rather than redefining identities or schemas per source;
-- keep rights, provenance, validation semantics, and coverage explicit per source/artifact class;
+- keep semantic definitions, artifact evidence, rights, provenance, validation semantics, and coverage explicit per source/artifact class;
 - extend shared deterministic infrastructure only when a genuinely new primitive is required.
 
 ## Ordering and parallelism
@@ -112,10 +118,10 @@ The core dependency spine is:
 
 ```text
 contracts
-  → artifact materialization
-  → puzzle-definition evidence/artifacts
+  → artifact/evidence materialization
+  → canonical PuzzleDefinition + exact PuzzleArtifact coverage
   → verification
-  → normalization
+  → solution normalization
   → release materialization
   → complete release
   → research integration
@@ -124,11 +130,12 @@ contracts
 The research wave branches from canonical primitives:
 
 ```text
-                              ┌─ WP-13 puzzle serializer ──┐
-canonical corpus primitives ─┼─ WP-15 result/report model ├─→ WP-16 Solve harness
-                              └─ WP-14 reference views ────┘
-                                         │
-                                         └─→ reference metrics/frontiers
+                              ┌─ WP-13 semantic puzzle serializer ───────────────┐
+canonical corpus primitives ─┼─ WP-15 result/report model ──────────────────────┤
+                              └─ WP-14 reference views ───────→ comparisons      │
+                                                                                ├→ WP-16 Solve harness
+candidate-output compiler ───────────────────────────────────────────────────────┤
+derived verifier-ready benchmark inventory ─────────────────────────────────────┘
 ```
 
 Whether a packet is open, merged, blocked, under review, or superseded is intentionally absent from this roadmap. Inspect GitHub for live execution state and [`TODO.md`](TODO.md) for the stable ownership/dependency topology.
@@ -137,14 +144,14 @@ Whether a packet is open, merged, blocked, under review, or superseded is intent
 
 When choosing implementation work, preserve these invariants:
 
-1. **One authoritative path.** Reuse existing acquisition, storage, canonicalization, verification, normalization, and release primitives before adding another mechanism.
-2. **Software derives state.** Repeated bookkeeping, reconciliation, counting, materialization, and known recovery behavior belong in deterministic software.
+1. **One authoritative path.** Reuse existing acquisition, storage, semantic reconciliation, verification, normalization, and release primitives before adding another mechanism.
+2. **Software derives state.** Repeated bookkeeping, reconciliation, counting, materialization, eligibility, and known recovery behavior belong in deterministic software.
 3. **Reasoning is for judgment work.** Use reasoning for research, design, synthesis, and novel implementation rather than maintenance of generated projections.
-4. **Fail closed.** Unknown required fields, ambiguous identities, corrupt cached objects, verifier failures, unsafe filesystem states, and rights uncertainty remain explicit.
-5. **Preserve evidence.** Source claims and deterministic verification may disagree; retain both with distinct provenance.
-6. **Keep rights orthogonal to metadata utility.** Restricted raw bytes do not prevent permitted provenance, hashes, verified metrics, or derived facts from being published.
-7. **Defer semantic deduplication.** V1 deduplicates exact bytes only. Any semantic-equivalence layer requires a separately versioned derived algorithm.
+4. **Fail closed.** Unknown required fields, ambiguous identities, corrupt cached objects, semantic disagreement, verifier failures, unsafe filesystem states, and rights uncertainty remain explicit.
+5. **Preserve evidence.** Source claims, semantic evidence, exact artifacts, and deterministic verification may disagree or differ in availability; retain them with distinct provenance and roles.
+6. **Keep rights orthogonal to metadata utility.** Restricted raw bytes do not prevent permitted provenance, hashes, semantic definitions, verified metrics, or derived facts from being published.
+7. **Defer semantic equivalence beyond canonical definition identity.** Exact artifact deduplication remains content-addressed. Any additional equivalence or clustering algorithm over semantic definitions requires a separately versioned derived method rather than silently changing canonical identities.
 
 ## V1 definition of done
 
-V1 is a complete verifier-backed, provenance-preserving corpus for `base-game-2026-06-16` that can be rebuilt offline from pinned cached facts and exported through the existing release pipeline without manual corpus maintenance. The detailed acceptance contract lives in [`dataset-spec.md`](dataset-spec.md).
+V1 is a complete semantic and verifier-backed, provenance-preserving corpus for `base-game-2026-06-16` that can be rebuilt offline from pinned cached facts and exported through the existing release pipeline without manual corpus maintenance. The detailed acceptance contract lives in [`dataset-spec.md`](dataset-spec.md).
