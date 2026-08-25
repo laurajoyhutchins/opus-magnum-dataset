@@ -6,11 +6,17 @@ import pytest
 
 from opus_corpus.adapters.omsim import OmsimAdapter
 from opus_corpus.github_source import download_github_tarball, tarball_files
-from opus_corpus.solution_parser import parse_solution_bytes
+from opus_corpus.normalization import SolutionNormalizationInput
+from opus_corpus.solution_normalizer import OpusSolutionNormalizer, SolutionNormalizationError
+from opus_corpus.solution_parser import SolutionParseError, parse_solution_bytes
 
 
 def _u32(value: int) -> bytes:
     return struct.pack("<I", value)
+
+
+def _i32(value: int) -> bytes:
+    return struct.pack("<i", value)
 
 
 def _string(value: str) -> bytes:
@@ -19,27 +25,68 @@ def _string(value: str) -> bytes:
     return bytes([len(encoded)]) + encoded
 
 
-def test_solution_parser_treats_nonzero_header_field_as_solved_flag():
+def _part(name: str, *, track_offsets: tuple[tuple[int, int], ...] | None = None) -> bytes:
+    payload = bytearray()
+    payload += _string(name)
+    payload += b"\x01"
+    payload += _i32(0)
+    payload += _i32(0)
+    payload += _u32(1)
+    payload += _i32(0)
+    payload += _u32(0)
+    payload += _u32(0)
+    if track_offsets is not None:
+        payload += _u32(len(track_offsets))
+        for x, y in track_offsets:
+            payload += _i32(x)
+            payload += _i32(y)
+    payload += _u32(0)
+    return bytes(payload)
+
+
+def _solution_with_part(part: bytes) -> bytes:
+    return _u32(7) + _string("P001") + _string("fixture") + _u32(0) + _u32(1) + part
+
+
+def test_solution_parser_rejects_noncanonical_solved_metric_count():
     payload = bytearray()
     payload += _u32(7)
     payload += _string("P001")
-    payload += _string("solved-flag-one")
+    payload += _string("illegal-metric-count")
     payload += _u32(1)
     for tag, value in enumerate((12, 34, 56, 78)):
         payload += _u32(tag)
         payload += _u32(value)
     payload += _u32(0)
 
-    parsed = parse_solution_bytes(bytes(payload))
+    with pytest.raises(SolutionParseError, match="metric count"):
+        parse_solution_bytes(bytes(payload))
 
-    assert parsed.solved is True
-    assert parsed.declared_metrics == {
-        "cycles": 12,
-        "cost": 34,
-        "area": 56,
-        "instructions": 78,
-    }
-    assert parsed.parts == ()
+
+def test_solution_normalizer_rejects_empty_track_geometry():
+    payload = _solution_with_part(_part("track", track_offsets=()))
+
+    with pytest.raises(SolutionNormalizationError, match="track.*at least one"):
+        OpusSolutionNormalizer().normalize(
+            SolutionNormalizationInput(
+                solution_id="om.solution.sha256." + "d" * 64,
+                puzzle_id="om.puzzle.0004",
+                solution_bytes=payload,
+            )
+        )
+
+
+def test_solution_normalizer_rejects_empty_part_type():
+    payload = _solution_with_part(_part(""))
+
+    with pytest.raises(SolutionNormalizationError, match="part type"):
+        OpusSolutionNormalizer().normalize(
+            SolutionNormalizationInput(
+                solution_id="om.solution.sha256." + "e" * 64,
+                puzzle_id="om.puzzle.0005",
+                solution_bytes=payload,
+            )
+        )
 
 
 @pytest.mark.upstream
