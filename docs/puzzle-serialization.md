@@ -61,9 +61,11 @@ Mapping insertion order cannot change the serialized bytes because field order i
 
 The serializer intentionally does **not** reorder `allowed_parts`, reagent/product molecules, atoms, or bonds. Ordering of canonical normalized arrays belongs to normalization. Reordering them in the serializer would quietly create a second semantic-normalization path. Given the same canonical normalized puzzle record and serializer version, output is byte-for-byte identical.
 
+Open-ended values such as `constraints` must already use JSON-native Python shapes: dictionaries with string keys, lists, strings, finite JSON numbers, booleans, or null. Python-only values are rejected rather than coerced. For example, integer dictionary keys are not stringified and tuples are not converted to arrays. Strings and object keys must also be valid UTF-8 text. This keeps distinct malformed Python inputs from collapsing onto the same serialized representation.
+
 ## Failure behavior
 
-Schema-invalid normalized puzzle records fail closed with `PuzzleSerializationError`. Missing solve fields, unknown root fields, malformed molecule structure, and other schema violations are not silently repaired or omitted. Values that cannot be represented as standards-compliant JSON, including `NaN` and infinities in open-ended constraints, also fail closed with `PuzzleSerializationError`.
+Schema-invalid normalized puzzle records fail closed with `PuzzleSerializationError`. Missing solve fields, unknown root fields, malformed molecule structure, and other schema violations are not silently repaired or omitted. Values that cannot be represented one-to-one as standards-compliant UTF-8 JSON also fail closed, including `NaN`, infinities, non-string object keys, Python-only container types, and lone Unicode surrogates.
 
 The serializer does not accept raw `.puzzle` bytes. Raw-byte benchmark input is a separate benchmark input profile under `docs/benchmark-protocol.md`.
 
