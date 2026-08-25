@@ -33,7 +33,13 @@ from .hashing import canonical_json_bytes, sha256_bytes
 from .puzzle_definition import validate_puzzle_definition
 from .serialization import ModelPuzzleTextSerializer
 from .solution_parser import SolutionParseError
-from .verification import VerificationInput, VerificationResult, Verifier, VerifierIdentity, verification_id
+from .verification import (
+    VerificationInput,
+    VerificationResult,
+    Verifier,
+    VerifierIdentity,
+    verification_id,
+)
 
 PROTOCOL_VERSION = "solve-v0.1"
 ATTEMPT_PROFILE = "bounded-sequential-v1"
@@ -282,7 +288,11 @@ def run_solve_benchmark(
     verifier: Verifier,
     attempt_budget: int = 1,
 ) -> SolveBenchmarkResult:
-    if isinstance(attempt_budget, bool) or not isinstance(attempt_budget, int) or attempt_budget < 1:
+    if (
+        isinstance(attempt_budget, bool)
+        or not isinstance(attempt_budget, int)
+        or attempt_budget < 1
+    ):
         raise SolveBenchmarkError("attempt_budget must be a positive integer")
 
     _validate_projection(collection, eligibility)
