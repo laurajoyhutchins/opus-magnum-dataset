@@ -14,6 +14,7 @@ OMSIM_LIBVERIFY_IMPLEMENTATION = "omsim-libverify"
 OMSIM_LIBVERIFY_CYCLE_LIMIT = 150000
 
 _METRICS = ("cost", "instructions", "cycles", "area")
+_PARSE_ERROR_SOURCES = frozenset({"puzzle file", "solution file"})
 _ERROR_CODES = {
     "puzzle file": "puzzle_parse_failed",
     "solution file": "solution_parse_failed",
@@ -55,11 +56,24 @@ class CtypesLibverifyBackend:
         self._configure_abi()
 
     @classmethod
-    def from_path(cls, path: Path) -> CtypesLibverifyBackend:
+    def from_path(
+        cls,
+        path: Path,
+        *,
+        expected_sha256: str,
+    ) -> CtypesLibverifyBackend:
         try:
             digest = sha256_file(path)
-            library = ctypes.CDLL(str(path))
         except (OSError, ValueError) as exc:
+            raise LibverifyError(f"cannot hash libverify shared library: {path}") from exc
+        if digest != expected_sha256:
+            raise LibverifyError(
+                f"libverify binary sha256 mismatch for {path}: "
+                f"expected {expected_sha256}, observed {digest}"
+            )
+        try:
+            library = ctypes.CDLL(str(path))
+        except OSError as exc:
             raise LibverifyError(f"cannot load libverify shared library: {path}") from exc
         try:
             return cls(library, digest)
@@ -210,8 +224,18 @@ class LibverifyVerifier:
         self._backend = backend
 
     @classmethod
-    def from_library(cls, path: Path) -> LibverifyVerifier:
-        return cls(CtypesLibverifyBackend.from_path(path))
+    def from_library(
+        cls,
+        path: Path,
+        *,
+        expected_sha256: str,
+    ) -> LibverifyVerifier:
+        return cls(
+            CtypesLibverifyBackend.from_path(
+                path,
+                expected_sha256=expected_sha256,
+            )
+        )
 
     def verify(self, value: VerificationInput) -> VerificationResult:
         if value.validation_profile != OMSIM_LIBVERIFY_PROFILE:
@@ -241,11 +265,12 @@ class LibverifyVerifier:
                 error = self._backend.error(handle)
                 if error is not None:
                     source = self._backend.error_source(handle)
+                    parse_failure = source in _PARSE_ERROR_SOURCES
                     return _result(
                         value,
                         self._backend.binary_sha256,
-                        parse_status="passed",
-                        simulation_status="failed",
+                        parse_status="failed" if parse_failure else "passed",
+                        simulation_status="not_run" if parse_failure else "failed",
                         error_code=_ERROR_CODES.get(source, "verifier_failed"),
                         error_detail=_error_detail(self._backend, handle, error),
                     )
