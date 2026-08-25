@@ -4,7 +4,7 @@ from dataclasses import fields, replace
 
 import pytest
 
-from opus_corpus import benchmark_results as benchmark
+import opus_corpus.benchmark_results as benchmark
 
 
 BENCHMARK_ID = "om.benchmark." + "1" * 64
