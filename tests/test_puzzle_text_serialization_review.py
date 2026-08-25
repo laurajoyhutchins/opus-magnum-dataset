@@ -1,17 +1,14 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from opus_corpus.serialization import ModelPuzzleTextSerializer, PuzzleSerializationError
 
 
-def test_model_puzzle_text_serializer_version_is_not_constructor_configurable() -> None:
-    with pytest.raises(TypeError):
-        ModelPuzzleTextSerializer(version="2")
-
-
-def test_model_puzzle_text_serializer_rejects_non_finite_json_values() -> None:
-    puzzle = {
+def _puzzle_with_constraints(constraints: dict[Any, Any]) -> dict[str, Any]:
+    return {
         "normalized_puzzle_id": "normalized-puzzle-0001",
         "puzzle_id": "om.puzzle.0001",
         "puzzle_artifact_id": "puzzle-artifact-0001",
@@ -31,8 +28,38 @@ def test_model_puzzle_text_serializer_rejects_non_finite_json_values() -> None:
                 "bonds": [],
             }
         ],
-        "constraints": {"limit": float("nan")},
+        "constraints": constraints,
     }
+
+
+def test_model_puzzle_text_serializer_version_is_not_constructor_configurable() -> None:
+    with pytest.raises(TypeError):
+        ModelPuzzleTextSerializer(version="2")
+
+
+def test_model_puzzle_text_serializer_rejects_non_finite_json_values() -> None:
+    puzzle = _puzzle_with_constraints({"limit": float("nan")})
+
+    with pytest.raises(PuzzleSerializationError, match="not canonical JSON"):
+        ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
+
+
+def test_model_puzzle_text_serializer_rejects_non_string_object_keys() -> None:
+    puzzle = _puzzle_with_constraints({1: "one"})
+
+    with pytest.raises(PuzzleSerializationError, match="not canonical JSON"):
+        ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
+
+
+def test_model_puzzle_text_serializer_rejects_python_only_sequence_types() -> None:
+    puzzle = _puzzle_with_constraints({"limits": (1, 2)})
+
+    with pytest.raises(PuzzleSerializationError, match="not canonical JSON"):
+        ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
+
+
+def test_model_puzzle_text_serializer_rejects_non_utf8_strings() -> None:
+    puzzle = _puzzle_with_constraints({"label": "\ud800"})
 
     with pytest.raises(PuzzleSerializationError, match="not canonical JSON"):
         ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
