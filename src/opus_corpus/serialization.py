@@ -83,8 +83,8 @@ def _validate_normalized_puzzle(puzzle: NormalizedRecord) -> None:
 
 
 def _model_json_value(value: Any) -> str:
-    _validate_model_json_value(value, active_container_ids=set())
     try:
+        _validate_model_json_value(value)
         encoded = json.dumps(
             value,
             allow_nan=False,
@@ -101,41 +101,41 @@ def _model_json_value(value: Any) -> str:
         ) from exc
 
 
-def _validate_model_json_value(value: Any, *, active_container_ids: set[int]) -> None:
-    value_type = type(value)
-    if value is None or value_type in {bool, int, float}:
-        return
-    if value_type is str:
-        _validate_model_json_string(value)
-        return
-    if value_type is list:
-        _validate_model_json_container(value, active_container_ids=active_container_ids)
-        return
-    if value_type is dict:
-        _validate_model_json_container(value, active_container_ids=active_container_ids)
-        return
-    _raise_noncanonical_json()
+def _validate_model_json_value(value: Any) -> None:
+    active_container_ids: set[int] = set()
+    stack: list[tuple[bool, Any]] = [(False, value)]
 
+    while stack:
+        exiting_container, current = stack.pop()
+        if exiting_container:
+            active_container_ids.remove(id(current))
+            continue
 
-def _validate_model_json_container(
-    value: list[Any] | dict[str, Any], *, active_container_ids: set[int]
-) -> None:
-    container_id = id(value)
-    if container_id in active_container_ids:
-        _raise_noncanonical_json()
-    active_container_ids.add(container_id)
-    try:
-        if type(value) is list:
-            for item in value:
-                _validate_model_json_value(item, active_container_ids=active_container_ids)
-            return
-        for key, item in value.items():
+        value_type = type(current)
+        if current is None or value_type in {bool, int, float}:
+            continue
+        if value_type is str:
+            _validate_model_json_string(current)
+            continue
+        if value_type not in {list, dict}:
+            _raise_noncanonical_json()
+
+        container_id = id(current)
+        if container_id in active_container_ids:
+            _raise_noncanonical_json()
+        active_container_ids.add(container_id)
+        stack.append((True, current))
+
+        if value_type is list:
+            for item in reversed(current):
+                stack.append((False, item))
+            continue
+
+        for key, item in current.items():
             if type(key) is not str:
                 _raise_noncanonical_json()
             _validate_model_json_string(key)
-            _validate_model_json_value(item, active_container_ids=active_container_ids)
-    finally:
-        active_container_ids.remove(container_id)
+            stack.append((False, item))
 
 
 def _validate_model_json_string(value: str) -> None:
