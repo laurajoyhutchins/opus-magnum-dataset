@@ -22,7 +22,7 @@ from .hashing import (
 from .parquet import read_parquet, write_parquet
 from .path_safety import resolve_confined_path
 from .payload import validate_payload_policy
-from .release_configs import CANONICAL_ID_FIELDS, CONFIG_NAMES, SCHEMA_FILES
+from .release_configs import CONFIG_NAMES, RELEASE_CONFIGS
 from .release_inputs import load_release_inputs, sort_records
 from .schema_resources import collect_schema_errors, load_schema_resource
 
@@ -140,19 +140,19 @@ def derive_release_coverage(
             )
         )
 
-    for config_name, identity_field in CANONICAL_ID_FIELDS.items():
+    for spec in RELEASE_CONFIGS:
         seen: dict[Any, int] = {}
-        for index, row in enumerate(records.get(config_name, []), start=1):
-            identity = row.get(identity_field)
+        for index, row in enumerate(records.get(spec.name, []), start=1):
+            identity = row.get(spec.canonical_id_field)
             if identity is None:
                 continue
             if identity in seen:
                 errors.append(
                     ValidationError(
                         "duplicate_canonical_id",
-                        f"duplicate {identity_field} {identity!r}; first seen on row "
+                        f"duplicate {spec.canonical_id_field} {identity!r}; first seen on row "
                         f"{seen[identity]}",
-                        config_name,
+                        spec.name,
                         index,
                     )
                 )
@@ -334,11 +334,12 @@ def _validate_rows(
 def validate_referential_integrity(
     records: dict[str, list[dict[str, Any]]],
 ) -> None:
-    puzzles = {row.get("puzzle_id") for row in records.get("puzzles", [])}
+    puzzle_rows = records.get("puzzles", [])
+    puzzles = {row.get("puzzle_id") for row in puzzle_rows}
     puzzle_artifacts = {
-        row.get("canonical_puzzle_artifact_id")
-        for row in records.get("puzzles", [])
-        if row.get("canonical_puzzle_artifact_id")
+        artifact_id
+        for row in puzzle_rows
+        for artifact_id in row.get("puzzle_artifact_ids", [])
     }
     solutions = {row.get("solution_id") for row in records.get("solutions", [])}
     errors: list[ValidationError] = []
@@ -349,6 +350,16 @@ def validate_referential_integrity(
                     "referential_integrity",
                     f"solution {row.get('solution_id')} references unknown puzzle "
                     f"{row.get('puzzle_id')}",
+                    "solutions",
+                    index,
+                )
+            )
+        if row.get("puzzle_artifact_id") not in puzzle_artifacts:
+            errors.append(
+                ValidationError(
+                    "referential_integrity",
+                    f"solution {row.get('solution_id')} references unknown puzzle artifact "
+                    f"{row.get('puzzle_artifact_id')}",
                     "solutions",
                     index,
                 )
@@ -474,14 +485,15 @@ def build_release(
 
     with publish_directory(output_dir) as candidate:
         config_results: dict[str, ConfigRelease] = {}
-        for config_name in CONFIG_NAMES:
+        for spec in RELEASE_CONFIGS:
+            config_name = spec.name
             rows = loaded.records[config_name]
             parquet_rel = (
                 Path("data") / config_name / f"{split}-00000-of-00001.parquet"
             )
             parquet_path = candidate / parquet_rel
             write_parquet(config_name, rows, parquet_path, config)
-            schema_resource = load_schema_resource(SCHEMA_FILES[config_name])
+            schema_resource = load_schema_resource(spec.schema_resource)
             source = loaded.sources[config_name]
             config_results[config_name] = ConfigRelease(
                 schema_path=schema_resource.logical_path,
@@ -637,9 +649,10 @@ def validate_release(
         raise ReleaseValidationError(errors)
 
     records: dict[str, list[dict[str, Any]]] = {}
-    for config_name in CONFIG_NAMES:
+    for spec in RELEASE_CONFIGS:
+        config_name = spec.name
         entry = manifest.configs[config_name]
-        schema_resource = load_schema_resource(SCHEMA_FILES[config_name])
+        schema_resource = load_schema_resource(spec.schema_resource)
         if schema_resource.sha256 != entry.schema_sha256:
             errors.append(
                 ValidationError(

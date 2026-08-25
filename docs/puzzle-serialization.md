@@ -1,74 +1,88 @@
 # Model-oriented puzzle serialization
 
-Status: **Implemented v1**
+Status: **Implemented v2**
 
-WP-13 defines the first benchmark-facing puzzle input representation. It is a deterministic projection over a canonical normalized puzzle record. It is not another puzzle schema, corpus store, or normalization layer.
+The benchmark-facing puzzle text is a deterministic projection of canonical semantic `PuzzleDefinition` state. It is not another puzzle schema, corpus store, artifact decoder, or normalization layer.
 
 ## Authority boundary
 
-Canonical normalized puzzle data remains authoritative. The serializer validates its input against `normalized-puzzle.schema.json`, selects solve-relevant fields, and renders them. If the source record changes, regenerate the serialization rather than editing serialized text.
+`PuzzleDefinition` is the semantic authority for puzzle meaning. Exact `.puzzle` bytes remain separate `PuzzleArtifact` evidence used where byte identity matters, especially verification. The serializer validates a `PuzzleDefinition`, selects solve-relevant semantic fields, and renders them. If the semantic definition changes, regenerate the serialization rather than editing serialized text.
 
-The v1 model payload deliberately excludes corpus lineage and materialization metadata:
+Artifact and provenance lineage are deliberately excluded from model input:
 
-- `normalized_puzzle_id`
-- `puzzle_artifact_id`
-- `normalizer_version`
+- `source_observation_ids`
+- `puzzle_artifact_ids`
 
-Those fields remain available in canonical corpus state and benchmark manifests. The payload retains `puzzle_id` so model input and benchmark result rows can be associated with the evaluated puzzle.
+Those fields remain on the canonical `PuzzleDefinition`. The payload keeps both `puzzle_definition_id` and `puzzle_id` so benchmark input can be bound to the exact semantic definition evaluated without exposing acquisition bookkeeping to the model.
 
-## V1 identity
+## V2 identity
 
 The implementation is `ModelPuzzleTextSerializer` in `opus_corpus.serialization`.
 
 ```text
 format_name = opus-magnum-puzzle-text
-version = 1
-header = OPUS_MAGNUM_PUZZLE_TEXT_V1
+version = 2
+header = OPUS_MAGNUM_PUZZLE_TEXT_V2
 ```
 
-The serializer version is an implementation identity, not a constructor option. A representation change requires a new declared version and corresponding golden tests rather than relabeling the existing implementation.
+The serializer version is an implementation identity, not a constructor option. A representation change requires a new declared version and corresponding tests rather than relabeling the existing implementation.
 
-## V1 fields and order
+## V2 fields and order
 
-After the header, v1 emits exactly these fields in this order:
+After the header, v2 emits exactly these fields in this order:
 
 ```text
+puzzle_definition_id
 puzzle_id
 allowed_parts
+allowed_instructions
 reagents
 products
-constraints
+output_scale
+target_output_count
+production
+production_constraints
 ```
 
-Each line is `name=<canonical-json-value>`. JSON object keys are sorted, compact separators are used, string escaping follows JSON rules, and non-finite numeric values are rejected rather than emitted as non-standard JSON. Unicode NEL, line separator, and paragraph separator characters are emitted as `\u0085`, `\u2028`, and `\u2029` escapes so JSON string content cannot create additional text lines. The complete serialization ends with a newline.
+Each line is `name=<canonical-json-value>`. Field order is explicit. JSON object keys are sorted, compact separators are used, and JSON string escaping is preserved. Unicode NEL, line separator, and paragraph separator characters are emitted as `\u0085`, `\u2028`, and `\u2029` so string content cannot create extra text lines. The serialization ends with a newline.
 
 Example shape:
 
 ```text
-OPUS_MAGNUM_PUZZLE_TEXT_V1
+OPUS_MAGNUM_PUZZLE_TEXT_V2
+puzzle_definition_id="om.puzzle-definition.sha256.<digest>"
 puzzle_id="om.puzzle.0001"
 allowed_parts=["arm1","bonder"]
+allowed_instructions=["drop","grab"]
 reagents=[...]
 products=[...]
-constraints={}
+output_scale=1
+target_output_count=6
+production=false
+production_constraints=null
 ```
 
-The literal full output for the test fixture is pinned in `tests/test_puzzle_text_serialization.py` as the v1 golden contract.
+The behavior contract is pinned in `tests/test_puzzle_text_serialization.py`.
 
 ## Determinism boundary
 
-Mapping insertion order cannot change the serialized bytes because field order is explicit and nested mapping keys use canonical JSON ordering.
+`PuzzleDefinition` construction owns semantic canonicalization. The serializer does not reinterpret raw puzzle bytes, merge evidence, derive semantic claims, or maintain its own normalized-puzzle representation. Given the same validated `PuzzleDefinition` and serializer version, output is byte-for-byte identical regardless of input mapping insertion order.
 
-The serializer intentionally does **not** reorder `allowed_parts`, reagent/product molecules, atoms, or bonds. Ordering of canonical normalized arrays belongs to normalization. Reordering them in the serializer would quietly create a second semantic-normalization path. Given the same canonical normalized puzzle record and serializer version, output is byte-for-byte identical.
+This separation prevents a second semantic path:
 
-Open-ended values such as `constraints` must already use JSON-native Python shapes: dictionaries with string keys, lists, strings, finite JSON numbers, booleans, or null. Python-only values are rejected rather than coerced. For example, integer dictionary keys are not stringified and tuples are not converted to arrays. Strings and object keys must also be valid UTF-8 text. This keeps distinct malformed Python inputs from collapsing onto the same serialized representation.
+```text
+source evidence -> PuzzleDefinition -> model text
+exact bytes     -> PuzzleArtifact  -> verifier
+```
+
+A semantic definition may exist without an exact artifact. Multiple byte-distinct artifacts may also support the same semantic definition. Neither case changes the model-facing semantic representation.
 
 ## Failure behavior
 
-Schema-invalid normalized puzzle records fail closed with `PuzzleSerializationError`. Missing solve fields, unknown root fields, malformed molecule structure, and other schema violations are not silently repaired or omitted. Values that cannot be represented one-to-one as standards-compliant UTF-8 JSON also fail closed, including `NaN`, infinities, non-string object keys, Python-only container types, lone Unicode surrogates, and cyclic lists or dictionaries.
+Invalid `PuzzleDefinition` input fails closed with `PuzzleSerializationError`. Missing semantic fields, malformed molecule structure, an invalid semantic identity, or other definition-schema violations are not repaired silently. Values that cannot be represented safely as UTF-8 JSON also fail rather than being coerced.
 
 The serializer does not accept raw `.puzzle` bytes. Raw-byte benchmark input is a separate benchmark input profile under `docs/benchmark-protocol.md`.
 
 ## Downstream use
 
-The Solve harness should record both `format_name` and `version` in benchmark identity and should obtain model input by invoking this serializer over canonical normalized puzzle data. It should not maintain checked-in copies of serialized puzzle prompts as another dataset.
+The Solve harness should record `format_name`, `version`, and the semantic puzzle identity used for the run. It should invoke the serializer over canonical `PuzzleDefinition` state and should not maintain checked-in prompt copies or a parallel normalized-puzzle dataset.

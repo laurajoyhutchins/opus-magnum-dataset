@@ -2,13 +2,13 @@
 
 A reproducible, provenance-preserving corpus of Opus Magnum puzzles and solutions, designed for verification, benchmarking, search, and machine-learning research.
 
-This repository is the **factory and specification**, not a hand-maintained dataset. Authoritative source facts are ingested from pinned upstream sources, verified deterministically, and materialized into generated dataset artifacts.
+This repository is the **factory and specification**, not a hand-maintained dataset. Authoritative source facts are ingested from pinned upstream sources, reconciled and verified deterministically, and materialized into generated dataset artifacts.
 
 ## Repository capabilities
 
 The repository defines and validates the frozen `base-game-2026-06-16` collection and can build, validate, stage, and publish a deterministic four-config Hugging Face-compatible release from canonical inputs.
 
-Source acquisition supports pinned community/archive inputs, pinned `omsim` campaign puzzle definitions, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical exact-byte puzzle/solution artifact materialization, deterministic `omsim`/`libverify` verification, deterministic `.solution` parsing/normalization, deterministic model-oriented puzzle serialization, and release-row materialization are repository capabilities. Complete-release acceptance is mechanical: required coverage, provenance, deterministic replay, rights policy, and publication checks must pass rather than being represented by a hand-maintained status ledger.
+Source acquisition supports pinned community/archive inputs, pinned `omsim` campaign puzzle definitions, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical semantic `PuzzleDefinition` reconciliation is separate from exact-byte `PuzzleArtifact` materialization: research and release puzzle rows consume semantic definitions, while exact artifacts remain the verifier and provenance boundary. Deterministic `.solution` parsing/normalization, `omsim`/`libverify` verification, model-oriented puzzle serialization, and release-row materialization are repository capabilities. Complete-release acceptance is mechanical: required coverage, provenance, deterministic replay, rights policy, and publication checks must pass rather than being represented by a hand-maintained status ledger.
 
 The committed `fixtures/tiny-corpus/` is a deterministic release-factory fixture, not production authority. Live implementation and review state belongs in GitHub issues and pull requests. [`docs/TODO.md`](docs/TODO.md) records stable dependency/concurrency topology only.
 
@@ -30,18 +30,22 @@ opus-corpus release publish <collection> --output <path>
 
 `--source-root` is required only for the `official-game` adapter. That adapter consumes a strict local `official-puzzles.toml`, preserves the manifest itself as an immutable source fact, and stores exact local puzzle bytes with `local_fetch_only` rights through the shared content-addressed cache.
 
-A release materializes four independently loadable configs: `puzzles`, `solutions`, `observations`, and `normalized`. Collection IDs become immutable Hugging Face split names, so `base-game-2026-06-16` maps to `base_game_2026_06_16` rather than a generic `train` split.
+A release materializes four independently loadable configs: `puzzles`, `solutions`, `observations`, and `normalized`. `puzzles` contains canonical semantic `PuzzleDefinition` rows plus collection presentation metadata; exact puzzle byte identity remains in artifact/provenance lineage rather than a binary puzzle release column. Collection IDs become immutable Hugging Face split names, so `base-game-2026-06-16` maps to `base_game_2026_06_16` rather than a generic `train` split.
 
 Generated release state includes deterministic logical-record hashes, a release manifest, Parquet output hashes, and a generated dataset card. Hugging Face is a downstream distribution surface; GitHub repository facts and canonical build inputs remain authoritative. The staged Hub projection declares `license: other` with `license_name: Mixed/source-specific rights` and includes a generated `LICENSE` rights notice rather than presenting the generated corpus as wholesale MIT-licensed.
 
-Coverage policy is explicit build state. `complete` is the default and requires the exact frozen collection plus at least one verified solution for every puzzle. `subset` is an explicit development/fixture mode and is recorded in the release manifest. Human-editable release metadata cannot relax the build policy. Per-puzzle candidate, verified, rejected, and coverage-state facts are derived into `release_metadata.coverage.by_puzzle` in the generated manifest.
+Coverage policy is explicit build state. `complete` is the default and requires the exact frozen collection plus at least one verified solution for every puzzle. Puzzle problem coverage is tracked separately as semantic coverage, exact-artifact coverage, and verifier readiness. `subset` is an explicit development/fixture mode and is recorded in the release manifest. Human-editable release metadata cannot relax the build policy. Per-puzzle candidate, verified, rejected, and coverage-state facts are derived into `release_metadata.coverage.by_puzzle` in the generated manifest.
 
 ## Payload policy
 
-Every build selects an explicit payload policy:
+Every build selects an explicit payload policy.
 
-- `metadata-only` requires raw puzzle and solution byte fields to be null.
-- `include-permitted` allows raw bytes only for rows whose `rights_status` is exactly `redistributable`.
+Puzzle release rows are semantic and never contain raw `.puzzle` bytes. Exact puzzle-artifact rights remain attached to artifact provenance and are not projected onto `PuzzleDefinition` rows.
+
+For solution rows:
+
+- `metadata-only` requires `solution_bytes` to be null;
+- `include-permitted` allows solution bytes only when that exact artifact's `rights_status` is `redistributable`.
 
 The release validator reapplies the payload policy after reading generated Parquet so staging cannot bypass rights checks.
 
@@ -96,7 +100,7 @@ uv run opus-corpus release v1 base-game-2026-06-16 \
   --libverify-sha256 <expected-64-hex-sha256>
 ```
 
-The command fails closed if exact puzzle coverage is incomplete, complete solution coverage cannot be satisfied, normalization disagrees with verifier-parseable artifacts, the output destination is unsafe, or the second full offline rebuild produces different canonical release-manifest bytes. Generated release directories are projections and should not be treated as repository authority.
+The command fails closed if verifier-ready exact puzzle coverage is incomplete, complete solution coverage cannot be satisfied, normalization disagrees with verifier-parseable artifacts, the output destination is unsafe, or the second full offline rebuild produces different canonical release-manifest bytes. Generated release directories are projections and should not be treated as repository authority.
 
 ## Design principles
 
@@ -104,10 +108,12 @@ The command fails closed if exact puzzle coverage is incomplete, complete soluti
 - Every published row is traceable to provenance.
 - Claimed metrics are not trusted; metrics are recomputed by a pinned verifier.
 - Collection membership is explicit and versioned.
+- Puzzle semantic identity is distinct from exact puzzle byte identity.
+- Multiple byte-distinct puzzle artifacts may support one semantic `PuzzleDefinition` when canonical decoded semantics agree.
+- Exact solution bytes remain the v1 solution deduplication boundary.
 - Derived views are generated by software, never manually curated.
 - Hugging Face is a first-class publication target, not the internal source of truth.
-- Redistribution of raw puzzle or solution bytes is controlled independently from metadata publication.
-- Exact-byte deduplication is safe; semantic-equivalence deduplication is deferred until separately specified.
+- Redistribution of raw artifacts is controlled independently from semantic/metadata publication.
 
 ## Documents
 
@@ -145,7 +151,7 @@ Source adapters do not define the dataset schema. They translate upstream facts 
 - A database service.
 - A custom simulator.
 - Agent-maintained indexes or projections.
-- Semantic deduplication of equivalent machines.
+- Semantic deduplication of equivalent solutions.
 - A hand-curated folder of “best” solutions.
 - Treating leaderboard metadata as executable-solution truth.
 - Treating a mutable notion of “current base game” as a collection definition.

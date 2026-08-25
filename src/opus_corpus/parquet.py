@@ -7,7 +7,6 @@ from typing import Any
 
 from .config import CorpusConfig
 from .hashing import canonical_json_bytes
-from .release_configs import PAYLOAD_FIELDS as PAYLOAD_FIELDS
 from .release_configs import get_release_config
 
 _NORMALIZED_SUMMARY_OBJECT_FIELDS = (

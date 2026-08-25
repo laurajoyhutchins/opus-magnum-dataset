@@ -149,12 +149,29 @@ def _normalization_failure_solution_bytes() -> bytes:
     )
 
 
+def _valid_puzzle_bytes() -> bytes:
+    reagent = struct.pack("<I", 1) + b"\x01\x00\x00" + struct.pack("<I", 0)
+    product = struct.pack("<I", 1) + b"\x02\x00\x00" + struct.pack("<I", 0)
+    return (
+        struct.pack("<I", 3)
+        + b"\x07fixture"
+        + struct.pack("<Q", 0)
+        + struct.pack("<Q", 0)
+        + struct.pack("<I", 1)
+        + reagent
+        + struct.pack("<I", 1)
+        + product
+        + struct.pack("<I", 1)
+        + b"\x00"
+    )
+
+
 def _cache_puzzle(cache_root: Path) -> None:
     ContentAddressedCache(cache_root).put_bytes(
         "omsim",
         OmsimAdapter.pinned_revision,
         "test/puzzle/campaign/P001.puzzle",
-        b"fixture-puzzle-bytes",
+        _valid_puzzle_bytes(),
         rights_status="local_fetch_only",
     )
 

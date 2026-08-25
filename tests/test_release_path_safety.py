@@ -8,7 +8,7 @@ import pytest
 from opus_corpus.collections import CollectionDefinition
 from opus_corpus.errors import ReleaseValidationError
 from opus_corpus.release import ConfigRelease, ReleaseManifest, validate_release
-from opus_corpus.release_inputs import SCHEMA_FILES
+from opus_corpus.release_configs import RELEASE_CONFIGS
 from opus_corpus.schema_resources import load_schema_resource
 
 
@@ -26,20 +26,20 @@ def _collection(tmp_path: Path) -> CollectionDefinition:
 
 def _manifest(parquet_path: str) -> ReleaseManifest:
     configs: dict[str, ConfigRelease] = {}
-    for name in ("puzzles", "solutions", "observations", "normalized"):
-        schema_resource = load_schema_resource(SCHEMA_FILES[name])
-        configs[name] = ConfigRelease(
+    for spec in RELEASE_CONFIGS:
+        schema_resource = load_schema_resource(spec.schema_resource)
+        configs[spec.name] = ConfigRelease(
             schema_path=schema_resource.logical_path,
             schema_sha256=schema_resource.sha256,
             records_sha256="b" * 64,
             row_count=0,
             parquet_path=(
                 parquet_path
-                if name == "puzzles"
-                else f"data/{name}/split-00000-of-00001.parquet"
+                if spec.name == "puzzles"
+                else f"data/{spec.name}/split-00000-of-00001.parquet"
             ),
             parquet_sha256="a" * 64,
-            source_path=f"fixtures/{name}.jsonl",
+            source_path=f"fixtures/{spec.name}.jsonl",
             source_sha256="c" * 64,
         )
     return ReleaseManifest(

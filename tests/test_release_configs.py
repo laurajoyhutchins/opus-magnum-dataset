@@ -21,7 +21,7 @@ def test_release_config_specs_are_the_single_ordered_release_surface():
         )
         for spec in RELEASE_CONFIGS
     ] == [
-        ("puzzles", "puzzle.schema.json", "puzzle_id", ("puzzle_id",), "puzzle_bytes"),
+        ("puzzles", "puzzle.schema.json", "puzzle_id", ("puzzle_id",), None),
         (
             "solutions",
             "solution.schema.json",
@@ -50,22 +50,16 @@ def test_release_config_specs_are_the_single_ordered_release_surface():
         RELEASE_CONFIGS[0].name = "changed"
 
 
-def test_existing_release_surfaces_share_derived_config_views():
-    from opus_corpus.release_configs import (
-        CANONICAL_ID_FIELDS,
-        CONFIG_NAMES,
-        PAYLOAD_FIELDS,
-        SCHEMA_FILES,
-        SORT_KEYS,
-    )
+def test_release_consumers_do_not_publish_duplicate_lookup_maps():
+    from opus_corpus.release_configs import CONFIG_NAMES, RELEASE_CONFIGS
 
     assert config.REQUIRED_CONFIGS is CONFIG_NAMES
-    assert release_inputs.CONFIG_NAMES is CONFIG_NAMES
-    assert release_inputs.SCHEMA_FILES is SCHEMA_FILES
-    assert release_inputs.SORT_KEYS is SORT_KEYS
-    assert release.CANONICAL_ID_FIELDS is CANONICAL_ID_FIELDS
-    assert parquet.PAYLOAD_FIELDS is PAYLOAD_FIELDS
-    assert payload.PAYLOAD_FIELDS is PAYLOAD_FIELDS
+    assert CONFIG_NAMES == tuple(spec.name for spec in RELEASE_CONFIGS)
+    assert not hasattr(release_inputs, "SCHEMA_FILES")
+    assert not hasattr(release_inputs, "SORT_KEYS")
+    assert not hasattr(release, "CANONICAL_ID_FIELDS")
+    assert not hasattr(parquet, "PAYLOAD_FIELDS")
+    assert not hasattr(payload, "PAYLOAD_FIELDS")
 
 
 def test_unknown_release_config_fails_explicitly():

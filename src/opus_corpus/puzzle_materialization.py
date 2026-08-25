@@ -5,7 +5,6 @@ from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .adapters.molecule_db import MoleculeDbAdapter
 from .adapters.official_game import (
     OfficialGameAcquisitionError,
     OfficialGameAdapter,
@@ -23,8 +22,9 @@ from .ingestion import (
     ObservedArtifactCandidate,
     ingest_artifacts,
 )
+from .observations import observation_id
 from .puzzle_decoder import decode_puzzle_definition_evidence
-from .puzzle_definition import PuzzleDefinitionEvidence
+from .puzzle_definition import PuzzleDefinitionEvidence, validate_puzzle_definition
 from .puzzle_parser import parse_puzzle_bytes
 
 
@@ -33,16 +33,19 @@ class PuzzleMaterializationError(CorpusError):
 
 
 class PuzzleCoverageError(PuzzleMaterializationError):
-    """Raised when required puzzles lack verifier-usable exact artifacts."""
+    """Raised when required puzzles are not ready for exact-byte verification."""
 
 
 @dataclass(frozen=True)
 class PuzzleCoverage:
     puzzle_id: str
+    puzzle_definition_id: str | None
     artifact_ids: tuple[str, ...]
-    exact_source_ids: tuple[str, ...]
     semantic_source_ids: tuple[str, ...]
-    verifier_usable: bool
+    exact_source_ids: tuple[str, ...]
+    semantic_covered: bool
+    artifact_covered: bool
+    verifier_ready: bool
 
 
 @dataclass(frozen=True)
@@ -181,58 +184,13 @@ def _official_candidates(
     return tuple(candidates)
 
 
-def _molecule_db_semantic_puzzles(
+def derive_puzzle_coverage(
     collection: CollectionDefinition,
-    root: Path,
-) -> frozenset[str]:
-    adapter = MoleculeDbAdapter()
-    receipts = _load_receipts(root, adapter.source_id, adapter.pinned_revision)
-    if not receipts:
-        return frozenset()
-    by_path = {receipt.upstream_path: receipt for receipt in receipts}
-    expected_paths = {"src/puzzle.rs", "src/molecules.rs"}
-    if set(by_path) != expected_paths or len(by_path) != len(receipts):
-        raise PuzzleMaterializationError(
-            f"molecule-db@{adapter.pinned_revision}: incomplete or ambiguous semantic evidence"
-        )
-
-    store = ContentStore(root)
-    payloads: dict[str, bytes] = {}
-    for source_path in sorted(expected_paths):
-        receipt = by_path[source_path]
-        store.require(receipt.sha256, receipt.byte_length)
-        try:
-            payloads[source_path] = store.object_path(receipt.sha256).read_bytes()
-        except OSError as exc:
-            raise PuzzleMaterializationError(
-                f"molecule-db@{adapter.pinned_revision}: cannot read {source_path}"
-            ) from exc
-
-    semantics = adapter.parse_collection_semantics(
-        collection,
-        puzzle_source=payloads["src/puzzle.rs"],
-        molecules_source=payloads["src/molecules.rs"],
-    )
-    return frozenset(item.puzzle_id for item in semantics)
-
-
-def _require_unambiguous_exact_artifacts(artifacts: tuple[ArtifactRecord, ...]) -> None:
-    artifact_ids: dict[str, list[str]] = {}
-    for artifact in artifacts:
-        artifact_ids.setdefault(artifact.puzzle_id, []).append(artifact.artifact_id)
-
-    for puzzle_id, ids in sorted(artifact_ids.items()):
-        if len(ids) > 1:
-            raise PuzzleMaterializationError(
-                f"{puzzle_id}: multiple exact puzzle artifacts ({', '.join(sorted(ids))})"
-            )
-
-
-def _coverage(
-    collection: CollectionDefinition,
-    artifacts: tuple[ArtifactRecord, ...],
-    provenance: tuple[ArtifactProvenance, ...],
-    semantic_puzzle_ids: frozenset[str],
+    artifacts: Iterable[ArtifactRecord],
+    provenance: Iterable[ArtifactProvenance],
+    *,
+    definitions: Iterable[Mapping[str, Any]] = (),
+    semantic_source_ids_by_puzzle: Mapping[str, Iterable[str]] | None = None,
 ) -> tuple[PuzzleCoverage, ...]:
     artifact_ids: dict[str, set[str]] = {}
     exact_sources: dict[str, set[str]] = {}
@@ -242,18 +200,35 @@ def _coverage(
         if row.source_role == "artifact":
             exact_sources.setdefault(row.puzzle_id, set()).add(row.source_id)
 
+    definition_by_puzzle: dict[str, Mapping[str, Any]] = {}
+    for definition in definitions:
+        validate_puzzle_definition(definition)
+        puzzle_id = definition["puzzle_id"]
+        if puzzle_id in definition_by_puzzle:
+            raise PuzzleMaterializationError(
+                f"{puzzle_id}: multiple semantic PuzzleDefinitions in coverage input"
+            )
+        definition_by_puzzle[puzzle_id] = definition
+
+    source_map = semantic_source_ids_by_puzzle or {}
     rows: list[PuzzleCoverage] = []
     for puzzle in collection.inventory_rows:
         puzzle_id = puzzle["puzzle_id"]
         ids = tuple(sorted(artifact_ids.get(puzzle_id, ())))
-        semantic_sources = ("molecule-db",) if puzzle_id in semantic_puzzle_ids else ()
+        definition = definition_by_puzzle.get(puzzle_id)
+        semantic_sources = tuple(sorted(set(source_map.get(puzzle_id, ()))))
         rows.append(
             PuzzleCoverage(
                 puzzle_id=puzzle_id,
+                puzzle_definition_id=(
+                    str(definition["puzzle_definition_id"]) if definition is not None else None
+                ),
                 artifact_ids=ids,
-                exact_source_ids=tuple(sorted(exact_sources.get(puzzle_id, ()))),
                 semantic_source_ids=semantic_sources,
-                verifier_usable=bool(ids),
+                exact_source_ids=tuple(sorted(exact_sources.get(puzzle_id, ()))),
+                semantic_covered=definition is not None,
+                artifact_covered=bool(ids),
+                verifier_ready=len(ids) == 1,
             )
         )
     return tuple(rows)
@@ -266,16 +241,13 @@ def materialize_puzzle_artifacts(
     root = Path(cache_root)
     candidates = (*_omsim_candidates(collection, root), *_official_candidates(collection, root))
     ingested = ingest_artifacts(candidates, ContentStore(root))
-    _require_unambiguous_exact_artifacts(ingested.artifacts)
-    semantic_puzzle_ids = _molecule_db_semantic_puzzles(collection, root)
     return PuzzleMaterializationResult(
         artifacts=ingested.artifacts,
         provenance=ingested.provenance,
-        coverage=_coverage(
+        coverage=derive_puzzle_coverage(
             collection,
             ingested.artifacts,
             ingested.provenance,
-            semantic_puzzle_ids,
         ),
     )
 
@@ -286,6 +258,63 @@ def _observation_mapping(value: object) -> dict[str, Any]:
     if isinstance(value, Mapping):
         return dict(value)
     raise PuzzleMaterializationError("puzzle observation must be a mapping or dataclass")
+
+
+def materialize_puzzle_provenance_observations(
+    artifacts: Iterable[ArtifactRecord],
+    provenance: Iterable[ArtifactProvenance],
+) -> tuple[dict[str, Any], ...]:
+    """Project exact puzzle provenance into canonical observation records."""
+
+    by_artifact_id = {artifact.artifact_id: artifact for artifact in artifacts}
+    rows: list[dict[str, Any]] = []
+    for value in provenance:
+        row = _observation_mapping(value)
+        artifact_id = row.get("artifact_id")
+        artifact = by_artifact_id.get(artifact_id)
+        if artifact is None:
+            raise PuzzleMaterializationError(
+                f"puzzle provenance references unknown artifact {artifact_id!r}"
+            )
+        if row.get("puzzle_id") != artifact.puzzle_id:
+            raise PuzzleMaterializationError(
+                f"{artifact_id}: puzzle provenance references a different puzzle"
+            )
+        source_role = row.get("source_role")
+        if source_role == "artifact":
+            observation_role = "artifact"
+        elif source_role == "evidence":
+            observation_role = "metadata"
+        else:
+            raise PuzzleMaterializationError(
+                f"{artifact_id}: unsupported puzzle provenance role {source_role!r}"
+            )
+        body = {
+            "artifact_kind": "puzzle",
+            "artifact_id": artifact_id,
+            "puzzle_id": row["puzzle_id"],
+            "source_role": observation_role,
+            "source_id": row["source_id"],
+            "source_revision": row.get("source_revision"),
+            "source_object_id": row.get("source_object_id"),
+            "source_path": row.get("source_path"),
+            "associated_artifact_path": None,
+            "source_declared_puzzle_id": row.get("source_object_id"),
+            "source_url": row.get("source_url"),
+            "author": row.get("author"),
+            "retrieved_at": row["retrieved_at"],
+            "claimed_cost": row.get("claimed_cost"),
+            "claimed_cycles": row.get("claimed_cycles"),
+            "claimed_area": row.get("claimed_area"),
+            "claimed_instructions": row.get("claimed_instructions"),
+            "observed_sha256": row.get("observed_sha256"),
+            "source_evidence_sha256": row.get("source_evidence_sha256"),
+            "source_evidence_byte_length": row.get("source_evidence_byte_length"),
+            "rights_status": row["rights_status"],
+            "importer_version": "release-materializer-v1",
+        }
+        rows.append({"observation_id": observation_id(body), **body})
+    return tuple(sorted(rows, key=lambda row: row["observation_id"]))
 
 
 def materialize_puzzle_artifact_semantic_evidence(
@@ -339,12 +368,12 @@ def materialize_puzzle_artifact_semantic_evidence(
                 raise PuzzleMaterializationError(
                     f"{artifact.artifact_id}: observation sha256 does not match exact artifact"
                 )
-            observation_id = row.get("observation_id")
-            if not isinstance(observation_id, str) or not observation_id:
+            observation_value = row.get("observation_id")
+            if not isinstance(observation_value, str) or not observation_value:
                 raise PuzzleMaterializationError(
                     f"{artifact.artifact_id}: observation has invalid observation_id"
                 )
-            matching_observations.append(observation_id)
+            matching_observations.append(observation_value)
 
         if not matching_observations:
             raise PuzzleMaterializationError(
@@ -371,8 +400,9 @@ def materialize_puzzle_artifact_semantic_evidence(
 
 
 def require_complete_puzzle_coverage(result: PuzzleMaterializationResult) -> None:
-    missing = tuple(sorted(row.puzzle_id for row in result.coverage if not row.verifier_usable))
+    missing = tuple(sorted(row.puzzle_id for row in result.coverage if not row.verifier_ready))
     if missing:
         raise PuzzleCoverageError(
-            "missing verifier-usable PuzzleArtifact coverage for: " + ", ".join(missing)
+            "missing unambiguous verifier-ready PuzzleArtifact coverage for: "
+            + ", ".join(missing)
         )

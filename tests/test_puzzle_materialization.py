@@ -182,10 +182,13 @@ def test_omsim_receipt_materializes_canonical_puzzle_artifact(tmp_path: Path) ->
     assert len(result.coverage) == 1
     coverage = result.coverage[0]
     assert coverage.puzzle_id == "om.puzzle.0001"
+    assert coverage.puzzle_definition_id is None
     assert coverage.artifact_ids == (artifact.artifact_id,)
     assert coverage.exact_source_ids == ("omsim",)
     assert coverage.semantic_source_ids == ()
-    assert coverage.verifier_usable is True
+    assert coverage.semantic_covered is False
+    assert coverage.artifact_covered is True
+    assert coverage.verifier_ready is True
 
 
 def test_identical_official_and_omsim_bytes_share_one_artifact(tmp_path: Path) -> None:
@@ -201,7 +204,8 @@ def test_identical_official_and_omsim_bytes_share_one_artifact(tmp_path: Path) -
     coverage = result.coverage[0]
     assert coverage.exact_source_ids == ("official-game", "omsim")
     assert coverage.artifact_ids == (result.artifacts[0].artifact_id,)
-    assert coverage.verifier_usable is True
+    assert coverage.artifact_covered is True
+    assert coverage.verifier_ready is True
 
 
 def test_official_manifest_mapping_is_preserved_as_artifact_evidence(tmp_path: Path) -> None:
@@ -282,20 +286,20 @@ path = "campaign//P001.puzzle"
     assert evidence_row.source_path == "official-puzzles.toml"
 
 
-def test_divergent_exact_bytes_for_one_puzzle_fail_closed(tmp_path: Path) -> None:
-    from opus_corpus.puzzle_materialization import (
-        PuzzleMaterializationError,
-        materialize_puzzle_artifacts,
-    )
+def test_divergent_exact_bytes_are_preserved_but_not_verifier_ready(tmp_path: Path) -> None:
+    from opus_corpus.puzzle_materialization import materialize_puzzle_artifacts
 
     cache_root = tmp_path / "cache"
     _cache_divergent_exact_sources(cache_root)
 
-    with pytest.raises(
-        PuzzleMaterializationError,
-        match=r"om\.puzzle\.0001.*multiple exact puzzle artifacts",
-    ):
-        materialize_puzzle_artifacts(_collection(tmp_path), cache_root)
+    result = materialize_puzzle_artifacts(_collection(tmp_path), cache_root)
+
+    assert len(result.artifacts) == 2
+    coverage = result.coverage[0]
+    assert len(coverage.artifact_ids) == 2
+    assert coverage.artifact_covered is True
+    assert coverage.verifier_ready is False
+    assert coverage.exact_source_ids == ("official-game", "omsim")
 
 
 def test_molecule_db_semantics_do_not_substitute_for_exact_puzzle_bytes(tmp_path: Path) -> None:
@@ -325,11 +329,13 @@ def test_molecule_db_semantics_do_not_substitute_for_exact_puzzle_bytes(tmp_path
     coverage = result.coverage[0]
     assert coverage.artifact_ids == ()
     assert coverage.exact_source_ids == ()
-    assert coverage.semantic_source_ids == ("molecule-db",)
-    assert coverage.verifier_usable is False
+    assert coverage.semantic_source_ids == ()
+    assert coverage.semantic_covered is False
+    assert coverage.artifact_covered is False
+    assert coverage.verifier_ready is False
 
 
-def test_complete_coverage_assertion_names_missing_puzzles(tmp_path: Path) -> None:
+def test_complete_coverage_assertion_names_missing_or_ambiguous_puzzles(tmp_path: Path) -> None:
     from opus_corpus.puzzle_materialization import (
         PuzzleCoverageError,
         materialize_puzzle_artifacts,
