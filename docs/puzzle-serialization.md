@@ -40,7 +40,7 @@ products
 constraints
 ```
 
-Each line is `name=<canonical-json-value>`. JSON object keys are sorted, compact separators are used, string escaping follows JSON rules, and non-finite numeric values are rejected rather than emitted as non-standard JSON. The complete serialization ends with a newline.
+Each line is `name=<canonical-json-value>`. JSON object keys are sorted, compact separators are used, string escaping follows JSON rules, and non-finite numeric values are rejected rather than emitted as non-standard JSON. Unicode NEL, line separator, and paragraph separator characters are emitted as `\u0085`, `\u2028`, and `\u2029` escapes so JSON string content cannot create additional text lines. The complete serialization ends with a newline.
 
 Example shape:
 
@@ -65,7 +65,7 @@ Open-ended values such as `constraints` must already use JSON-native Python shap
 
 ## Failure behavior
 
-Schema-invalid normalized puzzle records fail closed with `PuzzleSerializationError`. Missing solve fields, unknown root fields, malformed molecule structure, and other schema violations are not silently repaired or omitted. Values that cannot be represented one-to-one as standards-compliant UTF-8 JSON also fail closed, including `NaN`, infinities, non-string object keys, Python-only container types, and lone Unicode surrogates.
+Schema-invalid normalized puzzle records fail closed with `PuzzleSerializationError`. Missing solve fields, unknown root fields, malformed molecule structure, and other schema violations are not silently repaired or omitted. Values that cannot be represented one-to-one as standards-compliant UTF-8 JSON also fail closed, including `NaN`, infinities, non-string object keys, Python-only container types, lone Unicode surrogates, and cyclic lists or dictionaries.
 
 The serializer does not accept raw `.puzzle` bytes. Raw-byte benchmark input is a separate benchmark input profile under `docs/benchmark-protocol.md`.
 
