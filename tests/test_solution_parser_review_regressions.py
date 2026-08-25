@@ -5,7 +5,7 @@ import struct
 import pytest
 
 from opus_corpus.adapters.omsim import OmsimAdapter
-from opus_corpus.github_source import download_github_tarball, tarball_files
+from opus_corpus.github_source import iter_github_tarball_members
 from opus_corpus.normalization import SolutionNormalizationInput
 from opus_corpus.solution_normalizer import OpusSolutionNormalizer, SolutionNormalizationError
 from opus_corpus.solution_parser import parse_solution_bytes
@@ -98,9 +98,14 @@ def test_solution_normalizer_rejects_empty_part_type():
 
 @pytest.mark.upstream
 def test_solution_parser_matches_pinned_omsim_solution_fixture():
-    tarball = download_github_tarball("ianh", "omsim", OmsimAdapter.pinned_revision)
-    files = tarball_files(tarball, suffix=".solution")
-    payload = files["test/solution/easy/easy-conduit-easy-conduit-1.solution"]
+    fixture_path = "test/solution/easy/easy-conduit-easy-conduit-1.solution"
+    payload = next(
+        member.read()
+        for path, member in iter_github_tarball_members(
+            "ianh", "omsim", OmsimAdapter.pinned_revision
+        )
+        if path == fixture_path
+    )
 
     parsed = parse_solution_bytes(payload)
 
