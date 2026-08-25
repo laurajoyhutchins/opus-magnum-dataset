@@ -94,6 +94,17 @@ def test_derive_solution_views_rejects_duplicate_solution_identity() -> None:
         derive_solution_views([duplicate, dict(duplicate)])
 
 
+def test_derive_solution_views_returns_independent_rows_per_view() -> None:
+    row = _solution("om.solution.sha256.shared")
+
+    views = derive_solution_views([row])
+    views["vanilla-constructible"][0]["cost"] = 999
+
+    assert views["all-verified"][0]["cost"] == 10
+    assert views["record-eligible"][0]["cost"] == 10
+    assert row["cost"] == 10
+
+
 def test_materialize_solution_views_is_order_independent_and_byte_deterministic(
     tmp_path: Path,
 ) -> None:
