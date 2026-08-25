@@ -57,6 +57,7 @@ def collect_schema_errors(
     code: str,
     path: str | None = None,
     row: int | None = None,
+    root_location: str | None = None,
 ) -> list[ValidationError]:
     """Return deterministic repository errors for one JSON Schema validation."""
 
@@ -69,7 +70,7 @@ def collect_schema_errors(
     )
     errors: list[ValidationError] = []
     for error in schema_errors:
-        location = ".".join(str(part) for part in error.absolute_path)
+        location = ".".join(str(part) for part in error.absolute_path) or root_location
         detail = f"{location}: {error.message}" if location else error.message
         errors.append(ValidationError(code, detail, path, row))
     return errors
