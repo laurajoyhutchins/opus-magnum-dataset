@@ -11,6 +11,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from .collections import CollectionDefinition
 from .config import CorpusConfig
+from .directory_publication import publish_directory
 from .errors import ReleaseValidationError, ValidationError
 from .hashing import (
     canonical_json_bytes,
@@ -459,50 +460,54 @@ def build_release(
         coverage_policy=coverage_policy,
     )
     output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
     split = split_for_collection(collection.collection_id)
-    config_results: dict[str, ConfigRelease] = {}
 
-    for config_name in CONFIG_NAMES:
-        rows = loaded.records[config_name]
-        parquet_rel = Path("data") / config_name / f"{split}-00000-of-00001.parquet"
-        parquet_path = output_dir / parquet_rel
-        write_parquet(config_name, rows, parquet_path, config)
-        schema_resource = load_schema_resource(SCHEMA_FILES[config_name])
-        source = loaded.sources[config_name]
-        config_results[config_name] = ConfigRelease(
-            schema_path=schema_resource.logical_path,
-            schema_sha256=schema_resource.sha256,
-            records_sha256=canonical_records_sha256(rows),
-            row_count=len(rows),
-            parquet_path=parquet_rel.as_posix(),
-            parquet_sha256=sha256_file(parquet_path),
-            source_path=source["path"],
-            source_sha256=source["sha256"],
+    with publish_directory(output_dir) as candidate:
+        config_results: dict[str, ConfigRelease] = {}
+        for config_name in CONFIG_NAMES:
+            rows = loaded.records[config_name]
+            parquet_rel = (
+                Path("data") / config_name / f"{split}-00000-of-00001.parquet"
+            )
+            parquet_path = candidate / parquet_rel
+            write_parquet(config_name, rows, parquet_path, config)
+            schema_resource = load_schema_resource(SCHEMA_FILES[config_name])
+            source = loaded.sources[config_name]
+            config_results[config_name] = ConfigRelease(
+                schema_path=schema_resource.logical_path,
+                schema_sha256=schema_resource.sha256,
+                records_sha256=canonical_records_sha256(rows),
+                row_count=len(rows),
+                parquet_path=parquet_rel.as_posix(),
+                parquet_sha256=sha256_file(parquet_path),
+                source_path=source["path"],
+                source_sha256=source["sha256"],
+            )
+
+        manifest = ReleaseManifest(
+            format_version=RELEASE_MANIFEST_FORMAT_VERSION,
+            corpus_schema_version=release_metadata["corpus_schema_version"],
+            collection_id=collection.collection_id,
+            collection_inventory_sha256=collection.inventory_sha256,
+            split=split,
+            build_software_revision=detect_git_revision(config.root),
+            build_config_sha256=sha256_file(config.path),
+            payload_policy=payload_policy,
+            coverage_policy=coverage_policy,
+            release_metadata=release_metadata,
+            release_metadata_sha256=release_metadata_sha256,
+            configs=config_results,
+            logical_release_sha256="",
+        ).with_logical_hash()
+        manifest_path = candidate / "release-manifest.json"
+        temp_path = candidate / ".release-manifest.json.tmp"
+        temp_path.write_text(
+            json.dumps(manifest.to_dict(), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
         )
+        temp_path.replace(manifest_path)
+        validate_release(collection, candidate, config)
 
-    manifest = ReleaseManifest(
-        format_version=RELEASE_MANIFEST_FORMAT_VERSION,
-        corpus_schema_version=release_metadata["corpus_schema_version"],
-        collection_id=collection.collection_id,
-        collection_inventory_sha256=collection.inventory_sha256,
-        split=split,
-        build_software_revision=detect_git_revision(config.root),
-        build_config_sha256=sha256_file(config.path),
-        payload_policy=payload_policy,
-        coverage_policy=coverage_policy,
-        release_metadata=release_metadata,
-        release_metadata_sha256=release_metadata_sha256,
-        configs=config_results,
-        logical_release_sha256="",
-    ).with_logical_hash()
-    manifest_path = output_dir / "release-manifest.json"
-    temp_path = output_dir / ".release-manifest.json.tmp"
-    temp_path.write_text(
-        json.dumps(manifest.to_dict(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    temp_path.replace(manifest_path)
     return manifest
 
 

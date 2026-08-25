@@ -8,6 +8,7 @@ from pathlib import Path
 from .card import render_dataset_card
 from .collections import CollectionDefinition
 from .config import CorpusConfig
+from .directory_publication import publish_directory
 from .errors import PublicationError
 from .path_safety import resolve_confined_path, resolve_disjoint_trees
 from .release import validate_release
@@ -35,22 +36,22 @@ def stage_release(
         raise PublicationError(str(exc)) from exc
 
     manifest = validate_release(collection, output_dir, config)
-    if destination.exists():
-        shutil.rmtree(destination)
-    destination.mkdir(parents=True)
-
-    (destination / "README.md").write_text(
-        render_dataset_card(manifest, config.card), encoding="utf-8"
-    )
-    shutil.copy2(output_dir / "release-manifest.json", destination / "release-manifest.json")
-    for entry in manifest.configs.values():
-        try:
-            source = resolve_confined_path(output_dir, entry.parquet_path)
-            target = resolve_confined_path(destination, entry.parquet_path)
-        except ValueError as exc:
-            raise PublicationError(str(exc)) from exc
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
+    with publish_directory(destination) as candidate:
+        (candidate / "README.md").write_text(
+            render_dataset_card(manifest, config.card), encoding="utf-8"
+        )
+        shutil.copy2(
+            output_dir / "release-manifest.json",
+            candidate / "release-manifest.json",
+        )
+        for entry in manifest.configs.values():
+            try:
+                source = resolve_confined_path(output_dir, entry.parquet_path)
+                target = resolve_confined_path(candidate, entry.parquet_path)
+            except ValueError as exc:
+                raise PublicationError(str(exc)) from exc
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
     return destination
 
 
