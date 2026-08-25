@@ -532,3 +532,133 @@ def test_attempt_verifier_lineage_invariants_fail_closed_in_builder_and_schema()
     )
     with pytest.raises(jsonschema.ValidationError):
         schema_validator().validate(compile_failure_record)
+
+
+def test_benchmark_identity_commits_to_executable_inventory_hash():
+    benchmark = benchmark_module()
+    assert "executable_inventory_sha256" in benchmark.BenchmarkIdentity.__dataclass_fields__
+
+    identity = benchmark.BenchmarkIdentity(
+        protocol_version="solve-v0.1",
+        collection_id="collection-a",
+        collection_manifest_sha256="5" * 64,
+        puzzle_serializer="opus-magnum-puzzle-text",
+        puzzle_serializer_version="2",
+        candidate_output_compiler="json-base64-solution",
+        candidate_output_compiler_version="1",
+        verifier_implementation="omsim-libverify",
+        verifier_revision="verifier-rev",
+        verifier_sha256="6" * 64,
+        validation_profile="omsim-libverify-v1",
+        attempt_profile="one-shot",
+        attempt_budget=1,
+        scoring_version="solve-report-v1",
+        executable_inventory_sha256="7" * 64,
+    )
+    changed = replace(identity, executable_inventory_sha256="8" * 64)
+    assert benchmark.benchmark_id(identity) != benchmark.benchmark_id(changed)
+
+
+def test_compile_failure_has_no_candidate_or_verifier_lineage():
+    benchmark = benchmark_module()
+    identity = benchmark_identity()
+    run = run_identity()
+    record = benchmark.build_attempt_result(
+        benchmark_id=benchmark.benchmark_id(identity),
+        run_id=benchmark.benchmark_run_id(run),
+        puzzle_id="puzzle-a",
+        attempt_index=1,
+        outcome="output_compile_failed",
+        candidate_sha256=None,
+        verification_id=None,
+        cost=None,
+        cycles=None,
+        area=None,
+        instructions=None,
+        error_code="not_json",
+        model_calls=1,
+        input_tokens=10,
+        output_tokens=5,
+        verifier_calls=0,
+    )
+    assert record["candidate_sha256"] is None
+    assert record["verification_id"] is None
+    assert record["verifier_calls"] == 0
+
+
+def test_compile_failure_rejects_fake_candidate_hash():
+    benchmark = benchmark_module()
+    identity = benchmark_identity()
+    run = run_identity()
+    with pytest.raises(benchmark.BenchmarkResultError):
+        benchmark.build_attempt_result(
+            benchmark_id=benchmark.benchmark_id(identity),
+            run_id=benchmark.benchmark_run_id(run),
+            puzzle_id="puzzle-a",
+            attempt_index=1,
+            outcome="output_compile_failed",
+            candidate_sha256="3" * 64,
+            verification_id=None,
+            cost=None,
+            cycles=None,
+            area=None,
+            instructions=None,
+            error_code="not_json",
+            model_calls=1,
+            input_tokens=10,
+            output_tokens=5,
+            verifier_calls=0,
+        )
+
+
+@pytest.mark.parametrize("outcome", ["solution_parse_failed", "puzzle_solution_mismatch"])
+def test_pre_verifier_failures_preserve_candidate_without_fake_verifier_lineage(outcome):
+    benchmark = benchmark_module()
+    identity = benchmark_identity()
+    run = run_identity()
+    record = benchmark.build_attempt_result(
+        benchmark_id=benchmark.benchmark_id(identity),
+        run_id=benchmark.benchmark_run_id(run),
+        puzzle_id="puzzle-a",
+        attempt_index=1,
+        outcome=outcome,
+        candidate_sha256="3" * 64,
+        verification_id=None,
+        cost=None,
+        cycles=None,
+        area=None,
+        instructions=None,
+        error_code=outcome,
+        model_calls=1,
+        input_tokens=10,
+        output_tokens=5,
+        verifier_calls=0,
+    )
+    assert record["candidate_sha256"] == "3" * 64
+    assert record["verification_id"] is None
+    assert record["verifier_calls"] == 0
+
+
+def test_post_verifier_failure_still_requires_verifier_lineage():
+    benchmark = benchmark_module()
+    identity = benchmark_identity()
+    run = run_identity()
+    with pytest.raises(benchmark.BenchmarkResultError):
+        benchmark.build_attempt_result(
+            benchmark_id=benchmark.benchmark_id(identity),
+            run_id=benchmark.benchmark_run_id(run),
+            puzzle_id="puzzle-a",
+            attempt_index=1,
+            outcome="simulation_failed",
+            candidate_sha256="3" * 64,
+            verification_id=None,
+            cost=None,
+            cycles=None,
+            area=None,
+            instructions=None,
+            error_code="simulation_failed",
+            model_calls=1,
+            input_tokens=10,
+            output_tokens=5,
+            verifier_calls=0,
+        )
