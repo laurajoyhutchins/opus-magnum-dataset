@@ -7,6 +7,7 @@ from pathlib import Path
 from opus_corpus.adapters.base import AcquisitionResult
 from opus_corpus.adapters.om_archive import OmArchiveAdapter
 from opus_corpus.collections import CollectionDefinition
+from opus_corpus.github_source import iter_tarball_members
 
 
 def fixture_collection() -> CollectionDefinition:
@@ -62,8 +63,8 @@ def test_fetch_stores_only_collection_solution_candidates(tmp_path, monkeypatch)
         }
     )
     monkeypatch.setattr(
-        "opus_corpus.adapters.om_archive.download_github_tarball",
-        lambda owner, repo, revision: tarball,
+        "opus_corpus.adapters.om_archive.iter_github_tarball_members",
+        lambda owner, repo, revision: iter_tarball_members(io.BytesIO(tarball)),
     )
 
     result = OmArchiveAdapter().fetch(fixture_collection(), tmp_path)
