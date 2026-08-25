@@ -23,10 +23,10 @@ Use this file to answer two questions: **what can be worked on concurrently with
                                                        │                            │
 [LANDED] WP-01 ───────────────────────────────────────┼──────┐                     │
                                                        ↓      │                     │
-                                              [READY] WP-09 Verification ←──────────┘
+                                      [IN REVIEW] WP-09 Verification (#43) ←────────┘
                                                        │
 [LANDED] WP-02 ─────────────────────────┐              │
-[LANDED] WP-04 ─────────────────────────┴→ [READY] WP-10 Solution parser + normalizer
+[LANDED] WP-04 ─────────────────────────┴→ [IN PROGRESS] WP-10 (#41)
                                                        │
 [LANDED] WP-04 ──────────────────────────────────────┐
 [LANDED] WP-08 ──────────────────────────────────────┤
@@ -37,7 +37,7 @@ WP-10 ────────────────────────�
                                                WP-12 Complete v1 release
 ```
 
-WP-04 and WP-08 have landed. WP-09 and WP-10 are now the active architectural lanes and can proceed concurrently because their declared dependencies are settled. WP-11 remains blocked on both implementations, and WP-12 remains downstream of WP-11.
+WP-04 and WP-08 have landed. WP-09 is implemented and under review in PR #43 while WP-10 is active in PR #41; the two lanes remain independent. WP-11 stays blocked until both implementations land, and WP-12 remains downstream of WP-11.
 
 Release-boundary hardening #20, #21, #22, and #23 has landed through PRs #24, #29, #26, and #25 respectively. The repository-wide MIT license and third-party corpus rights boundary landed in PR #32.
 
@@ -80,8 +80,8 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 | **WP-06 molecule-db semantic source** | **Settled** | acquisition/cache primitives | Pinned molecule-db semantic acquisition | PR #18 plus hardening PR #27 landed with evidence retention and upstream reconciliation tests green |
 | **WP-07 Official/local puzzle-byte path** | **Settled** | acquisition/cache primitives | Explicit local exact official puzzle-byte acquisition | PR #16 merged with provenance, rights, portability, and fail-closed regressions green |
 | **WP-08 PuzzleArtifact coverage/materialization** | **Settled** | WP-03, WP-05, WP-06, WP-07 | Cached puzzle facts/evidence → canonical `PuzzleArtifact` records + derived coverage | PR #31 merged with deterministic exact-artifact coverage, official-manifest evidence, ambiguity, and receipt-identity regressions green |
-| **WP-09 Verification implementation** | **Ready** | WP-01, WP-04, WP-08 | Pinned `omsim` / `libverify` implementation behind `Verifier` | parse/simulation success and failure retained; metrics recomputed; repeated evaluation deterministic |
-| **WP-10 Solution parser + normalizer** | **Ready** | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | normalized records retain exact artifact lineage/version and normalization does not alter verification facts |
+| **WP-09 Verification implementation** | **In review** | WP-01, WP-04, WP-08 | Pinned `omsim` / `libverify` implementation behind `Verifier` | PR #43 merges with native pinned-upstream, failure-retention, metric-recomputation, artifact-lineage, and determinism tests green |
+| **WP-10 Solution parser + normalizer** | **In progress** | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | normalized records retain exact artifact lineage/version and normalization does not alter verification facts |
 | **WP-11 Release materialization** | Blocked | WP-04, WP-08, WP-09, WP-10 | Canonical entities → existing four release inputs | repeated offline materialization yields identical canonical rows/manifest hashes and release validation passes |
 | **WP-12 Complete v1 release** | Blocked | WP-11 | Full frozen-collection build and publication readiness | all 166 puzzles have verifier-successful coverage, offline rebuild reproduces the canonical manifest, and HF contract passes |
 
@@ -101,8 +101,8 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 
 - [x] Land WP-04 via PR #30.
 - [x] Land WP-08 via PR #31.
-- [ ] Start WP-09 deterministic verification from current `main`.
-- [ ] Start WP-10 solution parsing and normalization from current `main` in parallel with WP-09.
+- [ ] Land WP-09 deterministic verification via PR #43.
+- [ ] Complete WP-10 solution parsing and normalization via PR #41 in parallel with WP-09 review.
 - [x] Land issue #20 staging source/destination overlap protection via PR #24.
 - [x] Land issue #21 release-manifest path confinement via PR #29.
 - [x] Land issue #22 package-native schema resolution via PR #26.
@@ -114,14 +114,14 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 
 ### WP-09: deterministic verification
 
-- [ ] Pin the verifier implementation/revision and validation-profile identity used for v1.
-- [ ] Implement the `Verifier` protocol using `omsim` / `libverify`.
-- [ ] Parse exact puzzle and solution artifacts through the verification path.
-- [ ] Emit canonical `Verification` records for successful and failed attempts.
-- [ ] Recompute at least cost, cycles, area, and instructions for successful verifications.
-- [ ] Preserve structured parse and simulation failures as canonical data.
-- [ ] Keep simulator-valid, ordinary constructible, and record-eligible as distinct predicates.
-- [ ] Prove repeat verification is deterministic for identical cached artifacts and pinned verifier inputs.
+- [x] Pin the verifier implementation/revision and validation-profile identity used for v1.
+- [x] Implement the `Verifier` protocol using `omsim` / `libverify`.
+- [x] Parse exact puzzle and solution artifacts through the verification path.
+- [x] Emit canonical `Verification` records for successful and failed attempts.
+- [x] Recompute at least cost, cycles, area, and instructions for successful verifications.
+- [x] Preserve structured parse and simulation failures as canonical data.
+- [x] Keep simulator-valid, ordinary constructible, and record-eligible as distinct predicates.
+- [x] Prove repeat verification is deterministic for identical cached artifacts and pinned verifier inputs.
 
 ### WP-10: solution parsing and normalization
 
