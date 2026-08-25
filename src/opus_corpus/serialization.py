@@ -66,7 +66,7 @@ class ModelPuzzleTextSerializer:
             ("constraints", puzzle["constraints"]),
         )
         lines = [f"OPUS_MAGNUM_PUZZLE_TEXT_V{self.version}"]
-        lines.extend(f"{name}={_canonical_json_value(value)}" for name, value in fields)
+        lines.extend(f"{name}={_model_json_value(value)}" for name, value in fields)
         return "\n".join(lines) + "\n"
 
 
@@ -80,6 +80,21 @@ def _validate_normalized_puzzle(puzzle: NormalizedRecord) -> None:
     if errors:
         detail = "; ".join(error.message for error in errors)
         raise PuzzleSerializationError(f"normalized puzzle violates schema: {detail}")
+
+
+def _model_json_value(value: Any) -> str:
+    try:
+        return json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    except (TypeError, ValueError) as exc:
+        raise PuzzleSerializationError(
+            "normalized puzzle contains a value that is not canonical JSON"
+        ) from exc
 
 
 def _canonical_json(record: NormalizedRecord) -> str:
