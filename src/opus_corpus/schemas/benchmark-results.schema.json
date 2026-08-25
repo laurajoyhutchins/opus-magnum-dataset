@@ -169,6 +169,27 @@
               "instructions": {"type": "null"}
             }
           }
+        },
+        {
+          "if": {
+            "properties": {"outcome": {"const": "output_compile_failed"}},
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "verification_id": {"type": "null"},
+              "verifier_calls": {"const": 0}
+            }
+          },
+          "else": {
+            "properties": {
+              "verification_id": {
+                "type": "string",
+                "pattern": "^om\\.verification\\.[0-9a-f]{64}$"
+              },
+              "verifier_calls": {"type": "integer", "minimum": 1}
+            }
+          }
         }
       ]
     },
