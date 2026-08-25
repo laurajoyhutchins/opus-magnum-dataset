@@ -12,9 +12,8 @@ For current repository behavior, prefer the documents in this directory root. Fi
 | [`roadmap.md`](roadmap.md) | Strategic dependency order from the current corpus factory to a complete v1 release and later research expansion. |
 | [`dataset-spec.md`](dataset-spec.md) | Canonical data model, invariants, provenance, verification, normalization, reproducibility, and release acceptance criteria. |
 | [`verification.md`](verification.md) | Pinned `libverify` implementation identity, native boundary, canonical success/failure semantics, metric recomputation, and deterministic artifact-to-verification materialization. |
-| [`puzzle-serialization.md`](puzzle-serialization.md) | V1 versioned deterministic model-oriented serialization over canonical normalized puzzle records. |
-| [`solution-views.md`](solution-views.md) | V1 deterministic all-verified, vanilla-constructible, and record-eligible research-view contract. |
 | [`benchmark-protocol.md`](benchmark-protocol.md) | Benchmark protocol boundary, Solve-first evaluation design, attempt profiles, scoring/reporting, contamination guidance, and result requirements. |
+| [`solution-views.md`](solution-views.md) | V1 deterministic all-verified, vanilla-constructible, and record-eligible research-view contract. |
 | [`hugging-face-export.md`](hugging-face-export.md) | Loading-script-free Hugging Face/Parquet publication contract. |
 | [`source-inventory.md`](source-inventory.md) | Frozen base-game collection membership, pinned source coverage, provenance roles, and rights boundaries. |
 | [`molecule-db-acquisition.md`](molecule-db-acquisition.md) | Pinned molecule-db acquisition and semantic-evidence contract. |
