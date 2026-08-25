@@ -7,7 +7,8 @@ import pytest
 
 from opus_corpus.errors import PayloadPolicyError, ReleaseValidationError
 from opus_corpus.payload import validate_payload_policy
-from opus_corpus.release_inputs import CONFIG_NAMES, load_release_inputs, sort_records
+from opus_corpus.release_configs import CONFIG_NAMES
+from opus_corpus.release_inputs import load_release_inputs, sort_records
 
 
 def test_solution_sort_is_canonical():
@@ -63,10 +64,10 @@ def test_metadata_only_rejects_solution_bytes():
     assert {error.code for error in exc.value.errors} == {"payload_forbidden"}
 
 
-def test_metadata_only_allows_null_bytes():
+def test_puzzles_have_no_release_payload_field():
     validate_payload_policy(
         "puzzles",
-        [{"puzzle_id": "p", "rights_status": "local_fetch_only", "puzzle_bytes": None}],
+        [{"puzzle_id": "p", "puzzle_bytes": "not-a-release-field"}],
         "metadata-only",
     )
 
