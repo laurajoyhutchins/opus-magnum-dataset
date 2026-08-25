@@ -69,7 +69,7 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
                 WritePuzzle(candidate, puzzle);
             }
 
-            if (Directory.EnumerateFiles(candidate, "*.puzzle").Any() == false)
+            if (!Directory.EnumerateFiles(candidate, "*.puzzle").Any())
             {
                 throw new InvalidOperationException("the official puzzle dump is empty");
             }
@@ -98,7 +98,7 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
             );
         }
 
-        var queue = new Queue<(object Value, int Depth)>();
+        var queue = new Queue<TraversalNode>();
         EnqueueStaticFieldValues(queue, campaignsType);
         EnqueueStaticFieldValues(queue, journalVolumesType);
 
@@ -107,7 +107,9 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
 
         while (queue.Count > 0)
         {
-            (object value, int depth) = queue.Dequeue();
+            TraversalNode node = queue.Dequeue();
+            object value = node.Value;
+            int depth = node.Depth;
             if (value == null || depth > MaximumTraversalDepth || value is string)
             {
                 continue;
@@ -128,7 +130,7 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
                 {
                     if (item != null)
                     {
-                        queue.Enqueue((item, depth + 1));
+                        queue.Enqueue(new TraversalNode(item, depth + 1));
                     }
                 }
                 continue;
@@ -155,7 +157,7 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
                 }
                 if (child != null)
                 {
-                    queue.Enqueue((child, depth + 1));
+                    queue.Enqueue(new TraversalNode(child, depth + 1));
                 }
             }
         }
@@ -163,7 +165,7 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
         return puzzles;
     }
 
-    private static void EnqueueStaticFieldValues(Queue<(object Value, int Depth)> queue, Type type)
+    private static void EnqueueStaticFieldValues(Queue<TraversalNode> queue, Type type)
     {
         foreach (FieldInfo field in type.GetFields(
             BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic
@@ -180,7 +182,7 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
             }
             if (value != null)
             {
-                queue.Enqueue((value, 0));
+                queue.Enqueue(new TraversalNode(value, 0));
             }
         }
     }
@@ -188,8 +190,8 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
     private static bool IsPuzzleContainerType(Type type)
     {
         string name = type.Name;
-        return name.Contains("Campaign", StringComparison.Ordinal)
-            || name.Contains("Journal", StringComparison.Ordinal);
+        return name.IndexOf("Campaign", StringComparison.Ordinal) >= 0
+            || name.IndexOf("Journal", StringComparison.Ordinal) >= 0;
     }
 
     private static void WritePuzzle(string candidate, Puzzle puzzle)
@@ -220,6 +222,18 @@ public sealed class OfficialPuzzleExtractor : QuintessentialMod
             return;
         }
         File.WriteAllBytes(destination, payload);
+    }
+
+    private sealed class TraversalNode
+    {
+        public TraversalNode(object value, int depth)
+        {
+            Value = value;
+            Depth = depth;
+        }
+
+        public object Value { get; }
+        public int Depth { get; }
     }
 
     private sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
