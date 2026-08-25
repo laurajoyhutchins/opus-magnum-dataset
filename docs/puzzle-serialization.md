@@ -40,7 +40,7 @@ products
 constraints
 ```
 
-Each line is `name=<canonical-json-value>`. JSON object keys are sorted, compact separators are used, and string escaping follows JSON rules. The complete serialization ends with a newline.
+Each line is `name=<canonical-json-value>`. JSON object keys are sorted, compact separators are used, string escaping follows JSON rules, and non-finite numeric values are rejected rather than emitted as non-standard JSON. The complete serialization ends with a newline.
 
 Example shape:
 
@@ -63,7 +63,7 @@ The serializer intentionally does **not** reorder `allowed_parts`, reagent/produ
 
 ## Failure behavior
 
-Schema-invalid normalized puzzle records fail closed with `PuzzleSerializationError`. Missing solve fields, unknown root fields, malformed molecule structure, and other schema violations are not silently repaired or omitted.
+Schema-invalid normalized puzzle records fail closed with `PuzzleSerializationError`. Missing solve fields, unknown root fields, malformed molecule structure, and other schema violations are not silently repaired or omitted. Values that cannot be represented as standards-compliant JSON, including `NaN` and infinities in open-ended constraints, also fail closed with `PuzzleSerializationError`.
 
 The serializer does not accept raw `.puzzle` bytes. Raw-byte benchmark input is a separate benchmark input profile under `docs/benchmark-protocol.md`.
 
