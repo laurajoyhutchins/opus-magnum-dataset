@@ -2,7 +2,7 @@
 
 This checklist translates the strategic [`roadmap.md`](roadmap.md) into concrete implementation slices.
 
-It is not a second issue tracker. GitHub issues and pull requests are the live execution record. This file records dependency order, ownership boundaries, and a coarse landed / ready / blocked snapshot. Generated coverage, verification counts, manifests, benchmark results, and other derivable facts belong in deterministic software outputs rather than hand-maintained entries here.
+It is not a second issue tracker. GitHub issues and pull requests are the live execution record. This file records dependency order, ownership boundaries, and a coarse landed / active / blocked snapshot. Generated coverage, verification counts, manifests, benchmark results, and other derivable facts belong in deterministic software outputs rather than hand-maintained entries here.
 
 Use this file to answer two questions: **what can be worked on concurrently without overlapping ownership, and what should we build next?**
 
@@ -19,27 +19,27 @@ Use this file to answer two questions: **what can be worked on concurrently with
                                                                                     │
 [LANDED] WP-05 omsim puzzle source (#19) ─────┐                                     │
 [LANDED] WP-06 molecule-db semantic source (#18) ├→ [LANDED] WP-08 PuzzleArtifact (#31)
-[LANDED] WP-07 official/local puzzle-byte path (#16) ┘ coverage/materialization     │
+[LANDED] WP-07 official/local puzzle-byte path (#16) ┘                              │
                                                        │                            │
 [LANDED] WP-01 ───────────────────────────────────────┼──────┐                     │
                                                        ↓      │                     │
-                                      [IN REVIEW] WP-09 Verification (#43) ←────────┘
+                                      [LANDED] WP-09 Verification (#43) ←───────────┘
                                                        │
 [LANDED] WP-02 ─────────────────────────┐              │
-[LANDED] WP-04 ─────────────────────────┴→ [IN PROGRESS] WP-10 (#41)
+[LANDED] WP-04 ─────────────────────────┴→ [LANDED] WP-10 Normalization (#41)
                                                        │
 [LANDED] WP-04 ──────────────────────────────────────┐
 [LANDED] WP-08 ──────────────────────────────────────┤
-WP-09 ────────────────────────────────────────────────┼→ WP-11 Release materialization
-WP-10 ────────────────────────────────────────────────┘
+[LANDED] WP-09 ──────────────────────────────────────┼→ [ACTIVE] WP-11 Release materialization (#46)
+[LANDED] WP-10 ──────────────────────────────────────┘
                                                        │
                                                        ↓
-                                               WP-12 Complete v1 release
+                                          [BLOCKED] WP-12 Complete v1 release
 ```
 
-WP-04 and WP-08 have landed. WP-09 is implemented and under review in PR #43 while WP-10 is active in PR #41; the two lanes remain independent. WP-11 stays blocked until both implementations land, and WP-12 remains downstream of WP-11.
+WP-09 and WP-10 are landed. WP-11 is the active downstream integration packet in PR #46 with all declared implementation dependencies now on `main`. WP-12 remains downstream of WP-11.
 
-Release-boundary hardening #20, #21, #22, and #23 has landed through PRs #24, #29, #26, and #25 respectively. The repository-wide MIT license and third-party corpus rights boundary landed in PR #32.
+Release-boundary hardening #20, #21, #22, and #23 has landed through PRs #24, #29, #26, and #25 respectively. The repository-wide MIT license and third-party corpus rights boundary landed in PR #32. Additional hardening remains ordinary GitHub issue/PR work rather than another work-assignment system.
 
 ## Landed foundations
 
@@ -59,8 +59,8 @@ These capabilities already exist and should be consumed rather than recreated:
 - [x] Pinned `omsim` campaign puzzle-definition acquisition.
 - [x] Pinned molecule-db semantic acquisition and topology reconciliation.
 - [x] Explicit local official `.puzzle` acquisition with immutable manifest provenance and `local_fetch_only` rights.
-- [x] Canonical `Verification` contract and simulator-independent `Verifier` seam.
-- [x] Strict normalized-solution contract and `SolutionNormalizer` seam.
+- [x] Canonical `Verification` contract plus pinned deterministic `omsim` / `libverify` implementation and verification materialization.
+- [x] Strict normalized-solution contract plus deterministic `.solution` parser and `SolutionNormalizer` implementation.
 - [x] Normalized-puzzle schema, exact `PuzzleArtifact` lineage, and deterministic serialization seam.
 - [x] Package-native authoritative JSON Schemas that work from editable installs and installed wheels.
 - [x] Release staging overlap protection, manifest path confinement, and unsupported manifest-version rejection.
@@ -80,10 +80,10 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 | **WP-06 molecule-db semantic source** | **Settled** | acquisition/cache primitives | Pinned molecule-db semantic acquisition | PR #18 plus hardening PR #27 landed with evidence retention and upstream reconciliation tests green |
 | **WP-07 Official/local puzzle-byte path** | **Settled** | acquisition/cache primitives | Explicit local exact official puzzle-byte acquisition | PR #16 merged with provenance, rights, portability, and fail-closed regressions green |
 | **WP-08 PuzzleArtifact coverage/materialization** | **Settled** | WP-03, WP-05, WP-06, WP-07 | Cached puzzle facts/evidence → canonical `PuzzleArtifact` records + derived coverage | PR #31 merged with deterministic exact-artifact coverage, official-manifest evidence, ambiguity, and receipt-identity regressions green |
-| **WP-09 Verification implementation** | **In review** | WP-01, WP-04, WP-08 | Pinned `omsim` / `libverify` implementation behind `Verifier` | PR #43 merges with native pinned-upstream, failure-retention, metric-recomputation, artifact-lineage, and determinism tests green |
-| **WP-10 Solution parser + normalizer** | **In progress** | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | normalized records retain exact artifact lineage/version and normalization does not alter verification facts |
-| **WP-11 Release materialization** | Blocked | WP-04, WP-08, WP-09, WP-10 | Canonical entities → existing four release inputs | repeated offline materialization yields identical canonical rows/manifest hashes and release validation passes |
-| **WP-12 Complete v1 release** | Blocked | WP-11 | Full frozen-collection build and publication readiness | all 166 puzzles have verifier-successful coverage, offline rebuild reproduces the canonical manifest, and HF contract passes |
+| **WP-09 Verification implementation** | **Settled** | WP-01, WP-04, WP-08 | Pinned `omsim` / `libverify` implementation behind `Verifier` | PR #43 merged with pinned-upstream, failure-retention, metric-recomputation, lineage, and determinism coverage green |
+| **WP-10 Solution parser + normalizer** | **Settled** | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | PR #41 merged with exact-artifact lineage, parser/normalizer, schema-boundary, and pinned-upstream coverage green |
+| **WP-11 Release materialization** | **In progress** | WP-04, WP-08, WP-09, WP-10 | Canonical entities → existing four release inputs | PR #46 lands with repeated offline materialization yielding identical canonical rows/manifest hashes and release validation passing |
+| **WP-12 Complete v1 release** | **Blocked** | WP-11 | Full frozen-collection build and publication readiness | all 166 puzzles have verifier-successful coverage, offline rebuild reproduces the canonical manifest, and HF contract passes |
 
 ## Contribution coordination
 
@@ -99,37 +99,12 @@ Each packet owns one capability. Before starting work, inspect open issues and p
 
 ## Now
 
-- [x] Land WP-04 via PR #30.
-- [x] Land WP-08 via PR #31.
-- [ ] Land WP-09 deterministic verification via PR #43.
-- [ ] Complete WP-10 solution parsing and normalization via PR #41 in parallel with WP-09 review.
-- [x] Land issue #20 staging source/destination overlap protection via PR #24.
-- [x] Land issue #21 release-manifest path confinement via PR #29.
-- [x] Land issue #22 package-native schema resolution via PR #26.
-- [x] Land issue #23 unsupported release-manifest version rejection via PR #25.
-- [x] Define repository MIT license scope and third-party corpus rights policy via PR #32.
-- [x] Draft the benchmark protocol in [`benchmark-protocol.md`](benchmark-protocol.md).
+- [x] Land WP-09 deterministic verification via PR #43.
+- [x] Land WP-10 solution parsing and normalization via PR #41.
+- [ ] Complete WP-11 release materialization via PR #46 using the landed WP-09/WP-10 outputs.
+- [ ] Keep WP-12 downstream until WP-11 supplies the production release inputs.
 
 ## Next
-
-### WP-09: deterministic verification
-
-- [x] Pin the verifier implementation/revision and validation-profile identity used for v1.
-- [x] Implement the `Verifier` protocol using `omsim` / `libverify`.
-- [x] Parse exact puzzle and solution artifacts through the verification path.
-- [x] Emit canonical `Verification` records for successful and failed attempts.
-- [x] Recompute at least cost, cycles, area, and instructions for successful verifications.
-- [x] Preserve structured parse and simulation failures as canonical data.
-- [x] Keep simulator-valid, ordinary constructible, and record-eligible as distinct predicates.
-- [x] Prove repeat verification is deterministic for identical cached artifacts and pinned verifier inputs.
-
-### WP-10: solution parsing and normalization
-
-- [ ] Implement a deterministic `.solution` parser behind the normalization seam.
-- [ ] Implement `SolutionNormalizer` over parsed solution artifacts.
-- [ ] Ensure every normalized solution identifies its exact source `SolutionArtifact` and normalizer version.
-- [ ] Keep normalization failures independent from verification success or failure.
-- [ ] Generate normalized records from canonical artifacts instead of maintaining production normalized JSONL by hand.
 
 ### WP-11: connect canonical entities to the release factory
 
