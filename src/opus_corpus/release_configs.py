@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import MappingProxyType
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,18 +41,11 @@ RELEASE_CONFIGS = (
 )
 
 CONFIG_NAMES = tuple(spec.name for spec in RELEASE_CONFIGS)
-SCHEMA_FILES = MappingProxyType({spec.name: spec.schema_resource for spec in RELEASE_CONFIGS})
-SORT_KEYS = MappingProxyType({spec.name: spec.sort_key for spec in RELEASE_CONFIGS})
-CANONICAL_ID_FIELDS = MappingProxyType(
-    {spec.name: spec.canonical_id_field for spec in RELEASE_CONFIGS}
-)
-PAYLOAD_FIELDS = MappingProxyType(
-    {spec.name: spec.payload_field for spec in RELEASE_CONFIGS if spec.payload_field is not None}
-)
+_RELEASE_CONFIG_BY_NAME = {spec.name: spec for spec in RELEASE_CONFIGS}
 
 
 def get_release_config(config_name: str) -> ReleaseConfigSpec:
-    for spec in RELEASE_CONFIGS:
-        if spec.name == config_name:
-            return spec
-    raise ValueError(f"unknown config {config_name!r}")
+    try:
+        return _RELEASE_CONFIG_BY_NAME[config_name]
+    except KeyError as exc:
+        raise ValueError(f"unknown config {config_name!r}") from exc
