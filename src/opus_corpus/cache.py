@@ -98,7 +98,7 @@ class ContentAddressedCache:
             data = json.loads(path.read_text(encoding="utf-8"))
         except CacheIntegrityError:
             raise
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise CacheIntegrityError(f"invalid cache receipt: {path}") from exc
 
         if not isinstance(data, dict) or set(data) != _RECEIPT_FIELDS:
