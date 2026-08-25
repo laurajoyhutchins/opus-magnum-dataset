@@ -64,9 +64,15 @@ def load_release_inputs(input_dir: Path) -> LoadedReleaseInputs:
         schema = load_schema(config_name)
         validator = Draft202012Validator(schema, format_checker=FormatChecker())
         config_rows: list[dict[str, Any]] = []
-        for line_number, raw_line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1
-        ):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            errors.append(ValidationError("input_decode_error", str(exc), path.as_posix()))
+            continue
+        except OSError as exc:
+            errors.append(ValidationError("input_read_error", str(exc), path.as_posix()))
+            continue
+        for line_number, raw_line in enumerate(text.splitlines(), start=1):
             if not raw_line.strip():
                 continue
             try:
@@ -102,9 +108,14 @@ def load_release_inputs(input_dir: Path) -> LoadedReleaseInputs:
                 ValidationError("input_empty", f"{path.name} contains no rows", path.as_posix())
             )
         records[config_name] = sort_records(config_name, config_rows)
+        try:
+            source_sha256 = sha256_file(path)
+        except OSError as exc:
+            errors.append(ValidationError("input_hash_error", str(exc), path.as_posix()))
+            continue
         sources[config_name] = {
             "path": path.relative_to(input_dir).as_posix(),
-            "sha256": sha256_file(path),
+            "sha256": source_sha256,
         }
     if errors:
         raise ReleaseValidationError(errors)
