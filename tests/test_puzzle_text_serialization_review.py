@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -83,3 +84,20 @@ def test_model_puzzle_text_serializer_rejects_cyclic_json_values() -> None:
 
     with pytest.raises(PuzzleSerializationError, match="not canonical JSON"):
         ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
+
+
+def test_model_puzzle_text_serializer_accepts_deep_acyclic_json_values() -> None:
+    nested: Any = "leaf"
+    for _ in range(600):
+        nested = [nested]
+    constraints = {"nested": nested}
+
+    # The encoder itself can represent this value at the interpreter's normal recursion limit.
+    json.dumps(constraints, allow_nan=False, ensure_ascii=False, separators=(",", ":"))
+
+    rendered = ModelPuzzleTextSerializer().serialize_puzzle(
+        _puzzle_with_constraints(constraints)
+    )
+
+    assert rendered.startswith("OPUS_MAGNUM_PUZZLE_TEXT_V1\n")
+    assert "constraints={\"nested\":" in rendered
