@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -15,6 +14,7 @@ from .ingestion import (
     ObservedArtifactCandidate,
     ingest_artifacts,
 )
+from .observations import observation_id
 from .solution_sources import (
     OM_ARCHIVE_SOURCE,
     OM_LEADERBOARD_SOURCE,
@@ -198,14 +198,9 @@ def _resolve_data_path(
     return resolved_path, receipt
 
 
-def _observation_id(values: dict[str, Any]) -> str:
-    payload = json.dumps(values, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
-    return f"om.observation.sha256.{hashlib.sha256(payload).hexdigest()}"
-
-
 def _make_observation(**values: Any) -> Observation:
     body = dict(values)
-    return Observation(observation_id=_observation_id(body), **body)
+    return Observation(observation_id=observation_id(body), **body)
 
 
 def _observation_from_provenance(
