@@ -1,8 +1,8 @@
 # Deterministic solution views
 
-Status: **Implemented v1**
+Status: **WP-14 foundation implemented**
 
-WP-13 defines the first research-grade derived views over canonical release solution rows. These views are generated projections. They are not a second solution store, a new source of corpus truth, or a place for manual curation.
+The WP-14 foundation defines the first research-grade derived views over canonical release solution rows. These views are generated projections. They are not a second solution store, a new source of corpus truth, or a place for manual curation.
 
 ## Authority boundary
 
@@ -10,9 +10,9 @@ The input is the existing `solutions` release-row contract produced from canonic
 
 If a view is stale, regenerate it. Do not maintain it by hand.
 
-## V1 predicates
+## Foundation predicates
 
-The v1 contract defines exactly three views:
+The foundation contract defines exactly three views:
 
 | View | Predicate |
 | --- | --- |
@@ -22,7 +22,7 @@ The v1 contract defines exactly three views:
 
 An unverified row is excluded from every view even if another predicate field is `true`. An explicit `null` predicate is unknown and therefore does not satisfy a narrower `true` predicate. Missing fields, schema-invalid rows, non-mapping rows, and duplicate `solution_id` values fail closed rather than being silently omitted or repaired.
 
-Changing these predicates is a view-contract change. It must not silently redefine v1.
+Changing these predicates is a view-contract change. It must not silently redefine the foundation contract.
 
 ## Determinism
 
@@ -44,4 +44,4 @@ Given equivalent valid input rows, the materialized bytes are independent of inp
 
 ## Scope boundary
 
-V1 deliberately does not implement Pareto frontiers, best-known metric views, human-versus-machine classification, benchmark selections, model-oriented puzzle serialization, or benchmark execution. Those require separate explicit predicates or protocols and should remain downstream deterministic projections over the canonical corpus.
+This foundation deliberately does not implement Pareto frontiers, best-known metric views, human-versus-machine classification, benchmark selections, model-oriented puzzle serialization, or benchmark execution. Best-known-metric and Pareto-frontier projections remain additional WP-14 work; the other items belong to separate roadmap packets or later research work. All remain downstream deterministic projections over the canonical corpus.
