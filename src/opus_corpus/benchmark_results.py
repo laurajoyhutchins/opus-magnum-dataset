@@ -39,6 +39,7 @@ class BenchmarkIdentity:
     attempt_profile: str
     attempt_budget: int
     scoring_version: str
+    executable_inventory_sha256: str
 
 
 @dataclass(frozen=True)
@@ -88,7 +89,7 @@ def build_attempt_result(
     puzzle_id: str,
     attempt_index: int,
     outcome: str,
-    candidate_sha256: str,
+    candidate_sha256: str | None,
     verification_id: str | None,
     cost: int | None,
     cycles: int | None,
@@ -104,14 +105,36 @@ def build_attempt_result(
         raise BenchmarkResultError(f"unsupported benchmark outcome: {outcome!r}")
 
     if outcome == "output_compile_failed":
+        if candidate_sha256 is not None:
+            raise BenchmarkResultError(
+                "output compile failures cannot carry a compiled candidate hash"
+            )
         if verification_id is not None or verifier_calls != 0:
             raise BenchmarkResultError(
                 "output compile failures cannot carry verifier lineage or verifier calls"
             )
-    elif verification_id is None or verifier_calls < 1:
-        raise BenchmarkResultError(
-            "post-compile benchmark outcomes require verifier lineage and a verifier call"
-        )
+    else:
+        if candidate_sha256 is None:
+            raise BenchmarkResultError("post-compile benchmark outcomes require a candidate hash")
+        if outcome == "puzzle_solution_mismatch":
+            if verification_id is not None or verifier_calls != 0:
+                raise BenchmarkResultError(
+                    "puzzle-solution mismatches occur before verification"
+                )
+        elif outcome == "solution_parse_failed":
+            if verification_id is None:
+                if verifier_calls != 0:
+                    raise BenchmarkResultError(
+                        "pre-verifier solution parse failures cannot carry verifier calls"
+                    )
+            elif verifier_calls < 1:
+                raise BenchmarkResultError(
+                    "verifier-originated solution parse failures require a verifier call"
+                )
+        elif verification_id is None or verifier_calls < 1:
+            raise BenchmarkResultError(
+                "simulation and success outcomes require verifier lineage and a verifier call"
+            )
 
     metrics = (cost, cycles, area, instructions)
     if outcome == "success":

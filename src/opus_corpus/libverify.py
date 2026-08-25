@@ -6,7 +6,12 @@ from typing import Protocol
 
 from .errors import CorpusError
 from .hashing import sha256_file
-from .verification import VerificationInput, VerificationResult, verification_id
+from .verification import (
+    VerificationInput,
+    VerificationResult,
+    VerifierIdentity,
+    verification_id,
+)
 
 OMSIM_LIBVERIFY_REVISION = "758f4a4b4c9e24f50294801da774a0960c922bab"
 OMSIM_LIBVERIFY_PROFILE = "omsim-libverify-v1"
@@ -222,6 +227,15 @@ class LibverifyVerifier:
 
     def __init__(self, backend: LibverifyBackend) -> None:
         self._backend = backend
+
+    @property
+    def identity(self) -> VerifierIdentity:
+        return VerifierIdentity(
+            verifier_implementation=OMSIM_LIBVERIFY_IMPLEMENTATION,
+            verifier_revision=OMSIM_LIBVERIFY_REVISION,
+            verifier_sha256=self._backend.binary_sha256,
+            validation_profile=OMSIM_LIBVERIFY_PROFILE,
+        )
 
     @classmethod
     def from_library(

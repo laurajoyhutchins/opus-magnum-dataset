@@ -21,6 +21,7 @@ def identities() -> tuple[benchmark.BenchmarkIdentity, benchmark.BenchmarkRunIde
         attempt_profile="one-shot",
         attempt_budget=1,
         scoring_version="solve-report-v1",
+        executable_inventory_sha256="6" * 64,
     )
     run = benchmark.BenchmarkRunIdentity(
         benchmark_id=benchmark.benchmark_id(identity),
@@ -43,7 +44,7 @@ def puzzle_result(puzzle_id: str) -> dict[str, object]:
         puzzle_id=puzzle_id,
         attempt_index=1,
         outcome="output_compile_failed",
-        candidate_sha256="4" * 64,
+        candidate_sha256=None,
         verification_id=None,
         cost=None,
         cycles=None,
