@@ -78,7 +78,9 @@ def _cache_sources(root: Path) -> None:
         )
 
 
-def test_materialized_molecule_db_evidence_links_both_source_observations(tmp_path: Path) -> None:
+def test_materialized_molecule_db_evidence_links_both_source_observations(
+    tmp_path: Path,
+) -> None:
     cache_root = tmp_path / "cache"
     _cache_sources(cache_root)
 
@@ -91,9 +93,11 @@ def test_materialized_molecule_db_evidence_links_both_source_observations(tmp_pa
     }
     assert all(row["artifact_id"] is None for row in result.observations)
     assert all(row["source_role"] == "metadata" for row in result.observations)
-    assert all(row["observation_id"] == observation_id({
-        key: value for key, value in row.items() if key != "observation_id"
-    }) for row in result.observations)
+    assert all(
+        row["observation_id"]
+        == observation_id({key: value for key, value in row.items() if key != "observation_id"})
+        for row in result.observations
+    )
 
     assert len(result.evidence) == 2
     assert {row.observation_id for row in result.evidence} == {
@@ -111,7 +115,9 @@ def test_materialized_molecule_db_evidence_links_both_source_observations(tmp_pa
     assert "output_scale" in resolution.missing_fields
 
 
-def test_materialization_fails_closed_when_one_pinned_source_file_is_missing(tmp_path: Path) -> None:
+def test_materialization_fails_closed_when_one_pinned_source_file_is_missing(
+    tmp_path: Path,
+) -> None:
     cache_root = tmp_path / "cache"
     ContentAddressedCache(cache_root).put_bytes(
         MoleculeDbAdapter.source_id,
