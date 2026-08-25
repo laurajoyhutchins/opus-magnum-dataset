@@ -341,3 +341,34 @@ def test_normalize_solution_artifacts_consumes_canonical_artifacts_from_content_
 
     assert [row["puzzle_id"] for row in rows] == ["om.puzzle.0001", "om.puzzle.0002"]
     assert [row["solution_id"] for row in rows] == [earlier.artifact_id, later.artifact_id]
+
+
+def test_conduit_parameters_preserve_part_local_offsets_without_fake_absolute_geometry():
+    module = normalizer_module()
+    record = module.OpusSolutionNormalizer().normalize(
+        SolutionNormalizationInput(
+            solution_id="om.solution.sha256." + "d" * 64,
+            puzzle_id="om.puzzle.0004",
+            solution_bytes=solution_bytes(
+                solved=False,
+                parts=(
+                    _part(
+                        "pipe",
+                        x=10,
+                        y=20,
+                        rotation=2,
+                        conduit_id=100,
+                        conduit_offsets=((0, 0), (1, -1)),
+                    ),
+                ),
+            ),
+        )
+    )
+
+    parameters = record["parts"][0]["parameters"]
+    assert parameters["conduit_id"] == 100
+    assert parameters["conduit_offsets"] == [
+        {"x": 0, "y": 0},
+        {"x": 1, "y": -1},
+    ]
+    assert "conduit_coordinates" not in parameters
