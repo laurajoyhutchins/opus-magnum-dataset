@@ -8,7 +8,7 @@ This repository is the **factory and specification**, not a hand-maintained data
 
 The collection contract and generic release shell are implemented. The repository can validate the frozen collection and can build, validate, stage, and publish a four-config Hugging Face-compatible release from canonical JSONL inputs.
 
-Source acquisition includes pinned community/archive inputs, pinned `omsim` campaign puzzle definitions, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical exact-byte puzzle/solution artifact materialization and deterministic `omsim` / `libverify` verification are implemented. Remaining downstream slices include solution parsing/normalization, release materialization from canonical entities, and complete release coverage. The committed `fixtures/tiny-corpus/` exists to prove the release factory before those stages are connected end to end.
+Source acquisition includes pinned community/archive inputs, pinned `omsim` campaign puzzle definitions, molecule-db semantic evidence, and an explicit local path for exact official `.puzzle` bytes. Canonical exact-byte puzzle/solution artifact materialization, deterministic `omsim` / `libverify` verification, and deterministic `.solution` parsing/normalization are implemented. The active downstream slice is release materialization from those canonical entities; complete frozen-collection release coverage follows after that. The committed `fixtures/tiny-corpus/` exists to prove the release factory before the production materialization path is connected end to end. See [`docs/TODO.md`](docs/TODO.md) for the current packet/dependency snapshot.
 
 ## Implemented release shell
 

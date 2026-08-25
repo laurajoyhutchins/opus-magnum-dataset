@@ -2,7 +2,7 @@
 
 This roadmap defines the dependency order from the current corpus factory to a complete, reproducible Opus Magnum research corpus.
 
-It is a strategic map, not a task tracker. GitHub pull requests and issues are the live execution surface. Coverage counts, generated manifests, verification results, and other derivable state belong in deterministic software outputs rather than this document.
+It is a strategic map, not a task tracker. GitHub pull requests and issues are the live execution surface, while [`TODO.md`](TODO.md) carries the coarse current packet/dependency snapshot. Coverage counts, generated manifests, verification results, and other derivable state belong in deterministic software outputs rather than this document.
 
 The first target is a stable release of the frozen `base-game-2026-06-16` collection. Broader collections and research views follow from the same canonical pipeline.
 
@@ -32,179 +32,122 @@ Each layer has one authority. Upstream sources provide immutable facts, reposito
 
 ## Foundation already established
 
-The repository already has the durable outer structure needed by the roadmap:
+The repository has the durable outer structure and canonical middle needed by the roadmap:
 
 - the immutable 166-puzzle `base-game-2026-06-16` collection;
 - canonical collection and release schemas packaged as repository resources;
-- explicit complete/subset coverage policy;
-- rights-aware payload policy;
+- explicit complete/subset coverage policy and rights-aware payload policy;
 - deterministic release manifests, Parquet materialization, validation, staging, and publication machinery;
 - a single content-addressed acquisition cache with immutable provenance receipts;
 - one authoritative exact-byte `ContentStore` shared by acquisition and canonical artifact materialization;
-- deterministic content-derived artifact identity, exact-byte deduplication, provenance preservation, conservative rights folding, and fail-closed artifact conflicts from PR #15;
-- pinned `om-archive` and `om-leaderboard` acquisition;
-- pinned `omsim` campaign puzzle-definition acquisition;
-- pinned `molecule-db` semantic acquisition and topology reconciliation;
-- an explicit local `official-game` path for exact official `.puzzle` bytes;
-- source-adapter contracts with fail-closed unimplemented sources;
-- a canonical Verification contract and simulator-independent `Verifier` seam;
-- a strict normalized-solution contract and parser-independent `SolutionNormalizer` seam;
+- deterministic content-derived artifact identity, exact-byte deduplication, provenance preservation, conservative rights folding, and fail-closed artifact conflicts;
+- pinned `om-archive`, `om-leaderboard`, `omsim`, and molecule-db acquisition plus an explicit local `official-game` path;
+- canonical `SolutionArtifact`, `Observation`, and `PuzzleArtifact` materialization from cached source facts;
+- deterministic puzzle-artifact coverage derivation and fail-closed ambiguity handling;
+- a canonical `Verification` contract and pinned deterministic `omsim` / `libverify` implementation;
+- deterministic artifact-to-verification materialization with recomputed authoritative metrics and structured failure retention;
+- a strict normalized-solution contract plus deterministic `.solution` parser and `SolutionNormalizer` implementation;
 - normalized-puzzle and deterministic serialization seams;
 - a documented benchmark protocol boundary for future research-grade evaluation.
 
-The remaining work is primarily the source-specific canonical middle between the shared artifact/provenance core and the existing release factory.
+The remaining v1 work is downstream integration: deterministically project those canonical entities into the existing release inputs, then run the complete frozen-collection release path and satisfy its coverage/publication acceptance criteria.
 
 ## Milestone 1: Canonical verification and solution-normalization contracts
 
 **Status:** landed.
 
-**Goal:** Fix the boundaries before connecting parser- or simulator-specific implementations.
+**Goal:** Fix canonical verification and normalized-solution boundaries independently from parser- or simulator-specific implementations.
 
-Exit criteria:
-
-- `Verification` is a first-class canonical derived entity with a strict schema.
-- Verification identity is deterministic from the exact puzzle artifact, solution artifact, verifier identity, and validation profile.
-- A simulator-independent `Verifier` protocol defines the implementation seam.
-- The normalized-solution schema strictly represents parts, tracks, programs, instructions, and deterministic summaries.
-- Normalized-solution identity and normalizer versioning are deterministic.
-- A parser-independent `SolutionNormalizer` protocol defines the normalization seam.
-- Serialization remains a downstream projection over normalized records rather than another authority.
-
-No `.solution` parser or `omsim` integration is required to exit this milestone.
+Exit criteria are satisfied: verification and normalization identities are deterministic, their schemas are strict, implementation seams are explicit, and serialization remains a downstream projection rather than another authority.
 
 ## Milestone 2: Canonical artifact materialization
 
-**Status:** shared core landed; source-specific solution/observation and puzzle-artifact materialization remain.
+**Status:** landed.
 
 **Goal:** Convert acquired source facts into the canonical artifact/provenance model without introducing a second storage mechanism.
 
-The shared core of this milestone landed in PR #15. Acquisition and materialization now share one exact-byte `ContentStore`; receipt-based ingestion provides deterministic content-derived identity, exact-byte deduplication with multi-source provenance, conservative artifact-rights aggregation, and fail-closed integrity/identity/format handling. The remaining milestone work is source-specific orchestration and projection into concrete `SolutionArtifact`, `Observation`, and verifier-usable `PuzzleArtifact` records in WP-04 and WP-08.
-
-Exit criteria:
-
-- Cached source bytes can be deterministically materialized as `PuzzleArtifact` and `SolutionArtifact` records.
-- Source sightings and metadata are materialized as `Observation` records.
-- Artifact IDs are content-derived and stable.
-- Exact-byte SHA-256 identity is the only v1 deduplication boundary.
-- Multiple sources observing the same exact artifact preserve multiple observations rather than duplicate artifacts.
-- Rights status is conservatively aggregated without granting permissions not established by source evidence.
-- Puzzle-ID, format, source-mutation, and corrupt-object conflicts fail closed.
-- Acquisition and canonical materialization reuse the existing content-addressed cache/object primitive. No parallel object store, snapshot authority, or alternate ingestion path is introduced.
+Cached source bytes now materialize deterministically as `PuzzleArtifact` and `SolutionArtifact` records, source sightings/metadata materialize as `Observation` records, and artifact IDs remain content-derived. Exact-byte SHA-256 identity is the v1 deduplication boundary, multiple sources preserve multiple provenance facts, rights are folded conservatively, and identity/format/corruption conflicts fail closed through the shared content store.
 
 ## Milestone 3: Authoritative puzzle-definition acquisition
 
-**Status:** acquisition sources landed; complete verifier-usable `PuzzleArtifact` coverage remains.
+**Status:** acquisition and canonical puzzle-artifact materialization landed; complete collection coverage is a release-boundary criterion.
 
-**Goal:** Provide verifier-ready puzzle artifacts for the complete frozen collection while keeping exact bytes distinct from semantic problem evidence.
+**Goal:** Provide verifier-ready puzzle artifacts while keeping exact bytes distinct from semantic problem evidence.
 
-The `omsim`, `molecule-db`, and local official-byte acquisition paths are implemented. This milestone now depends on deterministic canonical puzzle-artifact materialization and coverage resolution rather than additional source-specific storage mechanisms.
-
-Exit criteria:
-
-- Puzzle-definition adapters consume pinned or locally acquired source facts through the existing acquisition/cache boundary.
-- `omsim` campaign fixtures, locally acquired official puzzle bytes, and independent semantic evidence are represented according to their actual evidentiary role.
-- Semantic evidence such as molecule topology is not treated as proof of exact official `.puzzle` byte identity.
-- Every puzzle artifact used for verification has explicit provenance, format, hash, and rights status.
-- The pipeline reports deterministic puzzle-artifact coverage and fails rather than inventing unknown game fields.
-- A complete base-game build can resolve at least one verifier-usable `PuzzleArtifact` for every required puzzle.
+The `omsim`, molecule-db, and local official-byte acquisition paths are implemented and feed the canonical `PuzzleArtifact` materialization path. Semantic evidence is not treated as proof of exact official bytes, and verifier-usable artifacts retain explicit provenance, format, hash, and rights status. Any remaining missing complete-collection coverage is reported mechanically during the release path rather than solved by adding another source-storage mechanism.
 
 ## Milestone 4: Deterministic verification
 
+**Status:** landed.
+
 **Goal:** Make verifier results, not source claims, authoritative for executable validity and computed metrics.
 
-Exit criteria:
-
-- A pinned `omsim`/`libverify` implementation is connected through the `Verifier` protocol.
-- Puzzle and solution parsing, simulation, and metric extraction produce canonical `Verification` records.
-- Successful verification records at least cost, cycles, area, and instructions.
-- Parse failures, simulator failures, and structured verifier errors are retained as data rather than discarded.
-- Source-declared scores remain observations and can disagree with recomputed metrics without overwriting either fact.
-- Validation-profile identity is versioned and distinct predicates such as simulator-valid, ordinary constructible, and record-eligible remain separate.
-- Re-running verification against identical cached artifacts and pinned verifier inputs produces identical canonical results.
+The pinned `omsim` / `libverify` implementation is connected through the `Verifier` protocol. Canonical verification recomputes cost, cycles, area, and instructions, retains parse/simulation failures as structured data, preserves source-declared observations independently, versions verifier/profile identity, and is deterministic for identical canonical artifacts plus pinned verifier inputs.
 
 ## Milestone 5: Normalization and deterministic corpus materialization
 
+**Status:** parser/normalizer landed; release materialization is the active remaining slice.
+
 **Goal:** Close the gap between canonical artifacts/verifications and the release factory.
 
-Exit criteria:
+The deterministic `.solution` parser and `SolutionNormalizer` are implemented. Normalized solution records retain exact `SolutionArtifact` lineage and normalizer identity, while normalization failure remains independent from verification truth.
 
-- A deterministic `.solution` parser feeds the `SolutionNormalizer` implementation.
-- Normalized solution records identify the exact source `SolutionArtifact` and record the normalizer version.
-- Normalized puzzle records continue to identify the exact source `PuzzleArtifact`.
-- Normalization failure does not invalidate a successfully verified raw artifact.
-- Canonical puzzle, solution, observation, verification-derived, and normalized release rows are generated from source facts and pinned software rather than hand-authored for production builds.
-- Production materialization consumes the existing canonical entities and feeds the current release builder without creating a second corpus authority.
-- Repeated offline materialization from the same cache and revisions produces identical canonical row content and manifest hashes.
+Remaining milestone exit criteria:
+
+- generate canonical puzzle, solution, observation, verification-derived, and normalized release rows from the existing canonical entities;
+- feed the current release builder without creating a second corpus or row authority;
+- preserve verification-derived metrics and payload-rights enforcement through the projection;
+- prove repeated offline materialization from the same canonical inputs produces identical row content and release manifest hashes.
 
 The tiny fixture corpus may remain hand-authored as a test fixture; it is not production authority.
 
 ## Milestone 6: Complete frozen base-game release
 
+**Status:** downstream of release materialization.
+
 **Goal:** Produce and publish the first stable complete corpus for `base-game-2026-06-16`.
 
 Exit criteria:
 
-- One deterministic offline build path materializes the frozen collection from permitted, pinned cached inputs.
-- All 166 required puzzles are present.
-- Every required puzzle has at least one verifier-successful solution; otherwise the complete build fails.
-- Every published solution is traceable to immutable source evidence.
-- Headline metrics are recomputed by the pinned verifier rather than trusted from filenames or source metadata.
-- Missing coverage and source/verifier discrepancies are reported, never manually repaired.
-- The release manifest records the collection hash, source revisions, artifact hashes, verifier identity, validation profile, normalizer version, derived coverage, and output hashes.
-- An offline rebuild from the same content cache reproduces the canonical release manifest.
-- Rights policy is enforced at publication time; metadata-only publication remains valid when raw bytes are not redistributable.
-- Hugging Face export passes `docs/hugging-face-export.md` and the release is published as a downstream projection, not a new authority.
+- one deterministic offline build path materializes the frozen collection from permitted, pinned cached inputs;
+- all 166 required puzzles are present;
+- every required puzzle has at least one verifier-successful solution, otherwise the complete build fails;
+- every published solution is traceable to immutable source evidence;
+- headline metrics are recomputed by the pinned verifier rather than trusted from filenames or source metadata;
+- missing coverage and source/verifier discrepancies are reported, never manually repaired;
+- the release manifest records collection hash, source revisions, artifact hashes, verifier identity, validation profile, normalizer version, derived coverage, and output hashes;
+- an offline rebuild from the same content cache reproduces the canonical release manifest;
+- rights policy is enforced at publication time;
+- Hugging Face export passes [`hugging-face-export.md`](hugging-face-export.md), with publication remaining a downstream projection rather than a new authority.
 
 This milestone is the v1 release boundary.
 
 ## Milestone 7: Research-grade derived views and benchmarks
 
+**Status:** protocol drafted; implementation follows the v1 canonical path without becoming an authority.
+
 **Goal:** Turn the canonical corpus into useful benchmark and ML research surfaces without adding hand-maintained datasets.
 
-The benchmark architecture is now drafted in [`benchmark-protocol.md`](benchmark-protocol.md). It separates protocol from collection identity, starts with verifier-backed Solve evaluation, preserves Opus Magnum's multi-objective metrics, and treats public base-game results separately from claims about held-out generalization.
+The benchmark architecture in [`benchmark-protocol.md`](benchmark-protocol.md) separates protocol from collection identity, starts with verifier-backed Solve evaluation, preserves Opus Magnum's multi-objective metrics, and treats public base-game results separately from claims about held-out generalization.
 
-Candidate derived views include:
+Candidate derived views include all verified solutions, ordinary/vanilla constructible solutions, record-eligible solutions, Pareto frontiers, best-known metric views, human-versus-machine provenance views, benchmark selections, and deterministic model-oriented serializations.
 
-- all verified solutions;
-- ordinary/vanilla constructible solutions;
-- record-eligible solutions;
-- Pareto frontiers over declared metric tuples;
-- best cost, cycles, area, and instructions;
-- human-observed versus machine-generated solution views;
-- one-per-puzzle benchmark selections;
-- normalized puzzle and solution representations for model training;
-- deterministic model-oriented serialization formats derived from normalized records.
-
-Benchmark work should begin with the narrow v0.1 scope in `benchmark-protocol.md`: Solve, one-shot plus one bounded interactive profile, a deterministic normalized-puzzle serialization, exact verifier-backed correctness, explicit failure taxonomy, and multi-objective quality reporting.
-
-Exit criteria:
-
-- Each view is generated from canonical facts by versioned deterministic software.
-- Selection and frontier predicates are explicit and testable.
-- No view is maintained by agents or manual bookkeeping.
-- Model-oriented text or token formats remain serializers over normalized records, not parallel canonical datasets.
-- Benchmark protocol, collection, serializer, verifier, attempt policy, and reporting identity are all explicit.
-- Benchmark train/validation/test splits are added only after an explicit leakage-aware methodology is designed and versioned.
+Every such view must be generated from canonical facts by versioned deterministic software. Selection/frontier predicates must be explicit and testable, model-oriented formats remain serializers rather than parallel datasets, and any train/validation/test split requires an explicit leakage-aware methodology.
 
 ## Milestone 8: Expand beyond the frozen base game
 
+**Status:** later.
+
 **Goal:** Reuse the same pipeline for additional Opus Magnum problem and solution classes.
 
-Potential collection families include:
-
-- De Re Metallica;
-- official production or special puzzle sets not in the first collection;
-- Workshop/custom puzzles;
-- tournament and community collections;
-- additional historical archives;
-- clearly identified machine-generated baselines such as OpusSolver output.
+Potential collection families include De Re Metallica, other official/special puzzle sets, Workshop/custom puzzles, tournament/community collections, additional historical archives, and clearly identified machine-generated baselines such as OpusSolver output.
 
 Expansion rules:
 
-- New scope is expressed through new immutable collection manifests rather than mutating `base-game-2026-06-16`.
-- New adapters translate source facts into the existing canonical model; they do not redefine canonical IDs or release schemas.
-- Rights, provenance, validation semantics, and coverage remain explicit per source and artifact class.
-- Shared deterministic infrastructure is extended only when a genuinely new primitive is required.
+- express new scope through new immutable collection manifests rather than mutating `base-game-2026-06-16`;
+- translate new source facts into the existing canonical model rather than redefining canonical IDs or release schemas;
+- keep rights, provenance, validation semantics, and coverage explicit per source/artifact class;
+- extend shared deterministic infrastructure only when a genuinely new primitive is required.
 
 ## Ordering and parallelism
 
@@ -215,20 +158,21 @@ contracts
   → artifact materialization
   → puzzle definitions
   → verification
-  → normalization/materialization
+  → normalization
+  → release materialization
   → complete release
   → research views and collection expansion
 ```
 
-Independent source adapters may advance in parallel when they consume the existing acquisition primitives. They must not create alternate caches, artifact stores, reconciliation systems, or hand-maintained projections.
+The first five stages through normalization are landed. Current packet state and concurrency boundaries live in [`TODO.md`](TODO.md), avoiding duplicated fast-moving status here.
 
-Likewise, research on normalized representations and benchmark serializers may proceed before the complete release, but no experimental representation becomes an authority or blocks verifier-backed canonical materialization.
+Independent source adapters or research experiments may advance in parallel only when they consume existing authoritative primitives and do not create alternate caches, artifact stores, reconciliation systems, or hand-maintained projections.
 
 ## Decision rules
 
 When choosing implementation work, prefer the option that preserves these invariants:
 
-1. **One authoritative path.** Reuse existing acquisition, storage, canonicalization, verification, and release primitives before adding another mechanism.
+1. **One authoritative path.** Reuse existing acquisition, storage, canonicalization, verification, normalization, and release primitives before adding another mechanism.
 2. **Software derives state.** Repeated bookkeeping, reconciliation, counting, materialization, and known recovery behavior belong in deterministic software.
 3. **Reasoning is for judgment work.** Use reasoning for research, design, synthesis, and novel implementation, not maintenance of generated indexes or status projections.
 4. **Fail closed.** Unknown puzzle fields, ambiguous identities, corrupt cached objects, verifier failures, and rights uncertainty remain explicit rather than silently repaired.
@@ -238,4 +182,4 @@ When choosing implementation work, prefer the option that preserves these invari
 
 ## V1 definition of done
 
-The roadmap reaches v1 when the release acceptance criteria in `docs/dataset-spec.md` are satisfied for `base-game-2026-06-16`: a complete verifier-backed, provenance-preserving, reproducible corpus can be rebuilt offline from pinned cached facts and exported through the existing release pipeline without manual corpus maintenance.
+The roadmap reaches v1 when the release acceptance criteria in [`dataset-spec.md`](dataset-spec.md) are satisfied for `base-game-2026-06-16`: a complete verifier-backed, provenance-preserving, reproducible corpus can be rebuilt offline from pinned cached facts and exported through the existing release pipeline without manual corpus maintenance.
