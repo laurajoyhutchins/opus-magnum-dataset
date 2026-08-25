@@ -19,7 +19,6 @@ RELEASE_CONFIGS = (
         schema_resource="puzzle.schema.json",
         canonical_id_field="puzzle_id",
         sort_key=("puzzle_id",),
-        payload_field="puzzle_bytes",
     ),
     ReleaseConfigSpec(
         name="solutions",
