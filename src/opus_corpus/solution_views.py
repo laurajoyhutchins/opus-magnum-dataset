@@ -63,11 +63,13 @@ def derive_solution_views(
     solutions = _validated_solution_rows(rows)
     verified = [row for row in solutions if row["verified"] is True]
     return {
-        "all-verified": verified,
+        "all-verified": [dict(row) for row in verified],
         "vanilla-constructible": [
-            row for row in verified if row["vanilla_constructible"] is True
+            dict(row) for row in verified if row["vanilla_constructible"] is True
         ],
-        "record-eligible": [row for row in verified if row["record_eligible"] is True],
+        "record-eligible": [
+            dict(row) for row in verified if row["record_eligible"] is True
+        ],
     }
 
 
