@@ -67,7 +67,7 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
     try:
         with manifest_path.open("rb") as handle:
             raw_manifest = tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         raise CollectionValidationError(
             [ValidationError("manifest_parse_error", str(exc), rel_manifest)]
         ) from exc

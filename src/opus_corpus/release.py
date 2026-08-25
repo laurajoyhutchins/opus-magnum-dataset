@@ -403,7 +403,7 @@ def _load_release_metadata(input_dir: Path) -> tuple[dict[str, Any], str]:
     try:
         raw = path.read_bytes()
         value = json.loads(raw)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ReleaseValidationError(
             [ValidationError("release_metadata_invalid", str(exc), path.as_posix())]
         ) from exc
@@ -538,13 +538,25 @@ def _read_manifest(output_dir: Path) -> ReleaseManifest:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
             raise TypeError("manifest root must be an object")
-    except (OSError, json.JSONDecodeError, TypeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError) as exc:
         raise ReleaseValidationError(
             [ValidationError("release_manifest_invalid", str(exc), path.as_posix())]
         ) from exc
 
     if "format_version" in value:
         _ensure_supported_manifest_format(value["format_version"])
+
+    for field in ("configs", "release_metadata"):
+        if field in value and not isinstance(value[field], dict):
+            raise ReleaseValidationError(
+                [
+                    ValidationError(
+                        "release_manifest_invalid",
+                        f"{field} must be an object",
+                        path.as_posix(),
+                    )
+                ]
+            )
 
     try:
         return ReleaseManifest.from_dict(value)

@@ -66,6 +66,9 @@ def load_release_inputs(input_dir: Path) -> LoadedReleaseInputs:
         config_rows: list[dict[str, Any]] = []
         try:
             text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            errors.append(ValidationError("input_decode_error", str(exc), path.as_posix()))
+            continue
         except OSError as exc:
             errors.append(ValidationError("input_read_error", str(exc), path.as_posix()))
             continue

@@ -33,7 +33,7 @@ def load_config(path: Path | str = "corpus.toml") -> CorpusConfig:
     try:
         with config_path.open("rb") as handle:
             raw = tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         raise ConfigurationError(f"invalid configuration: {exc}") from exc
 
     corpus = raw.get("corpus")
