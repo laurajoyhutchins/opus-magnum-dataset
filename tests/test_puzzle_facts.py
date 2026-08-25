@@ -76,13 +76,13 @@ def test_equivalent_exact_artifacts_reconcile_to_one_semantic_definition() -> No
         PuzzleDefinitionEvidence(
             puzzle_id="om.puzzle.0001",
             observation_ids=("obs-a",),
-            puzzle_artifact_ids=(first_artifact,),
+            puzzle_artifact_id=first_artifact,
             claims=_semantics(),
         ),
         PuzzleDefinitionEvidence(
             puzzle_id="om.puzzle.0001",
             observation_ids=("obs-b",),
-            puzzle_artifact_ids=(second_artifact,),
+            puzzle_artifact_id=second_artifact,
             claims=_semantics(),
         ),
     )
