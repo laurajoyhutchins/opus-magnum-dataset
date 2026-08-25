@@ -1,0 +1,83 @@
+{
+  "collection_id": "solve-benchmark-hermetic-v1",
+  "expected": {
+    "benchmark_id": "om.benchmark.5353e1b9f652afe92a500ed7d33ff68568ef84bbb5b02622785eb5fb0f8d019d",
+    "outcome_counts": {
+      "output_compile_failed": 1,
+      "puzzle_solution_mismatch": 1,
+      "simulation_failed": 1,
+      "solution_parse_failed": 1,
+      "success": 1
+    },
+    "outcomes": [
+      "output_compile_failed",
+      "solution_parse_failed",
+      "puzzle_solution_mismatch",
+      "simulation_failed",
+      "success"
+    ],
+    "report_sha256": "a85475ac83ac0b58a2556d473120c11f007b2d77e2370d2f3f3ac5cf041e2e51",
+    "run_id": "om.benchmark-run.2c378a31980337ad69a56e2430545c52bb51b3065ba8472e17a43a5cfc4e2168"
+  },
+  "puzzles": [
+    {
+      "display_name": "Hermetic Puzzle 1",
+      "game_puzzle_id": "FX001",
+      "puzzle_bytes_base64": "Zml4dHVyZS1wdXp6bGUtMQ==",
+      "puzzle_id": "om.puzzle.0001",
+      "raw_output": "not-json"
+    },
+    {
+      "display_name": "Hermetic Puzzle 2",
+      "game_puzzle_id": "FX002",
+      "puzzle_bytes_base64": "Zml4dHVyZS1wdXp6bGUtMg==",
+      "puzzle_id": "om.puzzle.0002",
+      "raw_output": "{\"format\":\"om-solution-base64-v1\",\"solution_base64\":\"bm90LWEtc29sdXRpb24=\"}"
+    },
+    {
+      "display_name": "Hermetic Puzzle 3",
+      "game_puzzle_id": "FX003",
+      "puzzle_bytes_base64": "Zml4dHVyZS1wdXp6bGUtMw==",
+      "puzzle_id": "om.puzzle.0003",
+      "raw_output": "{\"format\":\"om-solution-base64-v1\",\"solution_base64\":\"BwAAAAVXUk9ORwdmaXh0dXJlAAAAAAAAAAA=\"}"
+    },
+    {
+      "display_name": "Hermetic Puzzle 4",
+      "game_puzzle_id": "FX004",
+      "puzzle_bytes_base64": "Zml4dHVyZS1wdXp6bGUtNA==",
+      "puzzle_id": "om.puzzle.0004",
+      "raw_output": "{\"format\":\"om-solution-base64-v1\",\"solution_base64\":\"BwAAAAVGWDAwNAdmaXh0dXJlAAAAAAAAAAA=\"}"
+    },
+    {
+      "display_name": "Hermetic Puzzle 5",
+      "game_puzzle_id": "FX005",
+      "puzzle_bytes_base64": "Zml4dHVyZS1wdXp6bGUtNQ==",
+      "puzzle_id": "om.puzzle.0005",
+      "raw_output": "{\"format\":\"om-solution-base64-v1\",\"solution_base64\":\"BwAAAAVGWDAwNQdmaXh0dXJlAAAAAAAAAAA=\"}"
+    },
+    {
+      "display_name": "Hermetic Puzzle 6",
+      "game_puzzle_id": "FX006",
+      "puzzle_bytes_base64": null,
+      "puzzle_id": "om.puzzle.0006",
+      "raw_output": null
+    }
+  ],
+  "runner": {
+    "generation_config_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "system_id": "hermetic-fixture-solver",
+    "system_revision": "v1"
+  },
+  "schema": "solve-benchmark-hermetic-fixture-v1",
+  "test_only": true,
+  "verifier": {
+    "binary_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "metrics": {
+      "area": 30,
+      "cost": 10,
+      "cycles": 20,
+      "instructions": 40
+    },
+    "simulation_failure_puzzle_id": "om.puzzle.0004"
+  }
+}
