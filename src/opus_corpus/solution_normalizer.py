@@ -102,6 +102,9 @@ def _part_id(index: int) -> str:
 
 
 def _normalized_part(index: int, part: ParsedSolutionPart) -> dict[str, Any]:
+    if not part.name:
+        raise SolutionNormalizationError(f"part type is empty for {_part_id(index)}")
+
     parameters: dict[str, Any] = {
         "size": part.size,
         "input_output_index": part.input_output_index,
@@ -124,6 +127,10 @@ def _normalized_part(index: int, part: ParsedSolutionPart) -> dict[str, Any]:
 
 
 def _normalized_track(index: int, part: ParsedSolutionPart) -> dict[str, Any]:
+    if not part.track_offsets:
+        raise SolutionNormalizationError(
+            f"track {_part_id(index)} must contain at least one coordinate"
+        )
     return {
         "track_id": f"track-{index:04d}",
         "coordinates": [
