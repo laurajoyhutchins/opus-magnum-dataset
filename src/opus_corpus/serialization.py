@@ -48,12 +48,13 @@ class CanonicalJsonSerializer:
         return _canonical_json(solution)
 
 
-@dataclass(frozen=True, slots=True)
 class ModelPuzzleTextSerializer:
     """Versioned model-oriented text projection of a normalized puzzle."""
 
-    format_name: str = "opus-magnum-puzzle-text"
-    version: str = "1"
+    __slots__ = ()
+
+    format_name = "opus-magnum-puzzle-text"
+    version = "1"
 
     def serialize_puzzle(self, puzzle: NormalizedRecord) -> str:
         _validate_normalized_puzzle(puzzle)
