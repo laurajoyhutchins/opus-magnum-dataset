@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from opus_corpus.github_source import download_github_tarball, tarball_files
+from opus_corpus.github_source import iter_github_tarball_members
 from opus_corpus.hashing import sha256_file
 from opus_corpus.libverify import (
     OMSIM_LIBVERIFY_PROFILE,
@@ -32,13 +32,16 @@ def test_pinned_libverify_builds_and_verifies_real_upstream_fixture(tmp_path: Pa
     compiler = shutil.which("cc")
     assert compiler is not None, "pinned libverify contract requires a C compiler"
 
-    tarball = download_github_tarball("ianh", "omsim", OMSIM_LIBVERIFY_REVISION)
-    files = tarball_files(tarball)
     source_root = tmp_path / "omsim"
     source_root.mkdir()
-    for path, payload in files.items():
+    fixtures: dict[str, bytes] = {}
+    for path, member in iter_github_tarball_members(
+        "ianh", "omsim", OMSIM_LIBVERIFY_REVISION
+    ):
         if "/" not in path and (path.endswith(".c") or path.endswith(".h")):
-            (source_root / path).write_bytes(payload)
+            (source_root / path).write_bytes(member.read())
+        elif path in {_FIXTURE_PUZZLE, _FIXTURE_SOLUTION}:
+            fixtures[path] = member.read()
 
     library_path = source_root / "libverify.so"
     completed = subprocess.run(
@@ -72,8 +75,8 @@ def test_pinned_libverify_builds_and_verifies_real_upstream_fixture(tmp_path: Pa
     value = VerificationInput(
         puzzle_artifact_id="om.puzzle-artifact.upstream-fixture",
         solution_id="om.solution.upstream-fixture",
-        puzzle_bytes=files[_FIXTURE_PUZZLE],
-        solution_bytes=files[_FIXTURE_SOLUTION],
+        puzzle_bytes=fixtures[_FIXTURE_PUZZLE],
+        solution_bytes=fixtures[_FIXTURE_SOLUTION],
         validation_profile=OMSIM_LIBVERIFY_PROFILE,
     )
 
