@@ -4,35 +4,18 @@ import datetime as dt
 import hashlib
 import json
 import os
-import re
 import stat
 import tempfile
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path, PureWindowsPath
 
+from jsonschema import Draft202012Validator
+
 from .content_store import ContentStore, ContentStoreError
 from .errors import CorpusError
 from .path_safety import require_directory_chain
-
-_SHA256_RE = re.compile(r"[0-9a-f]{64}")
-_RECEIPT_FIELDS = {
-    "source_id",
-    "revision",
-    "upstream_path",
-    "sha256",
-    "byte_length",
-    "rights_status",
-    "retrieved_at",
-}
-_RECEIPT_STRING_FIELDS = {
-    "source_id",
-    "revision",
-    "upstream_path",
-    "sha256",
-    "rights_status",
-    "retrieved_at",
-}
+from .schema_resources import collect_schema_errors, load_schema_resource
 
 
 class CacheIntegrityError(CorpusError):
@@ -56,6 +39,9 @@ class ContentAddressedCache:
     def __init__(self, root: Path):
         self.root = Path(root)
         self.store = ContentStore(self.root)
+        self._receipt_validator = Draft202012Validator(
+            load_schema_resource("cache-receipt.schema.json").schema
+        )
 
     def object_path(self, sha256: str) -> Path:
         return self.store.object_path(sha256)
@@ -109,22 +95,22 @@ class ContentAddressedCache:
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise CacheIntegrityError(f"invalid cache receipt: {path}") from exc
 
-        if not isinstance(data, dict) or set(data) != _RECEIPT_FIELDS:
+        errors = collect_schema_errors(
+            self._receipt_validator,
+            data,
+            code="cache_receipt_schema_error",
+            path=path.as_posix(),
+        )
+        if errors:
             raise CacheIntegrityError(f"invalid cache receipt: {path}")
-        if any(not isinstance(data[field], str) for field in _RECEIPT_STRING_FIELDS):
-            raise CacheIntegrityError(f"invalid cache receipt: {path}")
-        byte_length = data["byte_length"]
-        if not isinstance(byte_length, int) or isinstance(byte_length, bool) or byte_length < 0:
-            raise CacheIntegrityError(f"invalid cache receipt: {path}")
-        if _SHA256_RE.fullmatch(data["sha256"]) is None:
-            raise CacheIntegrityError(f"invalid cache receipt: {path}")
+        assert isinstance(data, dict)
 
         receipt = CacheReceipt(
             source_id=data["source_id"],
             revision=data["revision"],
             upstream_path=data["upstream_path"],
             sha256=data["sha256"],
-            byte_length=byte_length,
+            byte_length=data["byte_length"],
             rights_status=data["rights_status"],
             retrieved_at=data["retrieved_at"],
         )

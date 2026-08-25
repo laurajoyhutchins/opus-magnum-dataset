@@ -8,7 +8,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from .errors import ConfigurationError
+from .errors import ConfigurationError, ValidationError
 from .hashing import sha256_bytes
 
 
@@ -48,3 +48,28 @@ def load_schema_resource(name: str) -> SchemaResource:
         schema=schema,
         sha256=sha256_bytes(raw),
     )
+
+
+def collect_schema_errors(
+    validator: Draft202012Validator,
+    value: Any,
+    *,
+    code: str,
+    path: str | None = None,
+    row: int | None = None,
+) -> list[ValidationError]:
+    """Return deterministic repository errors for one JSON Schema validation."""
+
+    schema_errors = sorted(
+        validator.iter_errors(value),
+        key=lambda error: (
+            tuple(str(part) for part in error.absolute_path),
+            error.message,
+        ),
+    )
+    errors: list[ValidationError] = []
+    for error in schema_errors:
+        location = ".".join(str(part) for part in error.absolute_path)
+        detail = f"{location}: {error.message}" if location else error.message
+        errors.append(ValidationError(code, detail, path, row))
+    return errors
