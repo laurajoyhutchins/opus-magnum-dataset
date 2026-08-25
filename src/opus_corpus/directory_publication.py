@@ -58,7 +58,12 @@ def publish_directory(destination: Path) -> Iterator[Path]:
             raise
 
         if previous is not None:
-            _remove_path(previous)
+            try:
+                _remove_path(previous)
+            except OSError:
+                # Promotion is already committed. Preserve the backup rather than
+                # report a false publication failure after visible state changed.
+                pass
     finally:
         if _path_exists(candidate):
             _remove_path(candidate)
