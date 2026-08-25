@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net452</TargetFramework>
+    <LangVersion>10</LangVersion>
+    <OpusMagnumDir Condition="'$(OpusMagnumDir)' == ''">$(OPUS_MAGNUM_DIR)</OpusMagnumDir>
+  </PropertyGroup>
+
+  <Target Name="RequireOpusMagnumDir" BeforeTargets="ResolveReferences" Condition="'$(OpusMagnumDir)' == ''">
+    <Error Text="Set OpusMagnumDir or OPUS_MAGNUM_DIR to the Quintessential-patched Opus Magnum directory." />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="Lightning">
+      <HintPath>$(OpusMagnumDir)\ModdedLightning.exe</HintPath>
+      <CopyLocal>False</CopyLocal>
+    </Reference>
+  </ItemGroup>
+</Project>
