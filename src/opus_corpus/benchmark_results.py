@@ -30,8 +30,8 @@ class BenchmarkIdentity:
     collection_manifest_sha256: str
     puzzle_serializer: str
     puzzle_serializer_version: str
-    output_parser: str
-    output_parser_version: str
+    candidate_output_compiler: str
+    candidate_output_compiler_version: str
     verifier_implementation: str
     verifier_revision: str
     verifier_sha256: str | None
