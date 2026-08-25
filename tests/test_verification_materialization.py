@@ -59,6 +59,13 @@ class ForgedIdentityVerifier(RecordingVerifier):
         return replace(result, verification_id="om.verification." + "0" * 64)
 
 
+@dataclass
+class InvalidResultVerifier(RecordingVerifier):
+    def verify(self, value: VerificationInput) -> VerificationResult:
+        result = super().verify(value)
+        return replace(result, cost=-1)
+
+
 def artifact(
     store: ContentStore,
     *,
@@ -139,6 +146,20 @@ def test_materialization_rejects_a_forged_verification_identity(tmp_path):
             [puzzle, solution],
             store=store,
             verifier=ForgedIdentityVerifier(),
+            validation_profile="fixture-profile",
+        )
+
+
+def test_materialization_rejects_schema_invalid_verification_result(tmp_path):
+    store = ContentStore(tmp_path / "cache")
+    puzzle = artifact(store, kind="puzzle", puzzle_id="om.puzzle.1", payload=b"puzzle")
+    solution = artifact(store, kind="solution", puzzle_id="om.puzzle.1", payload=b"solution")
+
+    with pytest.raises(VerificationMaterializationError, match="verification schema"):
+        materialize_verifications(
+            [puzzle, solution],
+            store=store,
+            verifier=InvalidResultVerifier(),
             validation_profile="fixture-profile",
         )
 
