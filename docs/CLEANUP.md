@@ -10,4 +10,4 @@ Keep this list short. It is not a backlog, dependency graph, or second issue tra
 
 ## Items
 
-- `src/opus_corpus/release_configs.py`: simplify the derived lookup structures when this module is next touched; keep one authoritative release-config definition and only the indexes actually needed by consumers.
+None.
