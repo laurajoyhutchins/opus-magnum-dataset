@@ -77,6 +77,23 @@ def test_normalized_nested_part_parameters_round_trip_through_parquet(tmp_path: 
     assert read_parquet("normalized", path) == rows
 
 
+def test_normalized_empty_histograms_round_trip_through_parquet(tmp_path: Path):
+    rows = [
+        {
+            "parts": [],
+            "summaries": {
+                "part_type_histogram": {},
+                "opcode_histogram": {},
+            },
+        }
+    ]
+    path = tmp_path / "normalized.parquet"
+
+    write_parquet("normalized", rows, path, config(tmp_path))
+
+    assert read_parquet("normalized", path) == rows
+
+
 def test_tiny_release_builds_and_validates(tmp_path: Path):
     root = Path(__file__).resolve().parents[1]
     output = tmp_path / "release"

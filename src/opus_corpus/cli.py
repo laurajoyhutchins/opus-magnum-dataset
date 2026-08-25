@@ -5,10 +5,12 @@ import os
 import sys
 from pathlib import Path
 
+from . import v1_release
 from .adapters import ADAPTERS, OfficialGameAdapter
 from .collections import validate_all_collections, validate_collection
 from .config import load_config
 from .errors import ConfigurationError, CorpusError, PublicationError, ValidationFailure
+from .libverify import LibverifyVerifier
 from .publish import publish_release, stage_release
 from .release import build_release, validate_release
 
@@ -46,6 +48,22 @@ def _parser() -> argparse.ArgumentParser:
         default="complete",
         help="require verified coverage for the full collection or allow an explicit subset",
     )
+
+    v1 = release_commands.add_parser("v1")
+    v1.add_argument("collection")
+    v1.add_argument("--cache", required=True)
+    v1.add_argument("--output", required=True)
+    v1.add_argument(
+        "--libverify",
+        required=True,
+        help="path to the explicitly provisioned pinned libverify shared library",
+    )
+    v1.add_argument(
+        "--libverify-sha256",
+        required=True,
+        help="expected SHA-256 digest for the supplied libverify binary",
+    )
+    v1.add_argument("--payload-policy", choices=("metadata-only", "include-permitted"))
 
     validate = release_commands.add_parser("validate")
     validate.add_argument("collection")
@@ -112,6 +130,25 @@ def _run(args: argparse.Namespace) -> int:
         )
         print(
             f"built {manifest.collection_id} ({manifest.split}) "
+            f"logical_release_sha256={manifest.logical_release_sha256}"
+        )
+        return 0
+    if args.release_command == "v1":
+        policy = args.payload_policy or config.payload_policy_default
+        verifier = LibverifyVerifier.from_library(
+            Path(args.libverify),
+            expected_sha256=args.libverify_sha256,
+        )
+        manifest = v1_release.build_v1_release(
+            collection,
+            cache_root=Path(args.cache),
+            output_dir=Path(args.output),
+            config=config,
+            verifier=verifier,
+            payload_policy=policy,
+        )
+        print(
+            f"built v1 {manifest.collection_id} ({manifest.split}) "
             f"logical_release_sha256={manifest.logical_release_sha256}"
         )
         return 0

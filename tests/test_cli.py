@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+import opus_corpus.v1_release as v1_release
 from opus_corpus.adapters.base import AcquisitionResult
 from opus_corpus.adapters.leaderboard_bot import LeaderboardBotAdapter
 from opus_corpus.adapters.official_game import OfficialGameAdapter
 from opus_corpus.adapters.om_archive import OmArchiveAdapter
 from opus_corpus.cli import main
+from opus_corpus.libverify import LibverifyVerifier
 
 HEADER = "puzzle_id,display_name,kind,group,game_puzzle_id,leaderboard_key,puzzle_type\n"
 ROW = "om.puzzle.0001,One,campaign,chapter-1,P001,ONE,normal\n"
@@ -212,6 +215,78 @@ def test_fetch_official_game_passes_explicit_source_root(
     assert "official-game" in capsys.readouterr().out
 
 
+def test_release_v1_wires_pinned_verifier_and_offline_builder(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = Path(__file__).resolve().parents[1]
+    config_path = root / "corpus.toml"
+    cache = tmp_path / "cache"
+    output = tmp_path / "release"
+    library = tmp_path / "libverify.so"
+    expected_sha256 = "d" * 64
+    fixture_verifier = object()
+
+    def fake_from_library(cls, path: Path, *, expected_sha256: str):
+        assert cls is LibverifyVerifier
+        assert Path(path) == library
+        assert expected_sha256 == "d" * 64
+        return fixture_verifier
+
+    def fake_build_v1_release(
+        collection,
+        *,
+        cache_root: Path,
+        output_dir: Path,
+        config,
+        verifier,
+        payload_policy: str,
+    ):
+        assert collection.collection_id == "base-game-2026-06-16"
+        assert cache_root == cache
+        assert output_dir == output
+        assert verifier is fixture_verifier
+        assert payload_policy == "metadata-only"
+        assert config.path == config_path
+        return SimpleNamespace(
+            collection_id=collection.collection_id,
+            split="base_game_2026_06_16",
+            logical_release_sha256="e" * 64,
+        )
+
+    monkeypatch.setattr(
+        LibverifyVerifier,
+        "from_library",
+        classmethod(fake_from_library),
+    )
+    monkeypatch.setattr(v1_release, "build_v1_release", fake_build_v1_release)
+
+    assert (
+        main(
+            [
+                "--config",
+                str(config_path),
+                "release",
+                "v1",
+                "base-game-2026-06-16",
+                "--cache",
+                str(cache),
+                "--output",
+                str(output),
+                "--libverify",
+                str(library),
+                "--libverify-sha256",
+                expected_sha256,
+            ]
+        )
+        == 0
+    )
+    rendered = capsys.readouterr().out
+    assert "base-game-2026-06-16" in rendered
+    assert "e" * 64 in rendered
+
+
 def test_tiny_fixture_end_to_end_when_pyarrow_and_repo_collection_are_present(tmp_path: Path):
     pytest.importorskip("pyarrow")
     root = Path(__file__).resolve().parents[1]
@@ -276,6 +351,7 @@ def test_tiny_fixture_end_to_end_when_pyarrow_and_repo_collection_are_present(tm
     }
     assert files == {
         "README.md",
+        "LICENSE",
         "release-manifest.json",
         "data/puzzles/base_game_2026_06_16-00000-of-00001.parquet",
         "data/solutions/base_game_2026_06_16-00000-of-00001.parquet",

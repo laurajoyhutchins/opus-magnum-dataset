@@ -5,7 +5,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from .card import render_dataset_card
+from .card import render_dataset_card, render_dataset_license_notice
 from .collections import CollectionDefinition
 from .config import CorpusConfig
 from .directory_publication import publish_directory
@@ -39,6 +39,9 @@ def stage_release(
     with publish_directory(destination) as candidate:
         (candidate / "README.md").write_text(
             render_dataset_card(manifest, config.card), encoding="utf-8"
+        )
+        (candidate / "LICENSE").write_text(
+            render_dataset_license_notice(config.card), encoding="utf-8"
         )
         shutil.copy2(
             output_dir / "release-manifest.json",

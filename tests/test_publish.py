@@ -96,12 +96,19 @@ def test_stage_contains_only_projection_allowlist(
     }
     assert files == {
         "README.md",
+        "LICENSE",
         "release-manifest.json",
         "data/puzzles/base_game_2026_06_16-00000-of-00001.parquet",
         "data/solutions/base_game_2026_06_16-00000-of-00001.parquet",
         "data/observations/base_game_2026_06_16-00000-of-00001.parquet",
         "data/normalized/base_game_2026_06_16-00000-of-00001.parquet",
     }
+    card = (destination / "README.md").read_text(encoding="utf-8")
+    assert "license: other\n" in card
+    assert "license_name: Mixed/source-specific rights\n" in card
+    rights_notice = (destination / "LICENSE").read_text(encoding="utf-8")
+    assert "not licensed wholesale under MIT" in rights_notice
+    assert "Third-party material remains subject to its own rights" in rights_notice
 
 
 @pytest.mark.parametrize("relation", ["equal", "destination_ancestor", "destination_descendant"])

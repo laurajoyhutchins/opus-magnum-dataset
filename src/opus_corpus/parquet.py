@@ -10,6 +10,11 @@ from .hashing import canonical_json_bytes
 from .release_configs import PAYLOAD_FIELDS as PAYLOAD_FIELDS
 from .release_configs import get_release_config
 
+_NORMALIZED_SUMMARY_OBJECT_FIELDS = (
+    "part_type_histogram",
+    "opcode_histogram",
+)
+
 
 def _to_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     payload_field = get_release_config(config_name).payload_field
@@ -26,6 +31,14 @@ def _to_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[st
                 }
                 for part in item.get("parts", [])
             ]
+            summaries = item.get("summaries")
+            if isinstance(summaries, dict):
+                item["summaries"] = dict(summaries)
+                for field in _NORMALIZED_SUMMARY_OBJECT_FIELDS:
+                    if field in summaries:
+                        item["summaries"][field] = canonical_json_bytes(
+                            summaries[field]
+                        ).decode("utf-8")
         converted.append(item)
     return converted
 
@@ -45,6 +58,13 @@ def _from_arrow_rows(config_name: str, rows: list[dict[str, Any]]) -> list[dict[
                 }
                 for part in item.get("parts", [])
             ]
+            summaries = item.get("summaries")
+            if isinstance(summaries, dict):
+                item["summaries"] = dict(summaries)
+                for field in _NORMALIZED_SUMMARY_OBJECT_FIELDS:
+                    value = summaries.get(field)
+                    if isinstance(value, str):
+                        item["summaries"][field] = json.loads(value)
         converted.append(item)
     return converted
 
