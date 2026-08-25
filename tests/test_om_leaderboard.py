@@ -8,6 +8,7 @@ from pathlib import Path
 from opus_corpus.adapters.base import AcquisitionResult
 from opus_corpus.adapters.om_leaderboard import OmLeaderboardAdapter
 from opus_corpus.collections import CollectionDefinition, validate_collection
+from opus_corpus.github_source import iter_tarball_members
 
 
 def fixture_collection() -> CollectionDefinition:
@@ -61,6 +62,13 @@ def make_tarball(files: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
+def mock_tarball(monkeypatch, tarball: bytes) -> None:
+    monkeypatch.setattr(
+        "opus_corpus.adapters.om_leaderboard.iter_github_tarball_members",
+        lambda owner, repo, revision: iter_tarball_members(io.BytesIO(tarball)),
+    )
+
+
 def test_expected_directories_cover_all_collection_puzzles():
     root = Path(__file__).resolve().parents[1]
     collection = validate_collection(root / "collections/base-game-2026-06-16.toml")
@@ -94,10 +102,7 @@ def test_fetch_preserves_all_collection_matching_source_facts(tmp_path, monkeypa
             "JOURNAL_X/OTHER/other.solution": b"other-puzzle",
         }
     )
-    monkeypatch.setattr(
-        "opus_corpus.adapters.om_leaderboard.download_github_tarball",
-        lambda owner, repo, revision: tarball,
-    )
+    mock_tarball(monkeypatch, tarball)
 
     result = OmLeaderboardAdapter().fetch(fixture_collection(), tmp_path)
 
@@ -126,10 +131,7 @@ def test_repeated_fetch_is_idempotent(tmp_path, monkeypatch):
             "JOURNAL_X/TOUCHSTONE/touchstone.json": b"{}",
         }
     )
-    monkeypatch.setattr(
-        "opus_corpus.adapters.om_leaderboard.download_github_tarball",
-        lambda owner, repo, revision: tarball,
-    )
+    mock_tarball(monkeypatch, tarball)
     adapter = OmLeaderboardAdapter()
 
     first = adapter.fetch(fixture_collection(), tmp_path)
@@ -152,10 +154,7 @@ def test_fetch_reports_partial_source_coverage_without_cross_source_assumptions(
             "JOURNAL_X/TOUCHSTONE/touchstone.json": b"{}",
         }
     )
-    monkeypatch.setattr(
-        "opus_corpus.adapters.om_leaderboard.download_github_tarball",
-        lambda owner, repo, revision: tarball,
-    )
+    mock_tarball(monkeypatch, tarball)
 
     result = OmLeaderboardAdapter().fetch(fixture_collection(), tmp_path)
 

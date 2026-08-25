@@ -4,7 +4,7 @@ from pathlib import Path, PurePosixPath
 
 from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
-from ..github_source import AcquisitionError, download_github_tarball, tarball_files
+from ..github_source import AcquisitionError, iter_github_tarball_members
 from .base import AcquisitionResult, SourceAdapter
 
 
@@ -13,8 +13,6 @@ class OmsimAdapter(SourceAdapter):
     pinned_revision = "758f4a4b4c9e24f50294801da774a0960c922bab"
 
     def fetch(self, collection: CollectionDefinition, cache_root: Path) -> AcquisitionResult:
-        tarball = download_github_tarball("ianh", "omsim", self.pinned_revision)
-        files = tarball_files(tarball, suffix=".puzzle")
         expected = {
             row["game_puzzle_id"]: row["puzzle_id"]
             for row in collection.inventory_rows
@@ -22,8 +20,14 @@ class OmsimAdapter(SourceAdapter):
         }
         matches: dict[str, tuple[str, str, bytes]] = {}
 
-        for upstream_path, payload in files.items():
+        for upstream_path, member in iter_github_tarball_members(
+            "ianh",
+            "omsim",
+            self.pinned_revision,
+        ):
             path = PurePosixPath(upstream_path)
+            if path.suffix != ".puzzle":
+                continue
             if path.parts[:3] != ("test", "puzzle", "campaign"):
                 continue
             game_puzzle_id = path.stem
@@ -36,7 +40,7 @@ class OmsimAdapter(SourceAdapter):
                     f"omsim found multiple campaign fixtures for {game_puzzle_id}: "
                     f"{first_path}, {upstream_path}"
                 )
-            matches[game_puzzle_id] = (puzzle_id, upstream_path, payload)
+            matches[game_puzzle_id] = (puzzle_id, upstream_path, member.read())
 
         cache = ContentAddressedCache(cache_root)
         covered: set[str] = set()
