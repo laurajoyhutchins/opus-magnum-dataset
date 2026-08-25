@@ -85,6 +85,27 @@ def test_aggregate_rejects_unexpected_puzzle_ids():
         )
 
 
+def test_aggregate_rejects_empty_or_duplicate_expected_puzzle_ids():
+    identity, run = identities()
+    puzzle = puzzle_result("puzzle-a")
+
+    with pytest.raises(benchmark.BenchmarkResultError):
+        benchmark.aggregate_benchmark_report(
+            identity=identity,
+            run=run,
+            expected_puzzle_ids=[],
+            puzzle_results=[puzzle],
+        )
+
+    with pytest.raises(benchmark.BenchmarkResultError):
+        benchmark.aggregate_benchmark_report(
+            identity=identity,
+            run=run,
+            expected_puzzle_ids=["puzzle-a", "puzzle-a"],
+            puzzle_results=[puzzle],
+        )
+
+
 def test_aggregate_accepts_complete_collection_independent_of_input_order():
     identity, run = identities()
     report = benchmark.aggregate_benchmark_report(
