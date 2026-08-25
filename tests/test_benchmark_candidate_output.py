@@ -154,6 +154,7 @@ def test_benchmark_identity_names_and_commits_to_candidate_output_compiler() -> 
         attempt_profile="one-shot",
         attempt_budget=1,
         scoring_version="solve-report-v1",
+        executable_inventory_sha256="6" * 64,
     )
 
     record = benchmark.benchmark_identity_record(identity)
