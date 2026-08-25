@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import stat
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 
@@ -40,3 +41,51 @@ def resolve_confined_path(root: Path, relative_path: str) -> Path:
     except ValueError as exc:
         raise ValueError(f"manifest path escapes root: {relative_path!r}") from exc
     return resolved
+
+
+def require_directory_chain(root: Path, directory: Path, *, create: bool) -> bool:
+    """Validate canonical directory parents without following descendant symlinks.
+
+    Returns ``False`` when a required component is missing and ``create`` is false.
+    Existing descendants must all be real directories. When ``create`` is true,
+    missing descendants are created one component at a time and revalidated.
+    """
+
+    root = Path(root).absolute()
+    directory = Path(directory).absolute()
+    try:
+        relative = directory.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"directory escapes root: {directory}") from exc
+
+    if create:
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise ValueError(f"cannot create root directory: {root}") from exc
+
+    current = root
+    for part in relative.parts:
+        current = current / part
+        try:
+            info = current.lstat()
+        except FileNotFoundError:
+            if not create:
+                return False
+            try:
+                current.mkdir()
+            except FileExistsError:
+                pass
+            except OSError as exc:
+                raise ValueError(f"cannot create directory component: {current}") from exc
+            try:
+                info = current.lstat()
+            except OSError as exc:
+                raise ValueError(f"cannot validate directory component: {current}") from exc
+        except OSError as exc:
+            raise ValueError(f"cannot validate directory component: {current}") from exc
+
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+            raise ValueError(f"unsafe directory component: {current}")
+
+    return True
