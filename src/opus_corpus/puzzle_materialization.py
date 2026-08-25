@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import asdict, dataclass, is_dataclass
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 from .adapters.molecule_db import MoleculeDbAdapter
 from .adapters.official_game import (
@@ -21,6 +23,9 @@ from .ingestion import (
     ObservedArtifactCandidate,
     ingest_artifacts,
 )
+from .puzzle_decoder import decode_puzzle_definition_evidence
+from .puzzle_definition import PuzzleDefinitionEvidence
+from .puzzle_parser import parse_puzzle_bytes
 
 
 class PuzzleMaterializationError(CorpusError):
@@ -273,6 +278,96 @@ def materialize_puzzle_artifacts(
             semantic_puzzle_ids,
         ),
     )
+
+
+def _observation_mapping(value: object) -> dict[str, Any]:
+    if is_dataclass(value) and not isinstance(value, type):
+        return asdict(value)
+    if isinstance(value, Mapping):
+        return dict(value)
+    raise PuzzleMaterializationError("puzzle observation must be a mapping or dataclass")
+
+
+def materialize_puzzle_artifact_semantic_evidence(
+    artifacts: Iterable[ArtifactRecord],
+    observations: Iterable[object],
+    store: ContentStore,
+) -> tuple[PuzzleDefinitionEvidence, ...]:
+    """Decode complete semantic evidence from canonical exact puzzle artifacts."""
+
+    observation_rows = tuple(_observation_mapping(value) for value in observations)
+    evidence: list[PuzzleDefinitionEvidence] = []
+    seen_artifact_ids: set[str] = set()
+
+    for artifact in sorted(artifacts, key=lambda row: (row.puzzle_id, row.artifact_id)):
+        if artifact.artifact_id in seen_artifact_ids:
+            raise PuzzleMaterializationError(
+                f"duplicate puzzle artifact {artifact.artifact_id} in semantic materialization"
+            )
+        seen_artifact_ids.add(artifact.artifact_id)
+        if artifact.artifact_kind != "puzzle" or artifact.artifact_format != "puzzle":
+            raise PuzzleMaterializationError(
+                f"cannot decode non-puzzle artifact {artifact.artifact_id}"
+            )
+        expected_id = f"om.puzzle-artifact.sha256.{artifact.sha256}"
+        if artifact.artifact_id != expected_id:
+            raise PuzzleMaterializationError(
+                f"puzzle artifact identity does not match exact bytes: {artifact.artifact_id}"
+            )
+
+        stored = store.require(artifact.sha256, artifact.byte_length)
+        if artifact.object_key != stored.object_key:
+            raise PuzzleMaterializationError(
+                f"puzzle artifact object key does not match content store: {artifact.artifact_id}"
+            )
+
+        matching_observations: list[str] = []
+        for row in observation_rows:
+            if row.get("artifact_id") != artifact.artifact_id:
+                continue
+            if row.get("source_role") != "artifact":
+                continue
+            if row.get("artifact_kind") != "puzzle":
+                raise PuzzleMaterializationError(
+                    f"{artifact.artifact_id}: observation has wrong artifact kind"
+                )
+            if row.get("puzzle_id") != artifact.puzzle_id:
+                raise PuzzleMaterializationError(
+                    f"{artifact.artifact_id}: observation references a different puzzle"
+                )
+            if row.get("observed_sha256") != artifact.sha256:
+                raise PuzzleMaterializationError(
+                    f"{artifact.artifact_id}: observation sha256 does not match exact artifact"
+                )
+            observation_id = row.get("observation_id")
+            if not isinstance(observation_id, str) or not observation_id:
+                raise PuzzleMaterializationError(
+                    f"{artifact.artifact_id}: observation has invalid observation_id"
+                )
+            matching_observations.append(observation_id)
+
+        if not matching_observations:
+            raise PuzzleMaterializationError(
+                f"{artifact.artifact_id}: no matching artifact observation"
+            )
+
+        try:
+            payload = store.object_path(stored.sha256).read_bytes()
+        except OSError as exc:
+            raise PuzzleMaterializationError(
+                f"cannot read puzzle artifact bytes: {artifact.artifact_id}"
+            ) from exc
+        parsed = parse_puzzle_bytes(payload)
+        evidence.append(
+            decode_puzzle_definition_evidence(
+                parsed,
+                puzzle_id=artifact.puzzle_id,
+                observation_ids=tuple(sorted(set(matching_observations))),
+                puzzle_artifact_id=artifact.artifact_id,
+            )
+        )
+
+    return tuple(evidence)
 
 
 def require_complete_puzzle_coverage(result: PuzzleMaterializationResult) -> None:
