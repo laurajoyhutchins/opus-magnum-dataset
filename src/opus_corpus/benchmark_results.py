@@ -202,12 +202,22 @@ def aggregate_benchmark_report(
     *,
     identity: BenchmarkIdentity,
     run: BenchmarkRunIdentity,
+    expected_puzzle_ids: Sequence[str],
     puzzle_results: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
     benchmark_record = benchmark_identity_record(identity)
     expected_benchmark_id = benchmark_record["benchmark_id"]
     if run.benchmark_id != expected_benchmark_id:
         raise BenchmarkResultError("benchmark run identity does not match benchmark identity")
+
+    expected_ids = list(expected_puzzle_ids)
+    if not expected_ids:
+        raise BenchmarkResultError("aggregate benchmark reports require expected puzzle IDs")
+    if any(not isinstance(puzzle_id, str) or not puzzle_id for puzzle_id in expected_ids):
+        raise BenchmarkResultError("expected puzzle IDs must be non-empty strings")
+    expected_set = set(expected_ids)
+    if len(expected_set) != len(expected_ids):
+        raise BenchmarkResultError("expected puzzle IDs must not contain duplicates")
 
     run_record = benchmark_run_identity_record(run)
     expected_run_id = run_record["run_id"]
@@ -244,6 +254,14 @@ def aggregate_benchmark_report(
                 f"puzzle result {result['puzzle_id']!r} exceeds benchmark attempt budget"
             )
         normalized_results.append(rebuilt)
+
+    if seen_puzzles != expected_set:
+        missing = sorted(expected_set - seen_puzzles)
+        unexpected = sorted(seen_puzzles - expected_set)
+        raise BenchmarkResultError(
+            "benchmark puzzle coverage does not match collection: "
+            f"missing={missing!r}, unexpected={unexpected!r}"
+        )
 
     normalized_results.sort(key=lambda result: result["puzzle_id"])
     attempts = [attempt for result in normalized_results for attempt in result["attempts"]]
