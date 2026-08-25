@@ -4,7 +4,6 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .errors import PayloadPolicyError, ValidationError
-from .release_configs import PAYLOAD_FIELDS as PAYLOAD_FIELDS
 from .release_configs import get_release_config
 
 POLICIES = {"metadata-only", "include-permitted"}
