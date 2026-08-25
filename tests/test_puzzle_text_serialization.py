@@ -109,6 +109,22 @@ def test_model_puzzle_text_serializer_json_escapes_string_content() -> None:
     assert len(rendered.splitlines()) == 11
 
 
+def test_model_puzzle_text_serializer_escapes_unicode_line_separators() -> None:
+    rendered = ModelPuzzleTextSerializer().serialize_puzzle(
+        _puzzle_definition(atom_type="salt\u0085\u2028\u2029")
+    )
+
+    assert "\\u0085" in rendered
+    assert "\\u2028" in rendered
+    assert "\\u2029" in rendered
+    assert len(rendered.splitlines()) == 11
+
+
+def test_model_puzzle_text_serializer_version_is_not_constructor_configurable() -> None:
+    with pytest.raises(TypeError):
+        ModelPuzzleTextSerializer(version="3")
+
+
 def test_model_puzzle_text_serializer_fails_closed_on_invalid_definition() -> None:
     puzzle = _puzzle_definition()
     del puzzle["products"]
