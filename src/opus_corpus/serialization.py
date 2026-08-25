@@ -5,82 +5,77 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from jsonschema import Draft202012Validator
-
 from .errors import CorpusError
 from .hashing import canonical_json_bytes
-from .schema_resources import load_schema_resource
+from .puzzle_definition import PuzzleDefinitionError, validate_puzzle_definition
 
-NormalizedRecord = Mapping[str, Any]
+Record = Mapping[str, Any]
 
 
 @runtime_checkable
-class NormalizedPuzzleSerializer(Protocol):
-    """Serializer contract for derived normalized puzzle records."""
+class PuzzleDefinitionSerializer(Protocol):
+    """Serializer contract for canonical semantic puzzle definitions."""
 
     format_name: str
     version: str
 
-    def serialize_puzzle(self, puzzle: NormalizedRecord) -> str: ...
+    def serialize_puzzle(self, puzzle: Record) -> str: ...
 
 
 @runtime_checkable
-class NormalizedSerializer(NormalizedPuzzleSerializer, Protocol):
-    """Serializer contract for derived normalized puzzle and solution records."""
+class CorpusSerializer(PuzzleDefinitionSerializer, Protocol):
+    """Serializer contract for semantic puzzles and normalized solutions."""
 
-    def serialize_solution(self, solution: NormalizedRecord) -> str: ...
+    def serialize_solution(self, solution: Record) -> str: ...
 
 
 class PuzzleSerializationError(CorpusError):
-    """Raised when a normalized puzzle cannot be serialized safely."""
+    """Raised when a semantic puzzle definition cannot be serialized safely."""
 
 
 @dataclass(frozen=True, slots=True)
 class CanonicalJsonSerializer:
-    """Deterministic baseline serializer for normalized records."""
+    """Deterministic baseline serializer for canonical corpus records."""
 
     format_name: str = "canonical-json"
     version: str = "1"
 
-    def serialize_puzzle(self, puzzle: NormalizedRecord) -> str:
+    def serialize_puzzle(self, puzzle: Record) -> str:
         return canonical_json_bytes(puzzle).decode("utf-8")
 
-    def serialize_solution(self, solution: NormalizedRecord) -> str:
+    def serialize_solution(self, solution: Record) -> str:
         return canonical_json_bytes(solution).decode("utf-8")
 
 
 class ModelPuzzleTextSerializer:
-    """Versioned model-oriented text projection of a normalized puzzle."""
+    """Versioned model-oriented text projection of a PuzzleDefinition."""
 
     __slots__ = ()
 
     format_name = "opus-magnum-puzzle-text"
-    version = "1"
+    version = "2"
 
-    def serialize_puzzle(self, puzzle: NormalizedRecord) -> str:
-        _validate_normalized_puzzle(puzzle)
+    def serialize_puzzle(self, puzzle: Record) -> str:
+        try:
+            validate_puzzle_definition(puzzle)
+        except PuzzleDefinitionError as exc:
+            raise PuzzleSerializationError(f"invalid puzzle definition: {exc}") from exc
+
         fields = (
+            ("puzzle_definition_id", puzzle["puzzle_definition_id"]),
             ("puzzle_id", puzzle["puzzle_id"]),
             ("allowed_parts", puzzle["allowed_parts"]),
+            ("allowed_instructions", puzzle["allowed_instructions"]),
             ("reagents", puzzle["reagents"]),
             ("products", puzzle["products"]),
-            ("constraints", puzzle["constraints"]),
+            ("output_scale", puzzle["output_scale"]),
+            ("target_output_count", puzzle["target_output_count"]),
+            ("production", puzzle["production"]),
+            ("production_constraints", puzzle["production_constraints"]),
         )
         lines = [f"OPUS_MAGNUM_PUZZLE_TEXT_V{self.version}"]
         lines.extend(f"{name}={_model_json_value(value)}" for name, value in fields)
         return "\n".join(lines) + "\n"
-
-
-def _validate_normalized_puzzle(puzzle: NormalizedRecord) -> None:
-    schema = load_schema_resource("normalized-puzzle.schema.json").schema
-    validator = Draft202012Validator(schema)
-    errors = sorted(
-        validator.iter_errors(puzzle),
-        key=lambda error: (list(error.absolute_path), error.message),
-    )
-    if errors:
-        detail = "; ".join(error.message for error in errors)
-        raise PuzzleSerializationError(f"normalized puzzle violates schema: {detail}")
 
 
 def _model_json_value(value: Any) -> str:
@@ -98,7 +93,7 @@ def _model_json_value(value: Any) -> str:
         return encoded
     except (TypeError, ValueError, UnicodeEncodeError, RecursionError) as exc:
         raise PuzzleSerializationError(
-            "normalized puzzle contains a value that is not canonical JSON"
+            "puzzle definition contains a value that is not canonical JSON"
         ) from exc
 
 
@@ -144,7 +139,7 @@ def _validate_model_json_string(value: str) -> None:
         value.encode("utf-8")
     except UnicodeEncodeError as exc:
         raise PuzzleSerializationError(
-            "normalized puzzle contains a value that is not canonical JSON"
+            "puzzle definition contains a value that is not canonical JSON"
         ) from exc
 
 
@@ -158,5 +153,5 @@ def _escape_model_line_separators(value: str) -> str:
 
 def _raise_noncanonical_json() -> None:
     raise PuzzleSerializationError(
-        "normalized puzzle contains a value that is not canonical JSON"
+        "puzzle definition contains a value that is not canonical JSON"
     )
