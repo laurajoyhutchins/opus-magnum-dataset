@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Opus Magnum corpus configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["corpus", "parquet", "release", "huggingface"],
+  "properties": {
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "output_root": {"type": "string"}
+      }
+    },
+    "parquet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compression": {"type": "string"},
+        "use_dictionary": {"type": "boolean"},
+        "write_statistics": {"type": "boolean"}
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config_names", "payload_policy_default"],
+      "properties": {
+        "config_names": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "payload_policy_default": {
+          "type": "string",
+          "enum": ["metadata-only", "include-permitted"]
+        }
+      }
+    },
+    "huggingface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_id"],
+      "properties": {
+        "repo_id": {"type": "string", "minLength": 1},
+        "private": {"type": "boolean"}
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    }
+  }
+}

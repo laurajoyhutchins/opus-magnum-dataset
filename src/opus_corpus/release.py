@@ -24,7 +24,7 @@ from .path_safety import resolve_confined_path
 from .payload import validate_payload_policy
 from .release_configs import CANONICAL_ID_FIELDS, CONFIG_NAMES, SCHEMA_FILES
 from .release_inputs import load_release_inputs, sort_records
-from .schema_resources import load_schema_resource
+from .schema_resources import collect_schema_errors, load_schema_resource
 
 RELEASE_MANIFEST_FORMAT_VERSION = 2
 COVERAGE_POLICIES = ("complete", "subset")
@@ -318,14 +318,15 @@ def _validate_rows(
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     errors: list[ValidationError] = []
     for index, row in enumerate(rows, start=1):
-        row_errors = sorted(
-            validator.iter_errors(row),
-            key=lambda item: (list(item.path), item.message),
-        )
-        for error in row_errors:
-            errors.append(
-                ValidationError("schema_invalid", error.message, config_name, index)
+        errors.extend(
+            collect_schema_errors(
+                validator,
+                row,
+                code="schema_invalid",
+                path=config_name,
+                row=index,
             )
+        )
     if errors:
         raise ReleaseValidationError(errors)
 

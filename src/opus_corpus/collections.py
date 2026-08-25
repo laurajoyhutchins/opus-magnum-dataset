@@ -11,7 +11,7 @@ from jsonschema import Draft202012Validator
 
 from .errors import CollectionValidationError, ValidationError
 from .hashing import sha256_file
-from .schema_resources import load_schema_resource
+from .schema_resources import collect_schema_errors, load_schema_resource
 
 INVENTORY_HEADER = [
     "puzzle_id",
@@ -45,21 +45,6 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _schema_errors(
-    validator: Draft202012Validator,
-    value: Any,
-    *,
-    code: str,
-    path: str,
-    row: int | None = None,
-) -> list[ValidationError]:
-    errors = sorted(
-        validator.iter_errors(value),
-        key=lambda error: (list(error.path), error.message),
-    )
-    return [ValidationError(code, error.message, path, row) for error in errors]
-
-
 def validate_collection(manifest_path: Path) -> CollectionDefinition:
     manifest_path = Path(manifest_path).resolve()
     errors: list[ValidationError] = []
@@ -77,7 +62,7 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
         load_schema_resource("collection-manifest.schema.json").schema
     )
     errors.extend(
-        _schema_errors(
+        collect_schema_errors(
             manifest_validator,
             manifest,
             code="manifest_schema_error",
@@ -163,7 +148,7 @@ def validate_collection(manifest_path: Path) -> CollectionDefinition:
                             continue
                         row = dict(zip(INVENTORY_HEADER, values, strict=True))
                         errors.extend(
-                            _schema_errors(
+                            collect_schema_errors(
                                 row_validator,
                                 row,
                                 code="inventory_row_error",

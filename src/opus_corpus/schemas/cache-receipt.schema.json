@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Content-addressed cache receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_id",
+    "revision",
+    "upstream_path",
+    "sha256",
+    "byte_length",
+    "rights_status",
+    "retrieved_at"
+  ],
+  "properties": {
+    "source_id": {"type": "string"},
+    "revision": {"type": "string"},
+    "upstream_path": {"type": "string"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "byte_length": {"type": "integer", "minimum": 0},
+    "rights_status": {"type": "string"},
+    "retrieved_at": {"type": "string"}
+  }
+}

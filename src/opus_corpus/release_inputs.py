@@ -10,7 +10,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from . import release_configs as _release_configs
 from .errors import ReleaseValidationError, ValidationError
 from .hashing import sha256_file
-from .schema_resources import load_schema_resource
+from .schema_resources import collect_schema_errors, load_schema_resource
 
 CONFIG_NAMES = _release_configs.CONFIG_NAMES
 SCHEMA_FILES = _release_configs.SCHEMA_FILES
@@ -92,16 +92,15 @@ def load_release_inputs(input_dir: Path) -> LoadedReleaseInputs:
                     )
                 )
                 continue
-            row_errors = sorted(
-                validator.iter_errors(row),
-                key=lambda error: (list(error.path), error.message),
-            )
-            for error in row_errors:
-                errors.append(
-                    ValidationError(
-                        "schema_invalid", error.message, path.as_posix(), line_number
-                    )
+            errors.extend(
+                collect_schema_errors(
+                    validator,
+                    row,
+                    code="schema_invalid",
+                    path=path.as_posix(),
+                    row=line_number,
                 )
+            )
             config_rows.append(_canonicalize_row(config_name, row))
         if not config_rows:
             errors.append(
