@@ -20,16 +20,19 @@ The `opus-corpus` CLI owns collection validation, source acquisition, and genera
 opus-corpus collections validate [manifest]
 opus-corpus fetch <collection> --source <source> --cache <path> [--source-root <path>]
 opus-corpus release build <collection> --input <path> --output <path> --payload-policy metadata-only [--coverage-policy complete|subset]
+opus-corpus release v1 <collection> --cache <path> --output <path> --libverify <path> --libverify-sha256 <sha256> [--payload-policy metadata-only|include-permitted]
 opus-corpus release validate <collection> --output <path>
 opus-corpus release stage <collection> --output <path> --destination <path>
 opus-corpus release publish <collection> --output <path>
 ```
 
+`release v1` is network-free. Its cache must already contain the pinned source facts required by the frozen collection, including exact verifier-usable puzzle bytes. The command requires both an explicitly provisioned `libverify` shared-library path and its expected SHA-256; it does not download or implicitly trust a verifier binary.
+
 `--source-root` is required only for the `official-game` adapter. That adapter consumes a strict local `official-puzzles.toml`, preserves the manifest itself as an immutable source fact, and stores exact local puzzle bytes with `local_fetch_only` rights through the shared content-addressed cache.
 
 A release materializes four independently loadable configs: `puzzles`, `solutions`, `observations`, and `normalized`. Collection IDs become immutable Hugging Face split names, so `base-game-2026-06-16` maps to `base_game_2026_06_16` rather than a generic `train` split.
 
-Generated release state includes deterministic logical-record hashes, a release manifest, Parquet output hashes, and a generated dataset card. Hugging Face is a downstream distribution surface; GitHub repository facts and canonical build inputs remain authoritative.
+Generated release state includes deterministic logical-record hashes, a release manifest, Parquet output hashes, and a generated dataset card. Hugging Face is a downstream distribution surface; GitHub repository facts and canonical build inputs remain authoritative. The staged Hub projection declares `license: other` with `license_name: Mixed/source-specific rights` and includes a generated `LICENSE` rights notice rather than presenting the generated corpus as wholesale MIT-licensed.
 
 Coverage policy is explicit build state. `complete` is the default and requires the exact frozen collection plus at least one verified solution for every puzzle. `subset` is an explicit development/fixture mode and is recorded in the release manifest. Human-editable release metadata cannot relax the build policy. Per-puzzle candidate, verified, rejected, and coverage-state facts are derived into `release_metadata.coverage.by_puzzle` in the generated manifest.
 
@@ -46,7 +49,7 @@ The release validator reapplies the payload policy after reading generated Parqu
 
 The project's repository-authored material is licensed under the [MIT License](LICENSE). That repository license does not grant blanket rights to official game content, player-authored solutions, or other third-party source artifacts.
 
-[`RIGHTS.md`](RIGHTS.md) is the repository-wide authority for license scope and redistribution policy. Source-specific rights evidence remains documented with provenance, and generated releases must preserve per-artifact rights rather than infer a dataset license from the repository's MIT license.
+[`RIGHTS.md`](RIGHTS.md) is the repository-wide authority for license scope and redistribution policy. Source-specific rights evidence remains documented with provenance, and generated releases must preserve per-artifact rights rather than infer a dataset license from the repository's MIT license. Hugging Face publication therefore uses a mixed/source-specific rights notice rather than tagging the generated corpus itself as MIT.
 
 ## Development
 
@@ -83,7 +86,17 @@ uv run opus-corpus release stage base-game-2026-06-16 \
   --destination .tmp-stage
 ```
 
-Generated release directories are projections and should not be treated as repository authority.
+With a complete pinned cache and hash-pinned verifier binary, the complete offline path is:
+
+```bash
+uv run opus-corpus release v1 base-game-2026-06-16 \
+  --cache .cache \
+  --output .release/base-game-2026-06-16 \
+  --libverify /path/to/libverify.so \
+  --libverify-sha256 <expected-64-hex-sha256>
+```
+
+The command fails closed if exact puzzle coverage is incomplete, complete solution coverage cannot be satisfied, normalization disagrees with verifier-parseable artifacts, the output destination is unsafe, or the second full offline rebuild produces different canonical release-manifest bytes. Generated release directories are projections and should not be treated as repository authority.
 
 ## Design principles
 
