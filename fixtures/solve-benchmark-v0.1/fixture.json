@@ -1,7 +1,7 @@
 {
   "collection_id": "solve-benchmark-hermetic-v1",
   "expected": {
-    "benchmark_id": "om.benchmark.0000000000000000000000000000000000000000000000000000000000000000",
+    "benchmark_id": "om.benchmark.5353e1b9f652afe92a500ed7d33ff68568ef84bbb5b02622785eb5fb0f8d019d",
     "outcome_counts": {
       "output_compile_failed": 1,
       "puzzle_solution_mismatch": 1,
@@ -17,7 +17,7 @@
       "success"
     ],
     "report_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "run_id": "om.benchmark-run.0000000000000000000000000000000000000000000000000000000000000000"
+    "run_id": "om.benchmark-run.2c378a31980337ad69a56e2430545c52bb51b3065ba8472e17a43a5cfc4e2168"
   },
   "puzzles": [
     {
