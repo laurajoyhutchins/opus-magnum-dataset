@@ -12,10 +12,8 @@ from .errors import CorpusError
 from .hashing import canonical_json_bytes
 from .libverify import OMSIM_LIBVERIFY_PROFILE
 from .path_safety import resolve_disjoint_trees
-from .puzzle_materialization import (
-    materialize_puzzle_artifacts,
-    require_complete_puzzle_coverage,
-)
+from .puzzle_facts import materialize_cached_puzzle_facts
+from .puzzle_materialization import require_complete_puzzle_coverage
 from .release import ReleaseManifest, build_release, validate_release
 from .release_materialization import materialize_release_inputs
 from .solution_materialization import materialize_solution_facts
@@ -81,7 +79,7 @@ def _build_once(
     verifier: Verifier,
     payload_policy: str,
 ) -> tuple[ReleaseManifest, Path]:
-    puzzles = materialize_puzzle_artifacts(collection, cache_root)
+    puzzles = materialize_cached_puzzle_facts(collection, cache_root)
     require_complete_puzzle_coverage(puzzles)
 
     solutions = materialize_solution_facts(collection, cache_root)
@@ -112,10 +110,10 @@ def _build_once(
     materialize_release_inputs(
         collection,
         input_dir,
+        puzzle_definitions=puzzles.definitions,
         puzzle_artifacts=puzzles.artifacts,
-        puzzle_provenance=puzzles.provenance,
         solution_artifacts=solutions.artifacts,
-        observations=solutions.observations,
+        observations=(*puzzles.observations, *solutions.observations),
         verifications=verifications,
         normalized_solutions=normalized,
         payload_policy=payload_policy,
