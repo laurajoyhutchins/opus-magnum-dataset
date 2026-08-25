@@ -34,7 +34,7 @@ class PuzzleDefinitionConflictError(PuzzleDefinitionError):
 @dataclass(frozen=True, slots=True)
 class PuzzleDefinitionEvidence:
     puzzle_id: str
-    observation_id: str
+    observation_ids: tuple[str, ...]
     claims: Mapping[str, Any]
     puzzle_artifact_id: str | None = None
 
@@ -277,6 +277,9 @@ def puzzle_definition_id(record: Mapping[str, Any]) -> str:
     version = record.get("schema_version", SCHEMA_VERSION)
     if version != SCHEMA_VERSION:
         raise PuzzleDefinitionError(f"unsupported puzzle definition schema version {version!r}")
+    missing = [name for name in _SEMANTIC_FIELDS if name not in record]
+    if missing:
+        raise PuzzleDefinitionError(f"missing semantic fields: {', '.join(missing)}")
     semantics = _canonical_semantics({name: record[name] for name in _SEMANTIC_FIELDS})
     identity_body = {
         "schema_version": SCHEMA_VERSION,
@@ -344,6 +347,19 @@ def _first_difference(left: object, right: object, path: str) -> str:
     return path
 
 
+def _evidence_observation_ids(row: PuzzleDefinitionEvidence) -> tuple[str, ...]:
+    observation_ids = tuple(
+        sorted({_string(value, label="observation_id") for value in row.observation_ids})
+    )
+    if not observation_ids:
+        raise PuzzleDefinitionError("semantic evidence requires at least one observation_id")
+    return observation_ids
+
+
+def _evidence_label(observation_ids: tuple[str, ...]) -> str:
+    return ", ".join(observation_ids)
+
+
 def reconcile_puzzle_definition(
     puzzle_id: str,
     evidence: Iterable[PuzzleDefinitionEvidence],
@@ -352,29 +368,32 @@ def reconcile_puzzle_definition(
     rows = tuple(
         sorted(
             evidence,
-            key=lambda row: (row.observation_id, row.puzzle_artifact_id or ""),
+            key=lambda row: (_evidence_observation_ids(row), row.puzzle_artifact_id or ""),
         )
     )
     observations: set[str] = set()
     artifacts: set[str] = set()
-    claims_by_field: dict[str, list[tuple[str, Any]]] = {name: [] for name in _SEMANTIC_FIELDS}
+    claims_by_field: dict[str, list[tuple[tuple[str, ...], Any]]] = {
+        name: [] for name in _SEMANTIC_FIELDS
+    }
 
     for row in rows:
         if row.puzzle_id != puzzle_id:
             raise PuzzleDefinitionError(
                 f"semantic evidence for {row.puzzle_id} cannot resolve {puzzle_id}"
             )
-        observation_id = _string(row.observation_id, label="observation_id")
-        observations.add(observation_id)
+        observation_ids = _evidence_observation_ids(row)
+        observations.update(observation_ids)
         if row.puzzle_artifact_id is not None:
             artifacts.add(_string(row.puzzle_artifact_id, label="puzzle_artifact_id"))
         extra = sorted(set(row.claims) - set(_SEMANTIC_FIELDS))
         if extra:
             raise PuzzleDefinitionError(
-                f"{observation_id}: unknown semantic claims: {', '.join(extra)}"
+                f"{_evidence_label(observation_ids)}: unknown semantic claims: "
+                f"{', '.join(extra)}"
             )
         for name, value in row.claims.items():
-            claims_by_field[name].append((observation_id, _canonical_field(name, value)))
+            claims_by_field[name].append((observation_ids, _canonical_field(name, value)))
 
     merged: dict[str, Any] = {}
     missing: list[str] = []
@@ -383,13 +402,14 @@ def reconcile_puzzle_definition(
         if not claims:
             missing.append(name)
             continue
-        first_observation, first_value = claims[0]
-        for observation_id, value in claims[1:]:
+        first_observations, first_value = claims[0]
+        for observation_ids, value in claims[1:]:
             if value != first_value:
                 difference = _first_difference(first_value, value, name)
                 raise PuzzleDefinitionConflictError(
                     f"{puzzle_id}: conflicting semantic evidence at {difference}: "
-                    f"{first_observation}, {observation_id}"
+                    f"{_evidence_label(first_observations)}; "
+                    f"{_evidence_label(observation_ids)}"
                 )
         merged[name] = first_value
 
