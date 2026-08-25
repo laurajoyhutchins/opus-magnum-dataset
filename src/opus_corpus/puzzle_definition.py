@@ -54,7 +54,7 @@ def _mapping(value: object, *, label: str) -> dict[str, Any]:
 
 
 def _sequence(value: object, *, label: str) -> list[Any]:
-    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+    if isinstance(value, str | bytes) or not isinstance(value, Sequence):
         raise PuzzleDefinitionError(f"{label} must be an array")
     return list(value)
 
