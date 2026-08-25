@@ -8,7 +8,7 @@ from opus_corpus.adapters.omsim import OmsimAdapter
 from opus_corpus.github_source import download_github_tarball, tarball_files
 from opus_corpus.normalization import SolutionNormalizationInput
 from opus_corpus.solution_normalizer import OpusSolutionNormalizer, SolutionNormalizationError
-from opus_corpus.solution_parser import SolutionParseError, parse_solution_bytes
+from opus_corpus.solution_parser import parse_solution_bytes
 
 
 def _u32(value: int) -> bytes:
