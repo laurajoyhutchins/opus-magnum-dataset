@@ -36,7 +36,18 @@ class VerificationResult:
     error_detail: str | None
 
 
+@dataclass(frozen=True)
+class VerifierIdentity:
+    verifier_implementation: str
+    verifier_revision: str
+    verifier_sha256: str | None
+    validation_profile: str
+
+
 class Verifier(Protocol):
+    @property
+    def identity(self) -> VerifierIdentity: ...
+
     def verify(self, value: VerificationInput) -> VerificationResult: ...
 
 

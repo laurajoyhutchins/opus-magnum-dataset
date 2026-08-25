@@ -6,25 +6,29 @@ from typing import Protocol
 
 from .errors import CorpusError
 from .hashing import sha256_file
-from .verification import VerificationInput, VerificationResult, verification_id
+from .verification import (
+    VerificationInput,
+    VerificationResult,
+    VerifierIdentity,
+    verification_id,
+)
 
 OMSIM_LIBVERIFY_REVISION = "758f4a4b4c9e24f50294801da774a0960c922bab"
 OMSIM_LIBVERIFY_PROFILE = "omsim-libverify-v1"
 OMSIM_LIBVERIFY_IMPLEMENTATION = "omsim-libverify"
-OMSIM_LIBVERIFY_CYCLE_LIMIT = 150000
+OMSIM_LIBVERIFY_CYCLE_LIMIT = 1_000_000
 
-_METRICS = ("cost", "instructions", "cycles", "area")
-_PARSE_ERROR_SOURCES = frozenset({"puzzle file", "solution file"})
+_METRICS = ("cost", "cycles", "area", "instructions")
+_PARSE_ERROR_SOURCES = {"puzzle", "solution"}
 _ERROR_CODES = {
-    "puzzle file": "puzzle_parse_failed",
-    "solution file": "solution_parse_failed",
-    "simulation": "simulation_failed",
-    "metric": "metric_evaluation_failed",
+    "puzzle": "puzzle_parse_failed",
+    "solution": "solution_parse_failed",
+    "verifier": "simulation_failed",
 }
 
 
 class LibverifyError(CorpusError):
-    """Raised when libverify cannot be invoked under the pinned contract."""
+    """Raised when the pinned libverify contract cannot be used safely."""
 
 
 class LibverifyBackend(Protocol):
@@ -34,8 +38,6 @@ class LibverifyBackend(Protocol):
 
     def destroy(self, handle: object) -> None: ...
 
-    def set_cycle_limit(self, handle: object, cycle_limit: int) -> None: ...
-
     def error(self, handle: object) -> str | None: ...
 
     def error_source(self, handle: object) -> str | None: ...
@@ -44,16 +46,18 @@ class LibverifyBackend(Protocol):
 
     def error_location(self, handle: object) -> tuple[int, int]: ...
 
+    def set_cycle_limit(self, handle: object, cycle_limit: int) -> None: ...
+
     def evaluate_metric(self, handle: object, name: str) -> int: ...
 
 
 class CtypesLibverifyBackend:
-    """Small ctypes boundary over the documented libverify FFI."""
+    """ctypes binding for the small stable surface exported by omsim/libverify."""
 
-    def __init__(self, library: object, binary_sha256: str) -> None:
+    def __init__(self, library: object, *, binary_sha256: str) -> None:
         self._library = library
         self.binary_sha256 = binary_sha256
-        self._configure_abi()
+        self._configure_signatures()
 
     @classmethod
     def from_path(
@@ -62,93 +66,74 @@ class CtypesLibverifyBackend:
         *,
         expected_sha256: str,
     ) -> CtypesLibverifyBackend:
-        try:
-            digest = sha256_file(path)
-        except (OSError, ValueError) as exc:
-            raise LibverifyError(f"cannot hash libverify shared library: {path}") from exc
-        if digest != expected_sha256:
+        path = Path(path)
+        actual_sha256 = sha256_file(path)
+        if actual_sha256 != expected_sha256:
             raise LibverifyError(
-                f"libverify binary sha256 mismatch for {path}: "
-                f"expected {expected_sha256}, observed {digest}"
+                "libverify binary hash mismatch: "
+                f"expected {expected_sha256}, observed {actual_sha256}"
             )
-        try:
-            library = ctypes.CDLL(str(path))
-        except OSError as exc:
-            raise LibverifyError(f"cannot load libverify shared library: {path}") from exc
-        try:
-            return cls(library, digest)
-        except AttributeError as exc:
-            raise LibverifyError(
-                f"libverify shared library is missing required ABI symbols: {path}"
-            ) from exc
+        return cls(ctypes.CDLL(str(path)), binary_sha256=actual_sha256)
 
-    def _configure_abi(self) -> None:
-        create = self._library.verifier_create_from_bytes
-        create.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_int]
-        create.restype = ctypes.c_void_p
+    def _configure_signatures(self) -> None:
+        library = self._library
+        library.verifier_create.argtypes = [
+            ctypes.POINTER(ctypes.c_ubyte),
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_ubyte),
+            ctypes.c_size_t,
+        ]
+        library.verifier_create.restype = ctypes.c_void_p
+        library.verifier_destroy.argtypes = [ctypes.c_void_p]
+        library.verifier_destroy.restype = None
+        library.verifier_error.argtypes = [ctypes.c_void_p]
+        library.verifier_error.restype = ctypes.c_char_p
+        library.verifier_error_source.argtypes = [ctypes.c_void_p]
+        library.verifier_error_source.restype = ctypes.c_char_p
+        library.verifier_error_cycle.argtypes = [ctypes.c_void_p]
+        library.verifier_error_cycle.restype = ctypes.c_int
+        library.verifier_error_location_u.argtypes = [ctypes.c_void_p]
+        library.verifier_error_location_u.restype = ctypes.c_int
+        library.verifier_error_location_v.argtypes = [ctypes.c_void_p]
+        library.verifier_error_location_v.restype = ctypes.c_int
+        library.verifier_set_cycle_limit.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        library.verifier_set_cycle_limit.restype = None
+        library.verifier_evaluate_metric.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        library.verifier_evaluate_metric.restype = ctypes.c_longlong
 
-        destroy = self._library.verifier_destroy
-        destroy.argtypes = [ctypes.c_void_p]
-        destroy.restype = None
-
-        set_cycle_limit = self._library.verifier_set_cycle_limit
-        set_cycle_limit.argtypes = [ctypes.c_void_p, ctypes.c_int]
-        set_cycle_limit.restype = None
-
-        error = self._library.verifier_error
-        error.argtypes = [ctypes.c_void_p]
-        error.restype = ctypes.c_char_p
-
-        error_source = self._library.verifier_error_source
-        error_source.argtypes = [ctypes.c_void_p]
-        error_source.restype = ctypes.c_char_p
-
-        error_cycle = self._library.verifier_error_cycle
-        error_cycle.argtypes = [ctypes.c_void_p]
-        error_cycle.restype = ctypes.c_int
-
-        error_u = self._library.verifier_error_location_u
-        error_u.argtypes = [ctypes.c_void_p]
-        error_u.restype = ctypes.c_int
-
-        error_v = self._library.verifier_error_location_v
-        error_v.argtypes = [ctypes.c_void_p]
-        error_v.restype = ctypes.c_int
-
-        evaluate_metric = self._library.verifier_evaluate_metric
-        evaluate_metric.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
-        evaluate_metric.restype = ctypes.c_int
+    @staticmethod
+    def _buffer(value: bytes) -> tuple[object, int]:
+        if not value:
+            empty = (ctypes.c_ubyte * 1)()
+            return empty, 0
+        data = (ctypes.c_ubyte * len(value)).from_buffer_copy(value)
+        return data, len(value)
 
     def create(self, puzzle_bytes: bytes, solution_bytes: bytes) -> object:
-        puzzle_buffer = ctypes.create_string_buffer(puzzle_bytes, len(puzzle_bytes) + 1)
-        solution_buffer = ctypes.create_string_buffer(solution_bytes, len(solution_bytes) + 1)
-        handle = self._library.verifier_create_from_bytes(
-            puzzle_buffer,
-            len(puzzle_bytes),
-            solution_buffer,
-            len(solution_bytes),
+        puzzle, puzzle_length = self._buffer(puzzle_bytes)
+        solution, solution_length = self._buffer(solution_bytes)
+        handle = self._library.verifier_create(
+            puzzle,
+            puzzle_length,
+            solution,
+            solution_length,
         )
         if not handle:
-            raise LibverifyError("libverify returned a null verifier handle")
+            raise LibverifyError("libverify failed to allocate a verifier handle")
         return handle
 
     def destroy(self, handle: object) -> None:
         self._library.verifier_destroy(handle)
 
-    def set_cycle_limit(self, handle: object, cycle_limit: int) -> None:
-        self._library.verifier_set_cycle_limit(handle, cycle_limit)
-
     @staticmethod
-    def _decode(value: bytes | None) -> str | None:
-        if value is None:
-            return None
-        return value.decode("utf-8")
+    def _decoded(value: bytes | None) -> str | None:
+        return value.decode("utf-8", errors="replace") if value else None
 
     def error(self, handle: object) -> str | None:
-        return self._decode(self._library.verifier_error(handle))
+        return self._decoded(self._library.verifier_error(handle))
 
     def error_source(self, handle: object) -> str | None:
-        return self._decode(self._library.verifier_error_source(handle))
+        return self._decoded(self._library.verifier_error_source(handle))
 
     def error_cycle(self, handle: object) -> int:
         return int(self._library.verifier_error_cycle(handle))
@@ -158,6 +143,9 @@ class CtypesLibverifyBackend:
             int(self._library.verifier_error_location_u(handle)),
             int(self._library.verifier_error_location_v(handle)),
         )
+
+    def set_cycle_limit(self, handle: object, cycle_limit: int) -> None:
+        self._library.verifier_set_cycle_limit(handle, cycle_limit)
 
     def evaluate_metric(self, handle: object, name: str) -> int:
         return int(self._library.verifier_evaluate_metric(handle, name.encode("utf-8")))
@@ -222,6 +210,15 @@ class LibverifyVerifier:
 
     def __init__(self, backend: LibverifyBackend) -> None:
         self._backend = backend
+
+    @property
+    def identity(self) -> VerifierIdentity:
+        return VerifierIdentity(
+            verifier_implementation=OMSIM_LIBVERIFY_IMPLEMENTATION,
+            verifier_revision=OMSIM_LIBVERIFY_REVISION,
+            verifier_sha256=self._backend.binary_sha256,
+            validation_profile=OMSIM_LIBVERIFY_PROFILE,
+        )
 
     @classmethod
     def from_library(
