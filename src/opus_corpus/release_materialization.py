@@ -12,15 +12,15 @@ from jsonschema import Draft202012Validator, FormatChecker
 from .collections import CollectionDefinition
 from .content_store import ContentStore, ContentStoreError
 from .errors import CorpusError
-from .hashing import canonical_json_bytes, sha256_bytes
+from .hashing import canonical_json_bytes
 from .normalization import normalized_solution_id
 from .payload import validate_payload_policy
+from .puzzle_definition import PuzzleDefinitionError, validate_puzzle_definition
 from .release_configs import CONFIG_NAMES
 from .release_inputs import load_schema, sort_records
 from .schema_resources import load_schema_resource
 from .verification import verification_id
 
-RELEASE_MATERIALIZER_VERSION = "release-materializer-v1"
 _DERIVED_RELEASE_METADATA_FIELDS = frozenset(
     {
         "verifier_revision",
@@ -189,62 +189,6 @@ def _payload(
     return base64.b64encode(payload).decode("ascii")
 
 
-def _observation_id(body: Mapping[str, Any]) -> str:
-    digest = sha256_bytes(canonical_json_bytes(dict(body)))
-    return f"om.observation.sha256.{digest}"
-
-
-def _puzzle_observation(
-    provenance: object,
-    puzzle_by_artifact_id: Mapping[str, Mapping[str, Any]],
-) -> dict[str, Any]:
-    row = _mapping(provenance, label="puzzle provenance")
-    artifact_id = row.get("artifact_id")
-    artifact = puzzle_by_artifact_id.get(artifact_id)
-    if artifact is None:
-        raise ReleaseMaterializationError(
-            f"puzzle provenance references unknown artifact {artifact_id!r}"
-        )
-    if row.get("puzzle_id") != artifact.get("puzzle_id"):
-        raise ReleaseMaterializationError(
-            f"{artifact_id}: puzzle provenance references a different puzzle"
-        )
-    source_role = row.get("source_role")
-    if source_role == "artifact":
-        observation_role = "artifact"
-    elif source_role == "evidence":
-        observation_role = "metadata"
-    else:
-        raise ReleaseMaterializationError(
-            f"{artifact_id}: unsupported puzzle provenance role {source_role!r}"
-        )
-    body = {
-        "artifact_kind": "puzzle",
-        "artifact_id": artifact_id,
-        "puzzle_id": row["puzzle_id"],
-        "source_role": observation_role,
-        "source_id": row["source_id"],
-        "source_revision": row.get("source_revision"),
-        "source_object_id": row.get("source_object_id"),
-        "source_path": row.get("source_path"),
-        "associated_artifact_path": None,
-        "source_declared_puzzle_id": row.get("source_object_id"),
-        "source_url": row.get("source_url"),
-        "author": row.get("author"),
-        "retrieved_at": row["retrieved_at"],
-        "claimed_cost": row.get("claimed_cost"),
-        "claimed_cycles": row.get("claimed_cycles"),
-        "claimed_area": row.get("claimed_area"),
-        "claimed_instructions": row.get("claimed_instructions"),
-        "observed_sha256": row.get("observed_sha256"),
-        "source_evidence_sha256": row.get("source_evidence_sha256"),
-        "source_evidence_byte_length": row.get("source_evidence_byte_length"),
-        "rights_status": row["rights_status"],
-        "importer_version": RELEASE_MATERIALIZER_VERSION,
-    }
-    return {"observation_id": _observation_id(body), **body}
-
-
 def _validate_observation(
     row: Mapping[str, Any],
     *,
@@ -268,7 +212,9 @@ def _validate_observation(
 
     body = dict(row)
     supplied_id = body.pop("observation_id")
-    if supplied_id != _observation_id(body):
+    from .observations import observation_id
+
+    if supplied_id != observation_id(body):
         raise ReleaseMaterializationError(
             "observation identity does not match canonical observation body"
         )
@@ -325,42 +271,81 @@ def _validated_rows(
     return sort_records(config_name, rows)
 
 
+def _puzzle_definitions_by_puzzle(
+    values: Iterable[object],
+    *,
+    collection_rows: Mapping[str, Mapping[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    by_definition_id = _unique_by(
+        values,
+        "puzzle_definition_id",
+        label="puzzle definition",
+    )
+    by_puzzle: dict[str, dict[str, Any]] = {}
+    for definition in by_definition_id.values():
+        try:
+            validate_puzzle_definition(definition)
+        except PuzzleDefinitionError as exc:
+            raise ReleaseMaterializationError(
+                f"invalid PuzzleDefinition: {exc}"
+            ) from exc
+        puzzle_id = definition["puzzle_id"]
+        if puzzle_id not in collection_rows:
+            raise ReleaseMaterializationError(
+                f"PuzzleDefinition references puzzle outside collection: {puzzle_id!r}"
+            )
+        if puzzle_id in by_puzzle:
+            raise ReleaseMaterializationError(
+                f"{puzzle_id}: multiple semantic PuzzleDefinitions cannot be projected"
+            )
+        by_puzzle[puzzle_id] = definition
+
+    missing = sorted(set(collection_rows) - set(by_puzzle))
+    if missing:
+        raise ReleaseMaterializationError(
+            "missing semantic PuzzleDefinition coverage for: " + ", ".join(missing)
+        )
+    return by_puzzle
+
+
 def materialize_release_records(
     collection: CollectionDefinition,
     *,
+    puzzle_definitions: Iterable[object],
     puzzle_artifacts: Iterable[object],
     solution_artifacts: Iterable[object],
     observations: Iterable[object],
     verifications: Iterable[object],
     normalized_solutions: Iterable[object],
-    puzzle_provenance: Iterable[object] = (),
     payload_policy: str = "metadata-only",
     store: ContentStore | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Project canonical entities into the existing four release configs."""
+    """Project semantic puzzles and exact verification lineage into release configs."""
 
     collection_rows = _collection_rows(collection)
-    puzzle_by_id: dict[str, dict[str, Any]] = {}
-    puzzle_by_artifact_id: dict[str, dict[str, Any]] = {}
-    for value in puzzle_artifacts:
-        artifact = _mapping(value, label="puzzle artifact")
+    definition_by_puzzle = _puzzle_definitions_by_puzzle(
+        puzzle_definitions,
+        collection_rows=collection_rows,
+    )
+
+    puzzle_by_artifact_id = _unique_by(
+        puzzle_artifacts,
+        "artifact_id",
+        label="puzzle artifact",
+    )
+    for artifact in puzzle_by_artifact_id.values():
         _validate_artifact(artifact, kind="puzzle")
         puzzle_id = artifact.get("puzzle_id")
-        if puzzle_id not in collection_rows:
+        definition = definition_by_puzzle.get(puzzle_id)
+        if definition is None:
             raise ReleaseMaterializationError(
-                f"puzzle artifact references puzzle outside collection: {puzzle_id!r}"
+                f"puzzle artifact references puzzle without semantic definition: {puzzle_id!r}"
             )
-        if puzzle_id in puzzle_by_id:
+        if artifact["artifact_id"] not in definition["puzzle_artifact_ids"]:
             raise ReleaseMaterializationError(
-                f"{puzzle_id}: multiple canonical puzzle artifacts cannot be projected"
+                f"{artifact['artifact_id']}: exact puzzle artifact is not bound to "
+                f"PuzzleDefinition {definition['puzzle_definition_id']}"
             )
-        artifact_id = artifact["artifact_id"]
-        if artifact_id in puzzle_by_artifact_id:
-            raise ReleaseMaterializationError(
-                f"{artifact_id}: puzzle artifact identity is associated with multiple puzzles"
-            )
-        puzzle_by_id[puzzle_id] = artifact
-        puzzle_by_artifact_id[artifact_id] = artifact
 
     solution_by_id = _unique_by(
         solution_artifacts,
@@ -370,14 +355,9 @@ def materialize_release_records(
     for artifact in solution_by_id.values():
         _validate_artifact(artifact, kind="solution")
         puzzle_id = artifact.get("puzzle_id")
-        if puzzle_id not in collection_rows:
+        if puzzle_id not in definition_by_puzzle:
             raise ReleaseMaterializationError(
-                f"solution artifact references puzzle outside collection: {puzzle_id!r}"
-            )
-        if puzzle_id not in puzzle_by_id:
-            raise ReleaseMaterializationError(
-                f"{artifact['artifact_id']}: missing canonical puzzle artifact "
-                f"for {puzzle_id}"
+                f"solution artifact references puzzle without semantic definition: {puzzle_id!r}"
             )
 
     verification_by_solution = _unique_by(
@@ -397,9 +377,6 @@ def materialize_release_records(
         _validate_normalized_identity(normalized)
 
     observation_rows = [_mapping(value, label="observation") for value in observations]
-    observation_rows.extend(
-        _puzzle_observation(value, puzzle_by_artifact_id) for value in puzzle_provenance
-    )
     observation_by_id = _unique_by(
         observation_rows,
         "observation_id",
@@ -429,23 +406,29 @@ def materialize_release_records(
                 f"{artifact_id}: puzzle artifact has no provenance observation"
             )
 
+    for puzzle_id, definition in definition_by_puzzle.items():
+        for observation_id_value in definition["source_observation_ids"]:
+            observation = observation_by_id.get(observation_id_value)
+            if observation is None:
+                raise ReleaseMaterializationError(
+                    f"{puzzle_id}: PuzzleDefinition references missing observation "
+                    f"{observation_id_value}"
+                )
+            if observation.get("puzzle_id") != puzzle_id:
+                raise ReleaseMaterializationError(
+                    f"{observation_id_value}: PuzzleDefinition provenance references "
+                    "a different puzzle"
+                )
+
     puzzle_rows: list[dict[str, Any]] = []
-    for puzzle_id, artifact in puzzle_by_id.items():
+    for puzzle_id, definition in definition_by_puzzle.items():
         inventory = collection_rows[puzzle_id]
         puzzle_rows.append(
             {
-                "puzzle_id": puzzle_id,
+                **definition,
                 "display_name": inventory["display_name"],
                 "kind": inventory["kind"],
                 "aliases": _aliases(inventory),
-                "canonical_puzzle_artifact_id": artifact["artifact_id"],
-                "puzzle_sha256": artifact["sha256"],
-                "puzzle_bytes": _payload(
-                    artifact,
-                    payload_policy=payload_policy,
-                    store=store,
-                ),
-                "rights_status": artifact["rights_status"],
                 "collection_id": collection.collection_id,
             }
         )
@@ -458,11 +441,22 @@ def materialize_release_records(
                 f"{solution_id}: missing canonical Verification record"
             )
         puzzle_id = artifact["puzzle_id"]
-        puzzle_artifact = puzzle_by_id[puzzle_id]
-        if verification.get("puzzle_artifact_id") != puzzle_artifact["artifact_id"]:
+        definition = definition_by_puzzle[puzzle_id]
+        puzzle_artifact_id = verification.get("puzzle_artifact_id")
+        puzzle_artifact = puzzle_by_artifact_id.get(puzzle_artifact_id)
+        if puzzle_artifact is None:
             raise ReleaseMaterializationError(
-                f"{solution_id}: Verification puzzle artifact does not match "
-                "canonical puzzle artifact"
+                f"{solution_id}: Verification references unknown puzzle artifact "
+                f"{puzzle_artifact_id!r}"
+            )
+        if puzzle_artifact.get("puzzle_id") != puzzle_id:
+            raise ReleaseMaterializationError(
+                f"{solution_id}: Verification puzzle artifact references a different puzzle"
+            )
+        if puzzle_artifact_id not in definition["puzzle_artifact_ids"]:
+            raise ReleaseMaterializationError(
+                f"{solution_id}: Verification puzzle artifact is not semantic lineage "
+                f"for {definition['puzzle_definition_id']}"
             )
 
         normalized = normalized_by_solution.get(solution_id)
@@ -485,7 +479,7 @@ def materialize_release_records(
                 "solution_id": solution_id,
                 "solution_sha256": artifact["sha256"],
                 "puzzle_id": puzzle_id,
-                "puzzle_artifact_id": puzzle_artifact["artifact_id"],
+                "puzzle_artifact_id": puzzle_artifact_id,
                 "solution_format": artifact["artifact_format"],
                 "solution_bytes": _payload(
                     artifact,
@@ -631,19 +625,19 @@ def materialize_release_inputs(
     collection: CollectionDefinition,
     output_dir: Path,
     *,
+    puzzle_definitions: Iterable[object],
     puzzle_artifacts: Iterable[object],
     solution_artifacts: Iterable[object],
     observations: Iterable[object],
     verifications: Iterable[object],
     normalized_solutions: Iterable[object],
-    puzzle_provenance: Iterable[object] = (),
     payload_policy: str = "metadata-only",
     store: ContentStore | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Project canonical entities and bind the existing release input metadata."""
 
+    puzzle_definitions = tuple(puzzle_definitions)
     puzzle_artifacts = tuple(puzzle_artifacts)
-    puzzle_provenance = tuple(puzzle_provenance)
     solution_artifacts = tuple(solution_artifacts)
     observations = tuple(observations)
     verifications = tuple(verifications)
@@ -652,8 +646,8 @@ def materialize_release_inputs(
     template = _release_metadata_template(output_dir)
     records = materialize_release_records(
         collection,
+        puzzle_definitions=puzzle_definitions,
         puzzle_artifacts=puzzle_artifacts,
-        puzzle_provenance=puzzle_provenance,
         solution_artifacts=solution_artifacts,
         observations=observations,
         verifications=verifications,
