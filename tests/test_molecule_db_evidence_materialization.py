@@ -78,7 +78,7 @@ def _cache_sources(root: Path) -> None:
         )
 
 
-def test_materialized_molecule_db_evidence_links_both_source_observations(
+def test_materialized_molecule_db_evidence_links_joint_source_observations(
     tmp_path: Path,
 ) -> None:
     cache_root = tmp_path / "cache"
@@ -93,18 +93,20 @@ def test_materialized_molecule_db_evidence_links_both_source_observations(
     }
     assert all(row["artifact_id"] is None for row in result.observations)
     assert all(row["source_role"] == "metadata" for row in result.observations)
+    assert all(row["observed_sha256"] is None for row in result.observations)
     assert all(
         row["observation_id"]
         == observation_id({key: value for key, value in row.items() if key != "observation_id"})
         for row in result.observations
     )
 
-    assert len(result.evidence) == 2
-    assert {row.observation_id for row in result.evidence} == {
+    assert len(result.evidence) == 1
+    evidence = result.evidence[0]
+    assert set(evidence.observation_ids) == {
         row["observation_id"] for row in result.observations
     }
-    assert all(set(row.claims) == {"reagents", "products"} for row in result.evidence)
-    assert all(row.puzzle_artifact_id is None for row in result.evidence)
+    assert set(evidence.claims) == {"reagents", "products"}
+    assert evidence.puzzle_artifact_id is None
 
     resolution = reconcile_puzzle_definition("om.puzzle.0001", result.evidence)
     assert resolution.definition is None
