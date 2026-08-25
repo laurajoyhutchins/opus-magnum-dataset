@@ -4,6 +4,8 @@ This checklist translates the strategic [`roadmap.md`](roadmap.md) into concrete
 
 It is not a second issue tracker. GitHub issues and pull requests are the live execution record. This file records dependency order, ownership boundaries, and a coarse landed / active / blocked snapshot. Generated coverage, verification counts, manifests, benchmark results, and other derivable facts belong in deterministic software outputs rather than hand-maintained entries here.
 
+Small, understood maintenance that does not merit independent scheduling lives in [`CLEANUP.md`](CLEANUP.md). Promote an item to a GitHub issue if it grows beyond opportunistic cleanup.
+
 Use this file to answer two questions: **what can be worked on concurrently without overlapping ownership, and what should we build next?**
 
 ## Work graph
