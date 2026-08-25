@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .errors import CorpusError
 from .hashing import sha256_bytes, sha256_file
+from .path_safety import require_directory_chain
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
@@ -42,11 +43,19 @@ class ContentStore:
         digest = self._validate_digest(sha256)
         return self.root / self._object_key(digest)
 
+    def _validate_object_parent(self, path: Path, *, create: bool) -> bool:
+        try:
+            return require_directory_chain(self.root, path.parent, create=create)
+        except ValueError as exc:
+            raise ContentStoreError(f"invalid content object parent: {path.parent}") from exc
+
     def require(self, sha256: str, byte_length: int) -> StoredObject:
         digest = self._validate_digest(sha256)
         if byte_length < 0:
             raise ContentStoreError(f"invalid byte length {byte_length}")
         path = self.object_path(digest)
+        if not self._validate_object_parent(path, create=False):
+            raise ContentStoreError(f"missing content object for sha256 {digest}")
         try:
             info = path.lstat()
         except FileNotFoundError as exc:
@@ -72,7 +81,7 @@ class ContentStore:
         digest = sha256_bytes(payload)
         byte_length = len(payload)
         target = self.object_path(digest)
-        target.parent.mkdir(parents=True, exist_ok=True)
+        self._validate_object_parent(target, create=True)
         if target.exists() or target.is_symlink():
             return self.require(digest, byte_length)
 

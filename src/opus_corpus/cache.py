@@ -13,6 +13,7 @@ from pathlib import Path, PureWindowsPath
 
 from .content_store import ContentStore, ContentStoreError
 from .errors import CorpusError
+from .path_safety import require_directory_chain
 
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _RECEIPT_FIELDS = {
@@ -87,10 +88,17 @@ class ContentAddressedCache:
         key = hashlib.sha256(identity).hexdigest()
         return self.root / "receipts" / source_id / revision / f"{key}.json"
 
+    def _validate_receipt_parent(self, path: Path, *, create: bool) -> bool:
+        try:
+            return require_directory_chain(self.root, path.parent, create=create)
+        except ValueError as exc:
+            raise CacheIntegrityError(f"invalid cache receipt parent: {path.parent}") from exc
+
     def read_receipt(self, path: Path) -> CacheReceipt:
         """Decode and validate one canonical cache receipt."""
 
         path = Path(path)
+        self._validate_receipt_parent(path, create=False)
         try:
             info = path.lstat()
             if not stat.S_ISREG(info.st_mode):
@@ -135,7 +143,15 @@ class ContentAddressedCache:
         source_id = self._validate_receipt_component("source_id", source_id)
         revision = self._validate_receipt_component("revision", revision)
         receipt_root = self.root / "receipts" / source_id / revision
-        if not receipt_root.exists():
+        try:
+            parents_exist = require_directory_chain(
+                self.root,
+                receipt_root,
+                create=False,
+            )
+        except ValueError as exc:
+            raise CacheIntegrityError(f"invalid cache receipt parent: {receipt_root}") from exc
+        if not parents_exist:
             return
 
         for path in sorted(receipt_root.glob("*.json")):
@@ -179,7 +195,7 @@ class ContentAddressedCache:
         ).encode("utf-8")
         temp_path: Path | None = None
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
+            self._validate_receipt_parent(path, create=True)
             with tempfile.NamedTemporaryFile(
                 dir=path.parent,
                 prefix=f".{path.name}.",
