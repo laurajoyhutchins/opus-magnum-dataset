@@ -157,6 +157,43 @@ def _normalized_program(index: int, part: ParsedSolutionPart) -> dict[str, Any]:
     }
 
 
+def _normalization_input_for_artifact(
+    artifact: ArtifactRecord,
+    store: ContentStore,
+) -> SolutionNormalizationInput:
+    if artifact.artifact_kind != "solution":
+        raise SolutionNormalizationError(
+            f"cannot normalize non-solution artifact {artifact.artifact_id}"
+        )
+    if artifact.artifact_format != "solution":
+        raise SolutionNormalizationError(
+            f"unsupported solution artifact format {artifact.artifact_format!r}"
+        )
+    expected_id = f"om.solution.sha256.{artifact.sha256}"
+    if artifact.artifact_id != expected_id:
+        raise SolutionNormalizationError(
+            f"solution artifact id does not match exact bytes: {artifact.artifact_id}"
+        )
+
+    stored = store.require(artifact.sha256, artifact.byte_length)
+    if artifact.object_key != stored.object_key:
+        raise SolutionNormalizationError(
+            f"solution artifact object key does not match content store: {artifact.artifact_id}"
+        )
+    try:
+        solution_bytes = store.object_path(artifact.sha256).read_bytes()
+    except OSError as exc:
+        raise SolutionNormalizationError(
+            f"cannot read solution artifact bytes: {artifact.artifact_id}"
+        ) from exc
+
+    return SolutionNormalizationInput(
+        solution_id=artifact.artifact_id,
+        puzzle_id=artifact.puzzle_id,
+        solution_bytes=solution_bytes,
+    )
+
+
 def normalize_solution_artifacts(
     artifacts: Iterable[ArtifactRecord],
     store: ContentStore,
@@ -166,39 +203,6 @@ def normalize_solution_artifacts(
 
     rows: list[NormalizedSolutionRecord] = []
     for artifact in sorted(artifacts, key=lambda row: (row.puzzle_id, row.artifact_id)):
-        if artifact.artifact_kind != "solution":
-            raise SolutionNormalizationError(
-                f"cannot normalize non-solution artifact {artifact.artifact_id}"
-            )
-        if artifact.artifact_format != "solution":
-            raise SolutionNormalizationError(
-                f"unsupported solution artifact format {artifact.artifact_format!r}"
-            )
-        expected_id = f"om.solution.sha256.{artifact.sha256}"
-        if artifact.artifact_id != expected_id:
-            raise SolutionNormalizationError(
-                f"solution artifact id does not match exact bytes: {artifact.artifact_id}"
-            )
-
-        stored = store.require(artifact.sha256, artifact.byte_length)
-        if artifact.object_key != stored.object_key:
-            raise SolutionNormalizationError(
-                f"solution artifact object key does not match content store: {artifact.artifact_id}"
-            )
-        try:
-            solution_bytes = store.object_path(artifact.sha256).read_bytes()
-        except OSError as exc:
-            raise SolutionNormalizationError(
-                f"cannot read solution artifact bytes: {artifact.artifact_id}"
-            ) from exc
-
-        rows.append(
-            normalizer.normalize(
-                SolutionNormalizationInput(
-                    solution_id=artifact.artifact_id,
-                    puzzle_id=artifact.puzzle_id,
-                    solution_bytes=solution_bytes,
-                )
-            )
-        )
+        value = _normalization_input_for_artifact(artifact, store)
+        rows.append(normalizer.normalize(value))
     return tuple(rows)

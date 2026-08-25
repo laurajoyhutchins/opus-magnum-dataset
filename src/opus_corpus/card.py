@@ -5,6 +5,9 @@ from typing import Any
 
 from .release import ReleaseManifest
 
+DATASET_LICENSE = "other"
+DATASET_LICENSE_NAME = "Mixed/source-specific rights"
+
 
 def _text(value: Any, default: str = "not supplied") -> str:
     if value is None or value == "":
@@ -12,8 +15,44 @@ def _text(value: Any, default: str = "not supplied") -> str:
     return str(value)
 
 
+def render_dataset_license_notice(card_settings: Mapping[str, Any]) -> str:
+    rights = _text(
+        card_settings.get("rights_caveat"),
+        "Raw puzzle and solution bytes are published only when explicit per-artifact "
+        "rights status permits redistribution; metadata-only releases omit restricted payloads.",
+    )
+    return "\n".join(
+        [
+            "Opus Magnum Dataset - Rights Notice",
+            "",
+            "This generated dataset is not licensed wholesale under MIT.",
+            "",
+            "Repository-authored software, tests, schemas, documentation, and other "
+            "project-owned material are licensed under the MIT License in the source repository.",
+            "",
+            "Third-party material remains subject to its own rights and license terms. "
+            "This includes official Opus Magnum content, player-authored solution payloads, "
+            "and upstream source artifacts represented by the corpus.",
+            "",
+            rights,
+            "",
+            "The dataset's `license: other` metadata records this mixed/source-specific rights "
+            "boundary; it does not grant additional rights in third-party material.",
+            "",
+            "Canonical rights policy: "
+            "https://github.com/laurajoyhutchins/opus-magnum-dataset/blob/main/RIGHTS.md",
+            "",
+        ]
+    )
+
+
 def render_dataset_card(manifest: ReleaseManifest, card_settings: Mapping[str, Any]) -> str:
-    lines = ["---", "configs:"]
+    lines = [
+        "---",
+        f"license: {DATASET_LICENSE}",
+        f"license_name: {DATASET_LICENSE_NAME}",
+        "configs:",
+    ]
     for name, entry in sorted(manifest.configs.items()):
         lines.extend(
             [
@@ -96,6 +135,9 @@ def render_dataset_card(manifest: ReleaseManifest, card_settings: Mapping[str, A
             "## Rights and payload policy",
             "",
             rights,
+            "",
+            "The Hub license metadata is `other` because this generated corpus has "
+            "mixed/source-specific rights. See `LICENSE` for the publication rights notice.",
             "",
             "## Reproducibility",
             "",

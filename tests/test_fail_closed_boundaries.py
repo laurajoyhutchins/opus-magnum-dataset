@@ -84,7 +84,11 @@ def _release_validation_fixture(
             "payload_policy_default = false",
             "release.payload_policy_default",
         ),
-        ('repo_id = "CHANGE_ME"', "repo_id = false", "huggingface.repo_id"),
+        (
+            'repo_id = "laurajoyhutchins/opus-magnum"',
+            "repo_id = false",
+            "huggingface.repo_id",
+        ),
         ("private = false", 'private = "false"', "huggingface.private"),
         ('title = "Opus Magnum Dataset"', "title = false", "card.title"),
     ],

@@ -6,7 +6,7 @@ Hugging Face is a first-class publication target for the canonical Opus Magnum c
 
 The export must be loading-script-free and Parquet-first so ordinary consumers can use Hugging Face Datasets, Dataset Viewer, direct Parquet access, DuckDB/Arrow tooling, and other tabular systems without executing repository code.
 
-The generic four-config release/export shell is implemented and exercised by the tiny fixture corpus. The remaining work is to connect the complete canonical artifact, verification, and normalization pipeline to those inputs and publish the first real complete corpus.
+The generic four-config release/export shell, canonical release materialization, and deterministic offline v1 runner are implemented. The remaining WP-12 acceptance work is to supply the complete pinned exact-puzzle cache, run the real 166-puzzle corpus through that path, and publish the first complete release through the explicitly configured `laurajoyhutchins/opus-magnum` Hugging Face destination.
 
 ## 1. Publication model
 
@@ -38,10 +38,12 @@ A published split is immutable. New official content creates a new collection/sp
 
 ## 3. Repository layout
 
-The current v1 release shell emits one Parquet shard per config and collection split:
+The current v1 release shell emits one Parquet shard per config and collection split. The staged Hub projection also contains the generated dataset card, a mixed-rights notice, and the release manifest:
 
 ```text
 README.md
+LICENSE
+release-manifest.json
 data/
   puzzles/
     <collection>-00000-of-00001.parquet
@@ -148,7 +150,7 @@ Required columns:
 
 The exact nested schema is versioned separately from the artifact identity model.
 
-A solution may be verified while having no normalized row if normalization fails or is unsupported.
+The generic release schema permits a verified solution to have no normalized row when a separately specified producer does not support normalization. The canonical v1 runner is stricter: every verifier-parseable solution is sent through the pinned normalizer, and any normalization rejection fails the v1 build closed rather than silently omitting that row. Normalization never changes verifier success or recomputed verification metrics.
 
 ## 8. Referential integrity
 
@@ -162,9 +164,9 @@ Within one published corpus release:
 
 Hugging Face does not enforce cross-config foreign keys, so the exporter and release validation must enforce them before publication.
 
-## 9. Payload policy
+## 9. Payload and rights policy
 
-The exporter supports at least two modes:
+The exporter supports at least two payload modes:
 
 ```text
 metadata-only
@@ -179,7 +181,16 @@ Raw puzzle and solution byte columns are null under the current v1 schemas. Prov
 
 Raw bytes are included only for artifacts whose rights policy explicitly allows redistribution.
 
-The exporter must never infer permission from technical accessibility or from the repository's own code license.
+The exporter must never infer permission from technical accessibility or from the repository's own code license. The repository-authored project material is MIT-licensed, but generated corpus releases are not licensed wholesale under MIT because third-party artifacts and represented works retain source-specific rights.
+
+The staged Hugging Face dataset card therefore declares:
+
+```yaml
+license: other
+license_name: Mixed/source-specific rights
+```
+
+The staged projection also includes a generated `LICENSE` rights notice. That notice explains the repository MIT grant, preserves third-party/source-specific rights, states that the dataset is not licensed wholesale under MIT, and points to the canonical repository `RIGHTS.md` policy. `license: other` is descriptive Hub metadata and does not itself grant rights in third-party content.
 
 The release validator reapplies the selected payload policy to generated Parquet before staging/publication.
 
@@ -198,10 +209,13 @@ Nested lists whose ordering is not semantically meaningful must nevertheless use
 
 Given identical canonical corpus state and exporter version, logical row content must be identical. Release manifests record both logical-record hashes and generated Parquet hashes; canonical reproducibility is defined primarily over logical content and the release manifest rather than assuming writer-independent byte identity.
 
+For the v1 release boundary, `opus-corpus release v1` runs the complete offline materialization and release pipeline twice from the same pinned cache and refuses final directory publication unless the canonical release-manifest bytes are identical.
+
 ## 11. Dataset card
 
 The generated Hugging Face `README.md` must contain or declare:
 
+- Hub license metadata `license: other` and `license_name: Mixed/source-specific rights`;
 - dataset purpose;
 - corpus schema version;
 - collection identifier;
@@ -215,12 +229,12 @@ The generated Hugging Face `README.md` must contain or declare:
 - candidate/verified/rejected solution counts;
 - per-puzzle coverage summary or linked generated table;
 - payload policy;
-- rights/licensing caveats;
+- rights/licensing caveats and reference to the staged `LICENSE` notice;
 - citation/attribution guidance;
 - reproducibility command;
 - known limitations.
 
-The dataset card is generated from release metadata. Do not maintain release counts or source revisions manually in a second document.
+The dataset card and rights notice are generated from repository-owned release policy plus release metadata. Do not maintain release counts, source revisions, or an independent Hub licensing story manually.
 
 ## 12. Dataset Viewer compatibility
 
@@ -245,7 +259,7 @@ The generated repository should support ordinary usage such as:
 from datasets import load_dataset
 
 solutions = load_dataset(
-    "<namespace>/opus-magnum-dataset",
+    "laurajoyhutchins/opus-magnum",
     "solutions",
     split="base_game_2026_06_16",
 )
@@ -268,7 +282,7 @@ release manifest
       ↓
 Hugging Face exporter
       ↓
-Parquet shards + generated dataset card
+Parquet shards + generated dataset card + rights notice
       ↓
 release validation
       ↓
@@ -281,10 +295,15 @@ The implemented release commands are:
 
 ```text
 opus-corpus release build <collection> --input <path> --output <path> ...
+opus-corpus release v1 <collection> --cache <path> --output <path> --libverify <path> --libverify-sha256 <sha256> ...
 opus-corpus release validate <collection> --output <path>
 opus-corpus release stage <collection> --output <path> --destination <path>
 opus-corpus release publish <collection> --output <path>
 ```
+
+`release v1` is network-free and consumes only existing pinned cache facts plus an explicitly provisioned, hash-pinned `libverify` shared library. It requires complete exact puzzle-artifact coverage before verification begins, preserves verifier failures as canonical facts, normalizes every verifier-parseable solution and fails closed if the normalizer rejects one, and atomically promotes the local release only after the second full offline rebuild reproduces the first manifest. Its final output must resolve to the configured `[corpus].output_root` or a descendant; that generated release root itself may not resolve to the repository root or any ancestor of it.
+
+Staging and Hub publication remain separate downstream operations. The Hugging Face destination is `laurajoyhutchins/opus-magnum`; publication credentials are explicit operator inputs and are not committed or embedded by the v1 runner.
 
 ## 15. Required invariants
 
@@ -300,7 +319,7 @@ HF-5. Exported logical rows and schemas are deterministic for a fixed canonical 
 
 HF-6. Payload inclusion obeys source rights policy independently from metadata publication.
 
-HF-7. The generated dataset card identifies the corpus manifest, schema, verifier, validation profile, source revisions, coverage, and payload policy.
+HF-7. The generated dataset card identifies the corpus manifest, schema, verifier, validation profile, source revisions, coverage, payload policy, and mixed/source-specific rights boundary; the staged projection includes a generated `LICENSE` notice.
 
 HF-8. Publication passes Dataset Viewer validation and ordinary `datasets.load_dataset()` access without remote code execution.
 
@@ -319,11 +338,13 @@ The current release shell settles several early exporter choices:
 - collection-to-split mapping by replacing `-` with `_`;
 - metadata-only raw byte fields are null under the current schemas;
 - default payload policy is `metadata-only`;
-- schema and logical-row ordering are repository-controlled rather than inferred from Hugging Face.
+- schema and logical-row ordering are repository-controlled rather than inferred from Hugging Face;
+- Hub dataset identity: `laurajoyhutchins/opus-magnum`;
+- Hub license metadata: `license: other`, `license_name: Mixed/source-specific rights`;
+- staged rights notice: generated `LICENSE` derived from repository rights policy.
 
 Remaining publication decisions include:
 
-- final Hugging Face namespace/repository name (`corpus.toml` intentionally retains `CHANGE_ME`);
 - publication credentials and automation policy;
 - whether future payload-bearing releases share one Hub repository with metadata-only releases or use separate repositories;
 - Dataset Viewer acceptance checks against the first complete real corpus;
