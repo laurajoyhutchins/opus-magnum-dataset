@@ -83,15 +83,52 @@ def _validate_normalized_puzzle(puzzle: NormalizedRecord) -> None:
 
 
 def _model_json_value(value: Any) -> str:
+    _validate_model_json_value(value)
     try:
-        return json.dumps(
+        encoded = json.dumps(
             value,
             allow_nan=False,
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,
         )
-    except (TypeError, ValueError) as exc:
+        encoded.encode("utf-8")
+        return encoded
+    except (TypeError, ValueError, UnicodeEncodeError) as exc:
+        raise PuzzleSerializationError(
+            "normalized puzzle contains a value that is not canonical JSON"
+        ) from exc
+
+
+def _validate_model_json_value(value: Any) -> None:
+    value_type = type(value)
+    if value is None or value_type in {bool, int, float}:
+        return
+    if value_type is str:
+        _validate_model_json_string(value)
+        return
+    if value_type is list:
+        for item in value:
+            _validate_model_json_value(item)
+        return
+    if value_type is dict:
+        for key, item in value.items():
+            if type(key) is not str:
+                raise PuzzleSerializationError(
+                    "normalized puzzle contains a value that is not canonical JSON"
+                )
+            _validate_model_json_string(key)
+            _validate_model_json_value(item)
+        return
+    raise PuzzleSerializationError(
+        "normalized puzzle contains a value that is not canonical JSON"
+    )
+
+
+def _validate_model_json_string(value: str) -> None:
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as exc:
         raise PuzzleSerializationError(
             "normalized puzzle contains a value that is not canonical JSON"
         ) from exc
