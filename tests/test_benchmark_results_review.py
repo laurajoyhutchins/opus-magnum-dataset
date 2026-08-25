@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from jsonschema import Draft202012Validator, ValidationError
 
 from opus_corpus import benchmark_results as benchmark
+from opus_corpus.schema_resources import load_schema_resource
 
 
 def identities() -> tuple[str, str]:
@@ -48,6 +50,25 @@ def attempt_fields() -> dict[str, object]:
     }
 
 
+def schema_validator() -> Draft202012Validator:
+    schema = load_schema_resource("benchmark-results.schema.json").schema
+    return Draft202012Validator(schema)
+
+
+def valid_success() -> dict[str, object]:
+    return benchmark.build_attempt_result(
+        **attempt_fields(),
+        outcome="success",
+        verification_id="om.verification." + "5" * 64,
+        cost=1,
+        cycles=2,
+        area=3,
+        instructions=4,
+        error_code=None,
+        verifier_calls=1,
+    )
+
+
 def test_success_requires_at_least_one_verifier_call():
     with pytest.raises(benchmark.BenchmarkResultError):
         benchmark.build_attempt_result(
@@ -76,3 +97,28 @@ def test_output_compile_failure_cannot_claim_verifier_lineage_or_calls():
             error_code="compile_error",
             verifier_calls=1,
         )
+
+
+def test_schema_rejects_success_without_a_verifier_call():
+    record = valid_success()
+    record["verifier_calls"] = 0
+    with pytest.raises(ValidationError):
+        schema_validator().validate(record)
+
+
+def test_schema_rejects_compile_failure_with_verifier_lineage():
+    record = valid_success()
+    record.update(
+        {
+            "outcome": "output_compile_failed",
+            "verification_id": "om.verification." + "6" * 64,
+            "cost": None,
+            "cycles": None,
+            "area": None,
+            "instructions": None,
+            "error_code": "compile_error",
+            "verifier_calls": 1,
+        }
+    )
+    with pytest.raises(ValidationError):
+        schema_validator().validate(record)
