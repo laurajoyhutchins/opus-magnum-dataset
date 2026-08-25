@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Pin `omsim` revision `758f4a4b4c9e24f50294801da774a0960c922bab`.
+- Treat the native shared library as a separately pinned runtime input and verify its expected SHA-256 before loading it.
 - Use validation profile `omsim-libverify-v1` with an explicit 150000-cycle limit.
 - Recompute `cost`, `instructions`, `cycles`, and `area`; never trust source claims as verification facts.
 - Do not equate simulator success with ordinary constructibility or record eligibility.
@@ -33,7 +34,7 @@
 
 - [ ] **Step 1: Write tests before production behavior**
 
-Cover a scripted backend for: successful metric recomputation, unsupported profile rejection, puzzle parse failure, solution parse failure, simulation failure, metric failure, stable error details, handle destruction, repeated-result determinism, and `vanilla_constructible`/`record_eligible` remaining `None` on simulator success.
+Cover a scripted backend for: successful metric recomputation, unsupported profile rejection, puzzle parse failure, solution parse failure, parse/decode failure discovered during metric evaluation, simulation failure, metric failure, stable error details, handle destruction, repeated-result determinism, and `vanilla_constructible`/`record_eligible` remaining `None` on simulator success.
 
 The successful case must assert exact verifier identity, binary hash passthrough, profile identity, four metrics, and deterministic `verification_id`.
 
@@ -47,7 +48,7 @@ Expected: collection/import failure because `opus_corpus.libverify` does not yet
 
 Create constants and a `LibverifyBackend` protocol with operations to create/destroy a verifier handle, set the cycle limit, read the current error/source/cycle/location, and evaluate integer metrics.
 
-`LibverifyVerifier.verify()` must reject profiles other than `omsim-libverify-v1`, create from exact bytes, map immediate parse errors, set the cycle limit to 150000, evaluate `cost`, `instructions`, `cycles`, `area`, and always destroy the handle in `finally`.
+`LibverifyVerifier.verify()` must reject profiles other than `omsim-libverify-v1`, create from exact bytes, map puzzle/solution parse errors as `parse_status=failed` even when discovered during metric evaluation, set the cycle limit to 150000, evaluate `cost`, `instructions`, `cycles`, `area`, and always destroy the handle in `finally`.
 
 - [ ] **Step 4: Run focused and existing verification tests**
 
@@ -68,12 +69,12 @@ Commit message: `feat: implement libverify verifier mapping`
 - Modify: `tests/test_libverify.py`
 
 **Interfaces:**
-- Consumes: a local shared-library `Path`.
-- Produces: `CtypesLibverifyBackend.from_path(path)` and `LibverifyVerifier.from_library(path)`.
+- Consumes: a local shared-library `Path` plus an independently pinned expected SHA-256.
+- Produces: `CtypesLibverifyBackend.from_path(path, expected_sha256=...)` and `LibverifyVerifier.from_library(path, expected_sha256=...)`.
 
 - [ ] **Step 1: Add failing tests for native-boundary configuration**
 
-Use a fake `ctypes.CDLL` object to assert that the backend configures documented libverify signatures, hashes the exact library file with `sha256_file`, passes byte arrays with explicit lengths to `verifier_create_from_bytes`, decodes nullable C strings as UTF-8, and exposes integer error/metric values.
+Use a fake `ctypes.CDLL` object to assert that the backend hashes the exact library file, refuses a hash mismatch before loading, configures the documented libverify signatures only for matching bytes, passes byte arrays with explicit lengths to `verifier_create_from_bytes`, decodes nullable C strings as UTF-8, and exposes integer error/metric values.
 
 - [ ] **Step 2: Verify RED in CI**
 
@@ -83,7 +84,7 @@ Expected: FAIL because the ctypes backend/factory does not exist.
 
 - [ ] **Step 3: Implement the ctypes wrapper**
 
-Bind exactly these symbols from upstream `verifier.h`: `verifier_create_from_bytes`, `verifier_destroy`, `verifier_set_cycle_limit`, `verifier_error`, `verifier_error_source`, `verifier_error_cycle`, `verifier_error_location_u`, `verifier_error_location_v`, and `verifier_evaluate_metric`.
+Hash the supplied native file first and compare it to `expected_sha256`; fail closed before `ctypes.CDLL` if the digest differs. Bind exactly these symbols from upstream `verifier.h`: `verifier_create_from_bytes`, `verifier_destroy`, `verifier_set_cycle_limit`, `verifier_error`, `verifier_error_source`, `verifier_error_cycle`, `verifier_error_location_u`, `verifier_error_location_v`, and `verifier_evaluate_metric`.
 
 Use `ctypes.create_string_buffer` for puzzle and solution bytes so embedded NULs are preserved through explicit lengths. Do not expose ctypes types above the backend boundary.
 
@@ -111,7 +112,7 @@ Commit message: `feat: bind pinned libverify through ctypes`
 
 - [ ] **Step 1: Write failing public-behavior tests**
 
-Cover one puzzle/solution success path, multiple solutions for one puzzle, missing puzzle artifact, multiple puzzle artifacts for one puzzle, wrong artifact kinds, corrupt/missing content objects, deterministic output across reversed input order, and exact byte delivery to the verifier.
+Cover one puzzle/solution success path, multiple solutions for one puzzle, missing puzzle artifact, multiple puzzle artifacts for one puzzle, wrong artifact kinds, corrupt/missing content objects, schema-invalid verifier output, deterministic output across reversed input order, and exact byte delivery to the verifier.
 
 - [ ] **Step 2: Verify RED in CI**
 
@@ -121,7 +122,7 @@ Expected: collection/import failure because the module does not yet exist.
 
 - [ ] **Step 3: Implement deterministic materialization**
 
-Index puzzle artifacts by `puzzle_id` and fail unless each referenced solution puzzle resolves to exactly one puzzle artifact. Validate artifact kinds and `.puzzle`/`.solution` formats. Read both objects with `ContentStore.require()` and pass their exact bytes to `VerificationInput`. Sort solution artifacts by stable artifact identity before evaluation and return results sorted by `verification_id`.
+Index puzzle artifacts by `puzzle_id` and fail unless each referenced solution puzzle resolves to exactly one puzzle artifact. Validate artifact kinds and `.puzzle`/`.solution` formats. Read both objects with `ContentStore.require()` and pass their exact bytes to `VerificationInput`. Validate each returned `VerificationResult` against the package-native canonical verification schema before accepting its lineage/profile/identity. Sort solution artifacts by stable artifact identity before evaluation and return results sorted by `verification_id`.
 
 - [ ] **Step 4: Verify GREEN and regression surface**
 
@@ -149,7 +150,9 @@ Commit message: `feat: materialize canonical verification records`
 
 - [ ] **Step 1: Add the upstream contract before final documentation state**
 
-Mark the test `@pytest.mark.upstream`. Download the exact pinned omsim tarball with existing GitHub-source helpers, extract only the six C sources and six headers required by the upstream Makefile plus a known matching test puzzle/solution pair, compile a temporary `libverify.so` with `cc -O2 -std=c11 -pedantic -Wall -Wno-missing-braces -g -shared -fpic ... -lm`, and call `LibverifyVerifier.from_library()` on the real bytes. Assert parse/simulation success, non-negative recomputed metrics, pinned revision/profile, binary SHA-256, and identical repeated results.
+Mark the test `@pytest.mark.upstream`. Download the exact pinned omsim tarball with existing GitHub-source helpers, extract only the six C sources and six headers required by the upstream Makefile plus a known matching test puzzle/solution pair, compile a temporary `libverify.so` with `cc -O2 -std=c11 -pedantic -Wall -Wno-missing-braces -g -shared -fpic ... -lm`, hash the resulting binary, pass that digest as `expected_sha256` to `LibverifyVerifier.from_library()`, and verify the real bytes. Assert parse/simulation success, non-negative recomputed metrics, pinned revision/profile, binary SHA-256, and identical repeated results.
+
+This contract proves FFI compatibility and binary-pin enforcement for that build invocation. It does not claim universal cross-toolchain binary reproducibility.
 
 - [ ] **Step 2: Run the upstream contract and full workflow**
 
@@ -169,7 +172,7 @@ Expected: all commands PASS.
 
 - [ ] **Step 3: Update durable documentation**
 
-Document verifier source pin, build/runtime library input, binary hashing, profile/cycle-limit semantics, error mapping, simulator-valid versus constructibility/record predicates, and the artifact materialization boundary. Mark WP-09 settled in `docs/TODO.md` only after the full validation workflow is green.
+Document verifier source pin, separately pinned runtime binary digest, profile/cycle-limit semantics, parse/decode versus simulation failure mapping, canonical result schema validation, simulator-valid versus constructibility/record predicates, and the artifact materialization boundary. Mark WP-09 settled in `docs/TODO.md` only after the full validation workflow is green.
 
 - [ ] **Step 4: Commit**
 
