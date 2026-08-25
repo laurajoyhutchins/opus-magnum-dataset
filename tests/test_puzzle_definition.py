@@ -123,7 +123,7 @@ def test_reconciliation_merges_partial_evidence_deterministically() -> None:
     evidence = [
         module.PuzzleDefinitionEvidence(
             puzzle_id="om.puzzle.0001",
-            observation_id="obs-b",
+            observation_ids=("obs-b", "obs-c"),
             claims={
                 "allowed_parts": semantics["allowed_parts"],
                 "allowed_instructions": semantics["allowed_instructions"],
@@ -131,7 +131,7 @@ def test_reconciliation_merges_partial_evidence_deterministically() -> None:
         ),
         module.PuzzleDefinitionEvidence(
             puzzle_id="om.puzzle.0001",
-            observation_id="obs-a",
+            observation_ids=("obs-a",),
             claims={
                 key: value
                 for key, value in semantics.items()
@@ -144,7 +144,7 @@ def test_reconciliation_merges_partial_evidence_deterministically() -> None:
     second = module.reconcile_puzzle_definition("om.puzzle.0001", reversed(evidence))
     assert first.definition == second.definition
     assert first.missing_fields == ()
-    assert first.definition["source_observation_ids"] == ["obs-a", "obs-b"]
+    assert first.definition["source_observation_ids"] == ["obs-a", "obs-b", "obs-c"]
 
 
 def test_incomplete_evidence_remains_explicitly_unresolved() -> None:
@@ -154,7 +154,7 @@ def test_incomplete_evidence_remains_explicitly_unresolved() -> None:
         [
             module.PuzzleDefinitionEvidence(
                 puzzle_id="om.puzzle.0001",
-                observation_id="obs-a",
+                observation_ids=("obs-a",),
                 claims={"reagents": _semantics()["reagents"]},
             )
         ],
@@ -168,12 +168,12 @@ def test_conflicting_semantic_evidence_fails_closed_with_field_context() -> None
     module = _module()
     first = module.PuzzleDefinitionEvidence(
         puzzle_id="om.puzzle.0001",
-        observation_id="obs-a",
+        observation_ids=("obs-a", "obs-c"),
         claims={"reagents": [_molecule()]},
     )
     second = module.PuzzleDefinitionEvidence(
         puzzle_id="om.puzzle.0001",
-        observation_id="obs-b",
+        observation_ids=("obs-b",),
         claims={"reagents": [_molecule(atom_type="fire")]},
     )
     with pytest.raises(module.PuzzleDefinitionConflictError) as caught:
@@ -183,6 +183,7 @@ def test_conflicting_semantic_evidence_fails_closed_with_field_context() -> None
     assert "reagents" in message
     assert "obs-a" in message
     assert "obs-b" in message
+    assert "obs-c" in message
 
 
 def test_output_target_must_match_scale() -> None:
