@@ -113,7 +113,7 @@ def _metadata_observation(
         "claimed_cycles": None,
         "claimed_area": None,
         "claimed_instructions": None,
-        "observed_sha256": receipt.sha256,
+        "observed_sha256": None,
         "source_evidence_sha256": receipt.sha256,
         "source_evidence_byte_length": receipt.byte_length,
         "rights_status": receipt.rights_status,
@@ -166,19 +166,22 @@ def materialize_molecule_db_semantic_evidence(
     observations: list[dict[str, Any]] = []
     for puzzle in semantics:
         claims = molecule_db_semantic_claims(puzzle)
-        for path in _REQUIRED_PATHS:
-            observation = _metadata_observation(by_path[path], puzzle)
-            observations.append(observation)
-            evidence.append(
-                PuzzleDefinitionEvidence(
-                    puzzle_id=puzzle.puzzle_id,
-                    observation_id=observation["observation_id"],
-                    claims=claims,
-                )
+        puzzle_observations = [
+            _metadata_observation(by_path[path], puzzle) for path in _REQUIRED_PATHS
+        ]
+        observations.extend(puzzle_observations)
+        evidence.append(
+            PuzzleDefinitionEvidence(
+                puzzle_id=puzzle.puzzle_id,
+                observation_ids=tuple(
+                    sorted(row["observation_id"] for row in puzzle_observations)
+                ),
+                claims=claims,
             )
+        )
 
     observations.sort(key=lambda row: (row["puzzle_id"], row["source_path"]))
-    evidence.sort(key=lambda row: (row.puzzle_id, row.observation_id))
+    evidence.sort(key=lambda row: (row.puzzle_id, row.observation_ids))
     return MoleculeDbSemanticEvidenceResult(
         evidence=tuple(evidence),
         observations=tuple(observations),
