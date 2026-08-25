@@ -554,7 +554,6 @@ def test_benchmark_identity_commits_to_executable_inventory_hash():
         attempt_profile="one-shot",
         attempt_budget=1,
         scoring_version="solve-report-v1",
-        executable_inventory_sha256="6" * 64,
         executable_inventory_sha256="7" * 64,
     )
     changed = replace(identity, executable_inventory_sha256="8" * 64)
