@@ -64,7 +64,11 @@ def test_pinned_libverify_builds_and_verifies_real_upstream_fixture(tmp_path: Pa
     )
     assert completed.returncode == 0, completed.stderr
 
-    verifier = LibverifyVerifier.from_library(library_path)
+    binary_sha256 = sha256_file(library_path)
+    verifier = LibverifyVerifier.from_library(
+        library_path,
+        expected_sha256=binary_sha256,
+    )
     value = VerificationInput(
         puzzle_artifact_id="om.puzzle-artifact.upstream-fixture",
         solution_id="om.solution.upstream-fixture",
@@ -83,7 +87,7 @@ def test_pinned_libverify_builds_and_verifies_real_upstream_fixture(tmp_path: Pa
     assert first.error_detail is None
     assert first.verifier_implementation == "omsim-libverify"
     assert first.verifier_revision == OMSIM_LIBVERIFY_REVISION
-    assert first.verifier_sha256 == sha256_file(library_path)
+    assert first.verifier_sha256 == binary_sha256
     assert first.validation_profile == OMSIM_LIBVERIFY_PROFILE
     assert first.vanilla_constructible is None
     assert first.record_eligible is None
