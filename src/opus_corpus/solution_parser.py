@@ -136,9 +136,11 @@ def _encode_varint(value: int) -> bytes:
 
 
 def _read_metrics(reader: _Reader) -> tuple[bool, int | None, int | None, int | None, int | None]:
-    solved_flag = reader.u32("solved flag")
-    if solved_flag == 0:
+    metric_count = reader.u32("metric count")
+    if metric_count == 0:
         return False, None, None, None, None
+    if metric_count != 4:
+        raise SolutionParseError(f"unsupported solution metric count {metric_count}")
 
     values: list[int] = []
     for expected_tag, label in enumerate(("cycles", "cost", "area", "instructions")):
