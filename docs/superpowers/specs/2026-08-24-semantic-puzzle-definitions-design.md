@@ -97,16 +97,18 @@ Each atom contains:
 - `atom_type` using a versioned canonical vocabulary;
 - axial `q`, `r` coordinates.
 
-Atoms are sorted deterministically by `(q, r, atom_type)`; exact duplicates are rejected because they would be ambiguous semantic structure.
+Atoms are sorted deterministically by `(q, r, atom_type)`. Equal atom entries remain repeated entries because atom multiplicity is semantic content; canonicalization must not silently deduplicate them.
 
 Each bond contains:
 
 - canonical endpoint coordinates `a_q`, `a_r`, `b_q`, `b_r`;
 - `bond_types`, a sorted unique list drawn from the decoded bond-bit vocabulary.
 
-Bond endpoints are normalized lexicographically so reversing an edge in a source does not change semantic identity. Bonds are sorted deterministically after endpoint normalization. A bond referring to a coordinate absent from the molecule fails closed.
+Bond endpoints are normalized lexicographically so reversing an edge in a source does not change semantic identity. Bonds are sorted deterministically after endpoint normalization. A bond referring to a coordinate absent from the molecule fails closed. Equal bond entries remain repeated only when the decoded source itself contains repeated bond entries; the canonicalizer never invents or removes multiplicity.
 
-Reagents and products retain puzzle-file list multiplicity and are ordered by a canonical molecule-content key, not by source ordering. Semantically identical repeated molecules remain repeated entries.
+Reagents and products retain multiplicity and are ordered by a canonical molecule-content key rather than source ordering. Semantically identical repeated molecules remain repeated entries.
+
+This intentionally separates problem semantics from binary input/output index ordering. Exact solution verification continues against an exact `PuzzleArtifact`, so any serialization-specific index relationship remains an artifact/verifier concern rather than semantic identity.
 
 ### Allowed capabilities
 
@@ -165,7 +167,7 @@ Add one deterministic semantic reconciliation path. Producers emit typed `Puzzle
 `PuzzleDefinitionEvidence` is an in-memory/materialization boundary, not a new persisted corpus store. Each evidence value contains:
 
 - `puzzle_id`;
-- an evidence provenance reference sufficient to derive/link a canonical `Observation`;
+- an evidence provenance reference sufficient to derive or link a canonical `Observation`;
 - optional supporting `puzzle_artifact_id`;
 - the semantic fields actually known by that source.
 
@@ -184,7 +186,7 @@ For each puzzle:
 7. if any required field remains unknown, return an explicitly unresolved coverage result and do not synthesize a `PuzzleDefinition`;
 8. only complete reconciled semantic content is assigned a `puzzle_definition_id` and emitted as a canonical definition.
 
-Input iteration order and source priority never decide a conflict. There is no "preferred source wins" rule in v1.
+Input iteration order and source priority never decide a conflict. There is no preferred-source-wins rule in v1.
 
 ## Provenance and Observation consolidation
 
@@ -214,7 +216,7 @@ The Python parser is stricter than the permissive C byte readers where required 
 
 - truncated fixed-width values;
 - malformed or unterminated variable-length strings;
-- impossible/excessive counts before allocation/iteration;
+- impossible or excessive counts before allocation/iteration;
 - unknown atom values;
 - unknown bond bits;
 - unknown availability bits;
@@ -244,11 +246,11 @@ Hermetic unit tests independently exercise malformed/truncated byte cases and ca
 
 ### Exact PuzzleArtifact producer
 
-For every verifier-usable exact `PuzzleArtifact`, read bytes only through the authoritative `ContentStore`, validate artifact identity as today, decode them, and emit semantic evidence linked to that artifact and its observations.
+For every exact `PuzzleArtifact`, read bytes only through the authoritative `ContentStore`, validate artifact identity as today, decode them, and emit semantic evidence linked to that artifact and its observations.
 
-If multiple exact artifacts exist for one puzzle, they may all contribute semantic evidence. Byte difference is not itself an ambiguity. They are compatible when their decoded canonical semantics agree and a conflict when they disagree.
+If multiple exact artifacts exist for one puzzle, they may all contribute semantic evidence. Byte difference is not itself a semantic ambiguity. They are compatible when their decoded canonical semantics agree and a conflict when they disagree.
 
-This changes the present `_require_unambiguous_exact_artifacts()` rule at the semantic layer. Verification artifact selection remains separately fail-closed: a verifier run still needs one explicit exact artifact selection under its existing policy.
+The present global `_require_unambiguous_exact_artifacts()` behavior therefore cannot remain the semantic materialization gate. Exact-artifact multiplicity is represented in artifact coverage. Under the current v1 verifier-selection policy, `verifier_ready` is true only when exactly one valid exact artifact is available for the puzzle. If a future explicit artifact-selection primitive is introduced, that primitive may define a different verifier-ready rule without changing semantic identity.
 
 ### molecule-db producer
 
@@ -266,21 +268,29 @@ Replace the current overloaded puzzle coverage boolean with three independently 
 
 - `semantic_covered`: a complete reconciled `PuzzleDefinition` exists;
 - `artifact_covered`: at least one exact `PuzzleArtifact` exists;
-- `verifier_ready`: the existing verifier artifact-selection policy can select an exact artifact for verification.
+- `verifier_ready`: the current verifier artifact-selection policy has exactly one valid exact artifact to select.
 
 Coverage rows also expose the resolved `puzzle_definition_id` when present, exact artifact IDs, exact source IDs, and semantic source IDs. All counts and summaries are generated from materialization results.
 
 `require_complete_puzzle_coverage()` used by WP-12 continues to gate on `verifier_ready`, not `semantic_covered`. Issue #61 must not weaken the 166-puzzle exact-artifact requirement for the v1 verification run.
 
-A separate semantic-completeness gate may be used by research/release consumers that require semantic definitions.
+A separate semantic-completeness gate is used by research/release consumers that require semantic definitions.
 
 ## Research/model serialization
 
 The model/research puzzle serializer consumes `PuzzleDefinition`, not `.puzzle` bytes and not an artifact-bound normalized-puzzle record.
 
-Retire misleading puzzle-side "normalized puzzle" terminology. The existing serializer surface should be split or renamed so normalized solutions remain normalized-solution projections while puzzle serialization explicitly accepts semantic puzzle definitions.
+Retire misleading puzzle-side normalized-puzzle terminology. The existing serializer surface should be split or renamed so normalized solutions remain normalized-solution projections while puzzle serialization explicitly accepts semantic puzzle definitions.
 
 The canonical JSON baseline remains a deterministic projection. Future model-oriented text formats must derive from the same `PuzzleDefinition` object and version their serializer independently; they may not become maintained semantic authorities.
+
+## Rights boundary
+
+`PuzzleDefinition` has no artifact-level `rights_status`. Semantic availability must never be used to upgrade or infer the redistribution status of any exact artifact.
+
+The release semantic puzzle row is treated as derived metadata/semantic structure, not as publication of the underlying `.puzzle` payload. Raw artifact bytes remain governed by the existing per-artifact rights and payload policy.
+
+This architectural separation is not a general copyright conclusion. It only defines corpus responsibilities: artifact rights live on artifacts and source observations, while semantic definitions do not masquerade as exact official artifacts or grant permission to redistribute them.
 
 ## Release migration
 
@@ -294,6 +304,8 @@ A release puzzle row becomes conceptual collection metadata plus the complete se
 - artifact-level `rights_status`.
 
 Artifact bytes, hashes, byte lengths, rights, and observations remain canonical artifact/provenance facts in the materialization pipeline and `ContentStore`. They remain available to verification and any explicit rights-governed artifact export. They are not smuggled back into the semantic puzzle row through nested artifact payload fields.
+
+The authoritative release-config specification removes the puzzle payload field instead of keeping a nullable compatibility slot. `payload_policy` continues to govern release configs that actually contain raw artifact payloads.
 
 Release materialization requires one complete semantic definition for every emitted puzzle row. It validates the definition identity and provenance links, then projects semantic content without reading puzzle bytes.
 
@@ -344,6 +356,7 @@ Owns:
 
 - puzzle release schema migration;
 - release materialization from `PuzzleDefinition`;
+- authoritative release-config payload-field update;
 - three-axis puzzle coverage reporting;
 - puzzle research/model serializer migration;
 - tiny release fixtures and release tests;
@@ -359,7 +372,7 @@ PR A proves:
 
 - semantic definitions validate without a puzzle artifact link;
 - semantic identity ignores evidence/artifact ordering and source ordering;
-- canonical molecule/bond ordering is stable;
+- canonical molecule/bond ordering is stable while multiplicity is preserved;
 - equal multi-source evidence reconciles;
 - conflicting evidence fails closed with source context;
 - incomplete evidence remains unresolved;
@@ -370,6 +383,7 @@ PR B proves:
 
 - known format-3 fixtures decode into expected semantic content;
 - byte-distinct fixtures with identical decoded semantics produce the same definition identity;
+- multiple agreeing exact artifacts are semantic-compatible while verifier readiness remains a separate selection result;
 - malformed/truncated/unknown-bit inputs fail closed;
 - decoder output is independent of local cache root;
 - pinned upstream parser behavior agrees for the supported format fields.
@@ -378,7 +392,7 @@ PR C proves:
 
 - release puzzle rows validate and materialize with no exact artifact payload fields;
 - release puzzle rows can be built from complete independently sourced semantics even when no exact artifact is present under subset/research policy;
-- WP-12 complete verification still rejects missing verifier-ready exact artifacts;
+- WP-12 complete verification still rejects missing or ambiguous verifier-ready exact artifacts;
 - semantic/artifact/verifier-ready coverage are independently derived;
 - verification rows still bind to exact `puzzle_artifact_id`;
 - puzzle serialization consumes semantic definitions and does not read `ContentStore` bytes;
