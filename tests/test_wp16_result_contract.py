@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import importlib
 from dataclasses import fields, replace
+from typing import Any
 
 import pytest
-
-import opus_corpus.benchmark_results as benchmark
 
 
 BENCHMARK_ID = "om.benchmark." + "1" * 64
@@ -13,7 +13,12 @@ CANDIDATE_SHA256 = "3" * 64
 VERIFICATION_ID = "om.verification." + "4" * 64
 
 
+def benchmark_module() -> Any:
+    return importlib.import_module("opus_corpus.benchmark_results")
+
+
 def attempt(**overrides: object) -> dict[str, object]:
+    benchmark = benchmark_module()
     values: dict[str, object] = {
         "benchmark_id": BENCHMARK_ID,
         "run_id": RUN_ID,
@@ -33,10 +38,11 @@ def attempt(**overrides: object) -> dict[str, object]:
         "verifier_calls": 1,
     }
     values.update(overrides)
-    return benchmark.build_attempt_result(**values)  # type: ignore[arg-type]
+    return benchmark.build_attempt_result(**values)
 
 
 def test_benchmark_identity_commits_to_executable_inventory_hash() -> None:
+    benchmark = benchmark_module()
     field_names = {field.name for field in fields(benchmark.BenchmarkIdentity)}
     assert "executable_inventory_sha256" in field_names
 
@@ -75,6 +81,7 @@ def test_compile_failure_has_no_candidate_or_verifier_lineage() -> None:
 
 
 def test_compile_failure_rejects_a_fake_candidate_hash() -> None:
+    benchmark = benchmark_module()
     with pytest.raises(benchmark.BenchmarkResultError):
         attempt(
             outcome="output_compile_failed",
@@ -100,6 +107,7 @@ def test_pre_verifier_failures_preserve_candidate_without_fake_verifier_lineage(
 
 
 def test_post_verifier_failure_still_requires_verifier_lineage() -> None:
+    benchmark = benchmark_module()
     with pytest.raises(benchmark.BenchmarkResultError):
         attempt(
             outcome="simulation_failed",
