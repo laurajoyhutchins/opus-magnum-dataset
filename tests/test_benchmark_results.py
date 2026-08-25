@@ -37,6 +37,7 @@ def benchmark_identity() -> Any:
         attempt_profile="one-shot",
         attempt_budget=1,
         scoring_version="solve-report-v1",
+        executable_inventory_sha256="6" * 64,
     )
 
 
@@ -336,7 +337,7 @@ def test_aggregate_is_deterministic_and_counts_outcomes_and_resources():
                 puzzle_id="puzzle-b",
                 attempt_index=1,
                 outcome="output_compile_failed",
-                candidate_sha256="2" * 64,
+                candidate_sha256=None,
                 verification_id=None,
                 cost=None,
                 cycles=None,
@@ -553,6 +554,7 @@ def test_benchmark_identity_commits_to_executable_inventory_hash():
         attempt_profile="one-shot",
         attempt_budget=1,
         scoring_version="solve-report-v1",
+        executable_inventory_sha256="6" * 64,
         executable_inventory_sha256="7" * 64,
     )
     changed = replace(identity, executable_inventory_sha256="8" * 64)

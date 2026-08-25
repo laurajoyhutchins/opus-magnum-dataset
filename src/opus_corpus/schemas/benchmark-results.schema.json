@@ -48,7 +48,8 @@
         "validation_profile",
         "attempt_profile",
         "attempt_budget",
-        "scoring_version"
+        "scoring_version",
+        "executable_inventory_sha256"
       ],
       "properties": {
         "record_type": {"const": "benchmark_identity"},
@@ -66,7 +67,8 @@
         "validation_profile": {"$ref": "#/$defs/nonempty_string"},
         "attempt_profile": {"$ref": "#/$defs/nonempty_string"},
         "attempt_budget": {"type": "integer", "minimum": 1},
-        "scoring_version": {"$ref": "#/$defs/nonempty_string"}
+        "scoring_version": {"$ref": "#/$defs/nonempty_string"},
+        "executable_inventory_sha256": {"$ref": "#/$defs/sha256"}
       }
     },
     "benchmark_run_identity": {
@@ -130,7 +132,7 @@
             "success"
           ]
         },
-        "candidate_sha256": {"$ref": "#/$defs/sha256"},
+        "candidate_sha256": {"$ref": "#/$defs/nullable_sha256"},
         "verification_id": {"$ref": "#/$defs/verification_id"},
         "cost": {"type": ["integer", "null"], "minimum": 0},
         "cycles": {"type": ["integer", "null"], "minimum": 0},
@@ -177,11 +179,62 @@
           },
           "then": {
             "properties": {
+              "candidate_sha256": {"type": "null"},
               "verification_id": {"type": "null"},
               "verifier_calls": {"const": 0}
             }
           },
           "else": {
+            "properties": {
+              "candidate_sha256": {"$ref": "#/$defs/sha256"}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"outcome": {"const": "puzzle_solution_mismatch"}},
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "verification_id": {"type": "null"},
+              "verifier_calls": {"const": 0}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"outcome": {"const": "solution_parse_failed"}},
+            "required": ["outcome"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "verification_id": {"type": "null"},
+                  "verifier_calls": {"const": 0}
+                }
+              },
+              {
+                "properties": {
+                  "verification_id": {
+                    "type": "string",
+                    "pattern": "^om\\.verification\\.[0-9a-f]{64}$"
+                  },
+                  "verifier_calls": {"type": "integer", "minimum": 1}
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {"enum": ["simulation_failed", "success"]}
+            },
+            "required": ["outcome"]
+          },
+          "then": {
             "properties": {
               "verification_id": {
                 "type": "string",
