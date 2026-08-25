@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import asdict
+
+from jsonschema import Draft202012Validator, ValidationError
 
 from .content_store import ContentStore, ContentStoreError
 from .errors import CorpusError
 from .hashing import sha256_bytes
 from .ingestion import ArtifactRecord
+from .schema_resources import load_schema_resource
 from .verification import VerificationInput, VerificationResult, Verifier, verification_id
 
 
@@ -18,6 +22,9 @@ _EXPECTED_ID_PREFIX = {
     "puzzle": "om.puzzle-artifact.sha256.",
     "solution": "om.solution.sha256.",
 }
+_VERIFICATION_VALIDATOR = Draft202012Validator(
+    load_schema_resource("verification.schema.json").schema
+)
 
 
 def _validate_artifact(record: ArtifactRecord) -> None:
@@ -82,6 +89,13 @@ def _validate_result(
     solution: ArtifactRecord,
     validation_profile: str,
 ) -> None:
+    try:
+        _VERIFICATION_VALIDATOR.validate(asdict(result))
+    except ValidationError as exc:
+        raise VerificationMaterializationError(
+            f"{solution.artifact_id}: verifier result violates verification schema: "
+            f"{exc.message}"
+        ) from exc
     if result.puzzle_artifact_id != puzzle.artifact_id:
         raise VerificationMaterializationError(
             f"{solution.artifact_id}: verifier returned the wrong puzzle artifact lineage"
