@@ -66,4 +66,9 @@ def publish_directory(destination: Path) -> Iterator[Path]:
                 pass
     finally:
         if _path_exists(candidate):
-            _remove_path(candidate)
+            try:
+                _remove_path(candidate)
+            except OSError:
+                # Candidate cleanup must not mask the operation's primary outcome.
+                # Preserve residue for diagnosis instead of attempting compensation.
+                pass

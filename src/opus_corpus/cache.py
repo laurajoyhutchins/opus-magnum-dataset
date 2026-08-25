@@ -200,7 +200,13 @@ class ContentAddressedCache:
             raise CacheIntegrityError(f"cannot publish cache receipt: {path}") from exc
         finally:
             if temp_path is not None:
-                temp_path.unlink(missing_ok=True)
+                try:
+                    temp_path.unlink(missing_ok=True)
+                except OSError:
+                    # Publication outcome is already determined. Preserve either
+                    # the committed result or the primary failure; residue is safer
+                    # to retain than reporting a false publication outcome.
+                    pass
 
     def put_bytes(
         self,
