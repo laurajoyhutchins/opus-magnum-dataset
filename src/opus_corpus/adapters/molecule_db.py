@@ -190,12 +190,15 @@ class MoleculeDbAdapter(SourceAdapter):
     pinned_revision = "6f3cd8068428ef96ac6426d092c3523da359ec76"
 
     def fetch(self, collection: CollectionDefinition, cache_root: Path) -> AcquisitionResult:
-        tarball = github_source.download_github_tarball(
+        files: dict[str, bytes] = {}
+        for upstream_path, member in github_source.iter_github_tarball_members(
             "fenhl",
             "molecule-db",
             self.pinned_revision,
-        )
-        files = github_source.tarball_files(tarball)
+        ):
+            if upstream_path in _REQUIRED_SOURCE_PATHS:
+                files[upstream_path] = member.read()
+
         missing = [path for path in _REQUIRED_SOURCE_PATHS if path not in files]
         if missing:
             joined = ", ".join(missing)

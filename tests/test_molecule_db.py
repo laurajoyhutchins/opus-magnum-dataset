@@ -81,6 +81,14 @@ def _tarball(files: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
+def _mock_tarball(monkeypatch, payload: bytes) -> None:
+    monkeypatch.setattr(
+        github_source,
+        "iter_github_tarball_members",
+        lambda *args: github_source.iter_tarball_members(io.BytesIO(payload)),
+    )
+
+
 def test_fetch_caches_only_semantic_source_files_with_provenance(monkeypatch, tmp_path: Path):
     payload = _tarball(
         {
@@ -89,7 +97,7 @@ def test_fetch_caches_only_semantic_source_files_with_provenance(monkeypatch, tm
             "README.md": b"not semantic evidence",
         }
     )
-    monkeypatch.setattr(github_source, "download_github_tarball", lambda *args: payload)
+    _mock_tarball(monkeypatch, payload)
 
     result = MoleculeDbAdapter().fetch(_collection(tmp_path), tmp_path / "cache")
 
@@ -112,7 +120,7 @@ def test_fetch_caches_semantic_source_files_before_reconciliation_failure(
             "src/molecules.rs": MOLECULE_SOURCE,
         }
     )
-    monkeypatch.setattr(github_source, "download_github_tarball", lambda *args: payload)
+    _mock_tarball(monkeypatch, payload)
     cache_root = tmp_path / "cache"
 
     with pytest.raises(CorpusError, match="P999.*missing"):
@@ -127,12 +135,15 @@ def test_fetch_caches_semantic_source_files_before_reconciliation_failure(
 @pytest.mark.upstream
 def test_pinned_source_reconciles_frozen_base_game_collection():
     adapter = MoleculeDbAdapter()
-    tarball = github_source.download_github_tarball(
-        "fenhl",
-        "molecule-db",
-        adapter.pinned_revision,
-    )
-    files = github_source.tarball_files(tarball)
+    files = {
+        path: member.read()
+        for path, member in github_source.iter_github_tarball_members(
+            "fenhl",
+            "molecule-db",
+            adapter.pinned_revision,
+        )
+        if path in {"src/molecules.rs", "src/puzzle.rs"}
+    }
     observed_hashes = {
         path: sha256(files[path]).hexdigest()
         for path in ("src/molecules.rs", "src/puzzle.rs")
