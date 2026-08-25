@@ -63,3 +63,23 @@ def test_model_puzzle_text_serializer_rejects_non_utf8_strings() -> None:
 
     with pytest.raises(PuzzleSerializationError, match="not canonical JSON"):
         ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
+
+
+def test_model_puzzle_text_serializer_escapes_unicode_line_separators() -> None:
+    puzzle = _puzzle_with_constraints({"label": "a\u0085b\u2028c\u2029d"})
+
+    rendered = ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
+
+    assert "\\u0085" in rendered
+    assert "\\u2028" in rendered
+    assert "\\u2029" in rendered
+    assert len(rendered.splitlines()) == 6
+
+
+def test_model_puzzle_text_serializer_rejects_cyclic_json_values() -> None:
+    constraints: dict[str, Any] = {}
+    constraints["self"] = constraints
+    puzzle = _puzzle_with_constraints(constraints)
+
+    with pytest.raises(PuzzleSerializationError, match="not canonical JSON"):
+        ModelPuzzleTextSerializer().serialize_puzzle(puzzle)
