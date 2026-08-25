@@ -8,6 +8,7 @@ from typing import Any, Protocol, runtime_checkable
 from jsonschema import Draft202012Validator
 
 from .errors import CorpusError
+from .hashing import canonical_json_bytes
 from .schema_resources import load_schema_resource
 
 NormalizedRecord = Mapping[str, Any]
@@ -42,10 +43,10 @@ class CanonicalJsonSerializer:
     version: str = "1"
 
     def serialize_puzzle(self, puzzle: NormalizedRecord) -> str:
-        return _canonical_json(puzzle)
+        return canonical_json_bytes(puzzle).decode("utf-8")
 
     def serialize_solution(self, solution: NormalizedRecord) -> str:
-        return _canonical_json(solution)
+        return canonical_json_bytes(solution).decode("utf-8")
 
 
 class ModelPuzzleTextSerializer:
@@ -159,11 +160,3 @@ def _raise_noncanonical_json() -> None:
     raise PuzzleSerializationError(
         "normalized puzzle contains a value that is not canonical JSON"
     )
-
-
-def _canonical_json(record: NormalizedRecord) -> str:
-    return _canonical_json_value(record)
-
-
-def _canonical_json_value(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
