@@ -26,6 +26,18 @@ Prefer using or improving an existing interface over creating another abstractio
 - External automation may operate the repository, but repository procedure and correctness must remain understandable from versioned content and ordinary GitHub state.
 - Contributors must not need a private control plane, proprietary tracker, or agent-specific runtime to understand or execute repository work.
 
+## Busbar Guidance
+
+When this repository is executed through Busbar:
+
+- Treat Busbar as the portfolio execution/control surface, not as repository authority. GitHub repository state remains authoritative.
+- Claim coordinated work with `work.claim` before mutating an owned surface and settle the lease with `work.settle` when the outcome is final.
+- Use existing Busbar semantic GitHub commands when their guarantees are needed: `github.apply_changeset`, `github.review_packet`, `github.delete_branch`, and `github.required_checks.ensure`. Use ordinary GitHub operations for ordinary GitHub behavior instead of recreating it in the control plane.
+- Let `portfolio.reconcile_work_surface` derive the Linear work projection from GitHub. Do not use Linear as a second repository, evidence ledger, or historical archive.
+- Keep reasoning agents on judgment, research, synthesis, design, debugging, and novel implementation. Move repeated bookkeeping, reconciliation, validation, counting, materialization, state derivation, and known recovery choreography into deterministic software.
+- If an operation depends on Busbar guarantees such as exclusive claims, atomic changes, or protocol evidence and Busbar is unavailable, fail closed. Do not fall back to the historical Agent Execution Control Plane or add a compatibility path.
+- Keep repository procedure executable and reviewable from versioned content and ordinary GitHub state even when Busbar performed the orchestration.
+
 ## Core invariants
 
 - Prefer deletion, consolidation, and deterministic derivation over compatibility layers or competing mechanisms.
