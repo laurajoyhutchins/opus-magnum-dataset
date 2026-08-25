@@ -15,6 +15,7 @@ For current repository behavior, prefer the documents in this directory root. Fi
 | [`benchmark-protocol.md`](benchmark-protocol.md) | Benchmark protocol boundary, Solve-first evaluation design, attempt profiles, scoring/reporting, contamination guidance, and result requirements. |
 | [`hugging-face-export.md`](hugging-face-export.md) | Loading-script-free Hugging Face/Parquet publication contract. |
 | [`source-inventory.md`](source-inventory.md) | Frozen base-game collection membership, pinned source coverage, provenance roles, and rights boundaries. |
+| [`leaderboard-bot-acquisition.md`](leaderboard-bot-acquisition.md) | Pinned leaderboard-bot model acquisition, cache evidence, and frozen-collection reconciliation contract. |
 | [`molecule-db-acquisition.md`](molecule-db-acquisition.md) | Pinned molecule-db acquisition and semantic-evidence contract. |
 | [`official-puzzle-acquisition.md`](official-puzzle-acquisition.md) | Explicit local official-puzzle byte acquisition, provenance, cache identity, and rights contract. |
 

@@ -1,9 +1,4 @@
-from pathlib import Path
-
-import pytest
-
-from opus_corpus.adapters import ADAPTERS, AdapterNotImplementedError, SourceAdapter
-from opus_corpus.collections import CollectionDefinition
+from opus_corpus.adapters import ADAPTERS, SourceAdapter
 
 EXPECTED_REVISIONS = {
     "leaderboard-bot": "ca40dee95da584270eb3be1c4b74e2be63afa7e6",
@@ -13,22 +8,6 @@ EXPECTED_REVISIONS = {
     "molecule-db": "6f3cd8068428ef96ac6426d092c3523da359ec76",
     "official-game": None,
 }
-UNIMPLEMENTED_SOURCES = sorted(
-    set(EXPECTED_REVISIONS)
-    - {"om-archive", "om-leaderboard", "omsim", "molecule-db", "official-game"}
-)
-
-
-def _collection(tmp_path: Path) -> CollectionDefinition:
-    return CollectionDefinition(
-        collection_id="test-collection",
-        inventory_sha256="0" * 64,
-        puzzle_count=0,
-        manifest_path=tmp_path / "collection.toml",
-        inventory_path=tmp_path / "collection.csv",
-        inventory_rows=(),
-        manifest={},
-    )
 
 
 def test_adapter_registry_has_expected_sources_and_revisions():
@@ -42,8 +21,9 @@ def test_registered_adapters_derive_from_source_adapter():
     assert all(issubclass(adapter_type, SourceAdapter) for adapter_type in ADAPTERS.values())
 
 
-@pytest.mark.parametrize("source_id", UNIMPLEMENTED_SOURCES)
-def test_unimplemented_fetch_fails_closed(source_id: str, tmp_path: Path):
-    adapter = ADAPTERS[source_id]()
-    with pytest.raises(AdapterNotImplementedError, match=source_id):
-        adapter.fetch(_collection(tmp_path), tmp_path / "cache")
+def test_registered_adapters_implement_fetch():
+    assert {
+        source_id
+        for source_id, adapter_type in ADAPTERS.items()
+        if adapter_type.fetch is SourceAdapter.fetch
+    } == set()
