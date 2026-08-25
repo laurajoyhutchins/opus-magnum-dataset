@@ -15,6 +15,7 @@ Live execution status belongs in GitHub issues and pull requests. Repository doc
 | [`verification.md`](verification.md) | Pinned `libverify` implementation identity, native boundary, canonical success/failure semantics, metric recomputation, and deterministic artifact-to-verification materialization. |
 | [`puzzle-serialization.md`](puzzle-serialization.md) | V1 versioned deterministic model-oriented serialization over canonical normalized puzzle records. |
 | [`benchmark-protocol.md`](benchmark-protocol.md) | Benchmark protocol boundary, Solve-first evaluation design, attempt profiles, scoring/reporting, contamination guidance, and result requirements. |
+| [`solution-views.md`](solution-views.md) | V1 deterministic all-verified, vanilla-constructible, and record-eligible research-view contract. |
 | [`hugging-face-export.md`](hugging-face-export.md) | Loading-script-free Hugging Face/Parquet publication contract. |
 | [`source-inventory.md`](source-inventory.md) | Frozen base-game collection membership, pinned source evidence, provenance roles, and rights boundaries. |
 | [`leaderboard-bot-acquisition.md`](leaderboard-bot-acquisition.md) | Pinned leaderboard-bot collection-evidence acquisition and fail-closed reconciliation contract. |
