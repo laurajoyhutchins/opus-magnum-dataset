@@ -1,0 +1,8 @@
+Name: OpusCorpusOfficialPuzzleExtractor
+Title: Opus Corpus Official Puzzle Extractor
+Desc: "Locally exports vanilla built-in puzzle artifacts through the game's own serializer."
+Version: 0.1.0
+DLL: "OfficialPuzzleExtractor/bin/Release/net452/OfficialPuzzleExtractor.dll"
+Dependencies:
+- Name: Quintessential
+  Version: 0.5.6
