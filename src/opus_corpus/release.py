@@ -404,7 +404,7 @@ def _load_release_metadata(input_dir: Path) -> tuple[dict[str, Any], str]:
     try:
         raw = path.read_bytes()
         value = json.loads(raw)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ReleaseValidationError(
             [ValidationError("release_metadata_invalid", str(exc), path.as_posix())]
         ) from exc
@@ -421,6 +421,15 @@ def _load_release_metadata(input_dir: Path) -> tuple[dict[str, Any], str]:
             ]
         )
     return value, sha256_bytes(raw)
+
+
+def _sha256_release_file(path: Path, *, code: str) -> str:
+    try:
+        return sha256_file(path)
+    except OSError as exc:
+        raise ReleaseValidationError(
+            [ValidationError(code, str(exc), path.as_posix())]
+        ) from exc
 
 
 def build_release(
@@ -479,7 +488,10 @@ def build_release(
                 records_sha256=canonical_records_sha256(rows),
                 row_count=len(rows),
                 parquet_path=parquet_rel.as_posix(),
-                parquet_sha256=sha256_file(parquet_path),
+                parquet_sha256=_sha256_release_file(
+                    parquet_path,
+                    code="parquet_read_error",
+                ),
                 source_path=source["path"],
                 source_sha256=source["sha256"],
             )
@@ -491,7 +503,10 @@ def build_release(
             collection_inventory_sha256=collection.inventory_sha256,
             split=split,
             build_software_revision=detect_git_revision(config.root),
-            build_config_sha256=sha256_file(config.path),
+            build_config_sha256=_sha256_release_file(
+                config.path,
+                code="build_config_read_error",
+            ),
             payload_policy=payload_policy,
             coverage_policy=coverage_policy,
             release_metadata=release_metadata,
@@ -531,13 +546,25 @@ def _read_manifest(output_dir: Path) -> ReleaseManifest:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
             raise TypeError("manifest root must be an object")
-    except (OSError, json.JSONDecodeError, TypeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError) as exc:
         raise ReleaseValidationError(
             [ValidationError("release_manifest_invalid", str(exc), path.as_posix())]
         ) from exc
 
     if "format_version" in value:
         _ensure_supported_manifest_format(value["format_version"])
+
+    for field in ("configs", "release_metadata"):
+        if field in value and not isinstance(value[field], dict):
+            raise ReleaseValidationError(
+                [
+                    ValidationError(
+                        "release_manifest_invalid",
+                        f"{field} must be an object",
+                        path.as_posix(),
+                    )
+                ]
+            )
 
     try:
         return ReleaseManifest.from_dict(value)
@@ -573,14 +600,22 @@ def validate_release(
                 "release-manifest.json",
             )
         )
-    if manifest.build_config_sha256 != sha256_file(config.path):
-        errors.append(
-            ValidationError(
-                "build_config_changed",
-                "build configuration changed since release",
-                config.path.as_posix(),
-            )
+    try:
+        build_config_sha256 = _sha256_release_file(
+            config.path,
+            code="build_config_read_error",
         )
+    except ReleaseValidationError as exc:
+        errors.extend(exc.errors)
+    else:
+        if manifest.build_config_sha256 != build_config_sha256:
+            errors.append(
+                ValidationError(
+                    "build_config_changed",
+                    "build configuration changed since release",
+                    config.path.as_posix(),
+                )
+            )
     if manifest.coverage_policy not in COVERAGE_POLICIES:
         errors.append(
             ValidationError(
@@ -633,7 +668,15 @@ def validate_release(
                 )
             )
             continue
-        if sha256_file(parquet_path) != entry.parquet_sha256:
+        try:
+            parquet_sha256 = _sha256_release_file(
+                parquet_path,
+                code="parquet_read_error",
+            )
+        except ReleaseValidationError as exc:
+            errors.extend(exc.errors)
+            continue
+        if parquet_sha256 != entry.parquet_sha256:
             errors.append(
                 ValidationError(
                     "parquet_hash_mismatch",
@@ -642,7 +685,13 @@ def validate_release(
                 )
             )
             continue
-        rows = sort_records(config_name, read_parquet(config_name, parquet_path))
+        try:
+            rows = sort_records(config_name, read_parquet(config_name, parquet_path))
+        except OSError as exc:
+            errors.append(
+                ValidationError("parquet_read_error", str(exc), parquet_path.as_posix())
+            )
+            continue
         try:
             _validate_rows(config_name, rows, schema_resource.schema)
             validate_payload_policy(config_name, rows, manifest.payload_policy)
