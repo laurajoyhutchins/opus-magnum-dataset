@@ -385,7 +385,7 @@ def test_release_rejects_forged_verification_identity():
     puzzle, definition, puzzle_obs, solution, solution_obs, verification, normalized = (
         _records_inputs()
     )
-    forged = {**verification, "verification_id": "forged-verification"}
+    forged = {**verification, "verification_id": "om.verification." + "0" * 64}
 
     with pytest.raises(ReleaseMaterializationError, match="Verification identity"):
         materialize_release_records(
