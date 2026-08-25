@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 
 from .errors import CorpusError
 from .hashing import canonical_json_bytes, canonical_records_sha256, sha256_bytes
-from .schema_resources import load_schema_resource
+from .schema_resources import collect_schema_errors, load_schema_resource
 
 OUTCOMES = (
     "output_compile_failed",
@@ -302,12 +302,11 @@ def _complete_sum(records: Sequence[Mapping[str, Any]], field: str) -> int | Non
 def _validate_record(record: Mapping[str, Any]) -> None:
     schema = load_schema_resource("benchmark-results.schema.json").schema
     validator = Draft202012Validator(schema)
-    errors = sorted(
-        validator.iter_errors(dict(record)),
-        key=lambda error: (tuple(str(part) for part in error.absolute_path), error.message),
+    errors = collect_schema_errors(
+        validator,
+        dict(record),
+        code="benchmark_result_invalid",
+        root_location="<record>",
     )
-    if not errors:
-        return
-    error = errors[0]
-    path = ".".join(str(part) for part in error.absolute_path) or "<record>"
-    raise BenchmarkResultError(f"invalid benchmark result at {path}: {error.message}")
+    if errors:
+        raise BenchmarkResultError(f"invalid benchmark result at {errors[0].detail}")
