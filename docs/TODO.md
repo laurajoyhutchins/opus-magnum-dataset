@@ -1,169 +1,76 @@
-# TODO
+# Work topology
 
-This checklist translates the strategic [`roadmap.md`](roadmap.md) into concrete implementation slices.
+This document records stable dependency and concurrency boundaries for repository work. It is not a status board, completion ledger, or assignee system.
 
-It is not a second issue tracker. GitHub issues and pull requests are the live execution record. This file records dependency order, ownership boundaries, and a coarse landed / active / blocked snapshot. Generated coverage, verification counts, manifests, benchmark results, and other derivable facts belong in deterministic software outputs rather than hand-maintained entries here.
+Live execution state, ownership, review, and acceptance evidence belong in GitHub issues and pull requests. A merge, closure, reopening, or restack should not require updating this file. Small, understood maintenance that does not merit independent coordination lives in [`CLEANUP.md`](CLEANUP.md).
 
-Small, understood maintenance that does not merit independent scheduling lives in [`CLEANUP.md`](CLEANUP.md). Promote an item to a GitHub issue if it grows beyond opportunistic cleanup.
+Use this topology to answer two questions: **what depends on what, and which capability boundaries can change independently?**
 
-Use this file to answer two questions: **what can be worked on concurrently without overlapping ownership, and what should we build next?**
-
-## Work graph
+## Core corpus dependency graph
 
 ```text
-[LANDED] WP-01 Verification contract (#13)
-        │
-        └──────────────→ [LANDED] WP-02 Normalized-solution contract (#14)
-
-[LANDED] WP-03 Artifact materializer core (#15)
-        │
-        └────→ [LANDED] WP-04 SolutionArtifact + Observation materialization (#30) ─┐
-                                                                                    │
-[LANDED] WP-05 omsim puzzle source (#19) ─────┐                                     │
-[LANDED] WP-06 molecule-db semantic source (#18) ├→ [LANDED] WP-08 PuzzleArtifact (#31)
-[LANDED] WP-07 official/local puzzle-byte path (#16) ┘                              │
-                                                       │                            │
-[LANDED] WP-01 ───────────────────────────────────────┼──────┐                     │
-                                                       ↓      │                     │
-                                      [LANDED] WP-09 Verification (#43) ←───────────┘
-                                                       │
-[LANDED] WP-02 ─────────────────────────┐              │
-[LANDED] WP-04 ─────────────────────────┴→ [LANDED] WP-10 Normalization (#41)
-                                                       │
-[LANDED] WP-04 ──────────────────────────────────────┐
-[LANDED] WP-08 ──────────────────────────────────────┤
-[LANDED] WP-09 ──────────────────────────────────────┼→ [ACTIVE] WP-11 Release materialization (#46)
-[LANDED] WP-10 ──────────────────────────────────────┘
-                                                       │
-                                                       ↓
-                                          [BLOCKED] WP-12 Complete v1 release
+WP-01 Verification contract ───────────────────────────────┐
+                                                          │
+WP-03 Artifact materializer ─→ WP-04 Solution/Observation ├→ WP-09 Verification ───────┐
+                                                          │                             │
+WP-05 omsim puzzle source ───────┐                         │                             │
+WP-06 molecule-db semantic source ├→ WP-08 PuzzleArtifact ┘                             ├→ WP-11 Release materialization → WP-12 Complete v1 release
+WP-07 official/local puzzle bytes ┘                                                       │
+                                                                                        │
+WP-02 Normalized-solution contract ─┐                                                   │
+WP-04 Solution/Observation ──────────┴→ WP-10 Solution parsing/normalization ────────────┘
 ```
 
-WP-09 and WP-10 are landed. WP-11 is the active downstream integration packet in PR #46 with all declared implementation dependencies now on `main`. WP-12 remains downstream of WP-11.
+The graph is about interface dependencies, not present-tense status. Inspect GitHub before starting work on any packet or neighboring surface.
 
-Release-boundary hardening #20, #21, #22, and #23 has landed through PRs #24, #29, #26, and #25 respectively. The repository-wide MIT license and third-party corpus rights boundary landed in PR #32. Additional hardening remains ordinary GitHub issue/PR work rather than another work-assignment system.
+## Research dependency graph
 
-## Landed foundations
+```text
+canonical puzzle / verification / release primitives
+        ├→ WP-13 deterministic puzzle serializer ─────┐
+        ├→ WP-14 verifier-derived reference views ────┼→ research and comparison surfaces
+        └→ WP-15 benchmark result/report model ───────┘
 
-These capabilities already exist and should be consumed rather than recreated:
+WP-13 + WP-15 + pinned verifier ─→ WP-16 v0.1 Solve harness
+WP-14 reference metrics/frontiers ─→ optional benchmark comparisons
+```
 
-- [x] Frozen 166-puzzle `base-game-2026-06-16` collection and collection validation.
-- [x] Four-config deterministic release shell with Parquet, manifest, dataset card, staging, and publication guards.
-- [x] Explicit `complete` / `subset` coverage policy with mechanically derived per-puzzle release coverage.
-- [x] Rights-aware payload policy with repository-wide policy in [`../RIGHTS.md`](../RIGHTS.md).
-- [x] MIT license for repository-authored project material without relicensing third-party corpus payloads.
-- [x] Content-addressed acquisition cache with immutable receipts and source-mutation protection.
-- [x] One authoritative exact-byte `ContentStore` shared by acquisition and materialization.
-- [x] Receipt-only canonical artifact/provenance materializer with deterministic exact-byte identity, deduplication, provenance preservation, conservative rights folding, and fail-closed conflicts.
-- [x] Canonical `SolutionArtifact` and `Observation` materialization from pinned solution and metadata receipts, including metadata-only observations.
-- [x] Canonical exact-byte `PuzzleArtifact` materialization with deterministic coverage derivation and fail-closed ambiguity checks.
-- [x] Pinned `om-archive` and `om-leaderboard` acquisition.
-- [x] Pinned `omsim` campaign puzzle-definition acquisition.
-- [x] Pinned molecule-db semantic acquisition and topology reconciliation.
-- [x] Explicit local official `.puzzle` acquisition with immutable manifest provenance and `local_fetch_only` rights.
-- [x] Canonical `Verification` contract plus pinned deterministic `omsim` / `libverify` implementation and verification materialization.
-- [x] Strict normalized-solution contract plus deterministic `.solution` parser and `SolutionNormalizer` implementation.
-- [x] Normalized-puzzle schema, exact `PuzzleArtifact` lineage, and deterministic serialization seam.
-- [x] Package-native authoritative JSON Schemas that work from editable installs and installed wheels.
-- [x] Release staging overlap protection, manifest path confinement, and unsupported manifest-version rejection.
-- [x] Draft benchmark protocol specifying verifier-backed Solve evaluation and reproducible benchmark identity.
+WP-13, WP-14, and WP-15 own separate derived surfaces and may proceed independently when their concrete changes do not overlap. WP-16 is the integration boundary for model execution and deterministic reporting.
 
-## Work packets
+## Packet boundaries
 
-Each packet owns one capability. Before starting work, inspect open issues and pull requests and avoid overlapping an active implementation surface.
+| Packet | Depends on | Owns |
+| --- | --- | --- |
+| **WP-01 Verification contract** | canonical artifact concepts | Strict `Verification` schema, identity, and simulator-independent protocol. |
+| **WP-02 Normalized-solution contract** | WP-01 domain separation | Strict normalized-solution schema, deterministic identity, and `SolutionNormalizer` seam. |
+| **WP-03 Artifact materializer core** | acquisition cache/content primitives | Shared exact-byte artifact/provenance materialization and identity. |
+| **WP-04 SolutionArtifact + Observation materialization** | WP-03 | Cached solution/metadata facts to canonical solution artifacts and observations. |
+| **WP-05 omsim puzzle source** | acquisition/cache primitives | Pinned `omsim` puzzle-source acquisition. |
+| **WP-06 molecule-db semantic source** | acquisition/cache primitives | Pinned semantic puzzle evidence and reconciliation. |
+| **WP-07 Official/local puzzle-byte path** | acquisition/cache primitives | Explicit local exact official puzzle-byte acquisition and provenance. |
+| **WP-08 PuzzleArtifact coverage/materialization** | WP-03, WP-05, WP-06, WP-07 | Cached puzzle evidence to canonical puzzle artifacts plus derived artifact coverage. |
+| **WP-09 Verification implementation** | WP-01, WP-04, WP-08 | Pinned `omsim`/`libverify` verification behind the `Verifier` contract. |
+| **WP-10 Solution parser + normalizer** | WP-02, WP-04 | Deterministic `.solution` parsing and normalized-solution materialization. |
+| **WP-11 Release materialization** | WP-04, WP-08, WP-09, WP-10 | Canonical facts to the existing release inputs without a second row authority. |
+| **WP-12 Complete v1 release** | WP-11 | Complete frozen-collection build, deterministic replay, rights enforcement, and publication acceptance. |
+| **WP-13 Deterministic puzzle serializer** | normalized-puzzle and serialization seams | Versioned model-oriented serialization over canonical puzzle semantics. |
+| **WP-14 Verifier-derived reference views** | canonical verification/release facts | Deterministic verified, constructibility, eligibility, best-known, and frontier views. |
+| **WP-15 Benchmark result model** | benchmark protocol, canonical hashing/schema primitives | Stable attempt/result identities, outcome taxonomy, and deterministic aggregation. |
+| **WP-16 v0.1 Solve harness** | WP-13, WP-15, pinned verifier; WP-14 for reference comparisons | Exact-artifact model execution, candidate handling, verification, and reproducible reports. |
 
-| Packet | State | Depends on | Owns | Complete when |
-| --- | --- | --- | --- | --- |
-| **WP-01 Verification contract** | **Settled** | current `main` at implementation time | Canonical `Verification` schema, identity, protocol, contract tests | PR #13 merged with contract tests green |
-| **WP-02 Normalized-solution contract** | **Settled** | WP-01 | Strict normalized-solution schema, deterministic identity, `SolutionNormalizer` seam | PR #14 merged with contract tests green |
-| **WP-03 Artifact materializer core** | **Settled** | landed content-addressed cache | Shared canonical artifact/provenance materialization primitive | PR #15 merged with integrity, conflict, determinism, provenance, and local-root tests green |
-| **WP-04 SolutionArtifact + Observation materialization** | **Settled** | WP-03 | Cached solution/metadata facts → canonical `SolutionArtifact` + `Observation` records | PR #30 merged with deterministic materialization, metadata-only observation, provenance, and release-integrity regressions green |
-| **WP-05 omsim puzzle source** | **Settled** | acquisition/cache primitives | Pinned `omsim` campaign puzzle acquisition | PR #19 merged with deterministic/idempotent rights-aware acquisition tests green |
-| **WP-06 molecule-db semantic source** | **Settled** | acquisition/cache primitives | Pinned molecule-db semantic acquisition | PR #18 plus hardening PR #27 landed with evidence retention and upstream reconciliation tests green |
-| **WP-07 Official/local puzzle-byte path** | **Settled** | acquisition/cache primitives | Explicit local exact official puzzle-byte acquisition | PR #16 merged with provenance, rights, portability, and fail-closed regressions green |
-| **WP-08 PuzzleArtifact coverage/materialization** | **Settled** | WP-03, WP-05, WP-06, WP-07 | Cached puzzle facts/evidence → canonical `PuzzleArtifact` records + derived coverage | PR #31 merged with deterministic exact-artifact coverage, official-manifest evidence, ambiguity, and receipt-identity regressions green |
-| **WP-09 Verification implementation** | **Settled** | WP-01, WP-04, WP-08 | Pinned `omsim` / `libverify` implementation behind `Verifier` | PR #43 merged with pinned-upstream, failure-retention, metric-recomputation, lineage, and determinism coverage green |
-| **WP-10 Solution parser + normalizer** | **Settled** | WP-02, WP-04 | Deterministic `.solution` parser and `SolutionNormalizer` implementation | PR #41 merged with exact-artifact lineage, parser/normalizer, schema-boundary, and pinned-upstream coverage green |
-| **WP-11 Release materialization** | **In progress** | WP-04, WP-08, WP-09, WP-10 | Canonical entities → existing four release inputs | PR #46 lands with repeated offline materialization yielding identical canonical rows/manifest hashes and release validation passing |
-| **WP-12 Complete v1 release** | **Blocked** | WP-11 | Full frozen-collection build and publication readiness | all 166 puzzles have verifier-successful coverage, offline rebuild reproduces the canonical manifest, and HF contract passes |
+## Coordination rules
 
-## Contribution coordination
+1. Inspect open GitHub issues and pull requests before changing a packet or adjacent implementation surface.
+2. Consume established interfaces rather than recreating acquisition, content storage, schema, verification, normalization, or release mechanisms.
+3. Branch from the dependency state the work actually requires. Stack changes only for a real dependency or deliberate collision-avoidance sequence.
+4. Own one capability boundary. If a change alters a neighboring public contract, split or restack it instead of silently widening scope.
+5. When two items unexpectedly collide, factor the smallest shared primitive or correct the dependency boundary rather than maintaining parallel implementations.
+6. Keep repeated bookkeeping, reconciliation, counting, validation, materialization, and known recovery behavior in deterministic software.
+7. Treat generated coverage, manifests, views, reports, and publication artifacts as projections, never hand-maintained repository authority.
+8. Keep source evidence and verifier-derived facts distinct, preserve disagreement, and fail closed on ambiguity, corruption, unsafe paths, incomplete required coverage, or rights uncertainty.
 
-1. Inspect open issues and pull requests before starting an open packet. Use ordinary GitHub mechanisms for live coordination; no external claim service is required.
-2. Consume settled interfaces from `main` rather than reopening completed architectural work by default.
-3. Avoid concurrent work on the same implementation surface unless the dependency graph explicitly requires a stack.
-4. Branch from the settled dependency base. Stack only when there is a real dependency or deliberate collision-avoidance sequence.
-5. Own the declared capability, not neighboring machinery. Split or restack work that requires changing another packet's public contract.
-6. Reuse existing acquisition, storage, schema, verification, normalization, and release primitives. Do not create parallel authorities.
-7. Keep PR dependencies and non-goals explicit enough that another contributor can work safely beside the change.
-8. Consider work complete only with fresh deterministic evidence for its acceptance criteria.
-9. If two items unexpectedly collide, fix the graph or factor a smaller shared primitive rather than allowing both branches to mutate the same boundary independently.
+## Strategic boundaries
 
-## Now
+The v1 boundary is a complete `base-game-2026-06-16` release that can be reproduced offline from pinned cached facts, has immutable provenance and verifier-backed coverage, enforces rights policy, and passes the Hugging Face export contract.
 
-- [x] Land WP-09 deterministic verification via PR #43.
-- [x] Land WP-10 solution parsing and normalization via PR #41.
-- [ ] Complete WP-11 release materialization via PR #46 using the landed WP-09/WP-10 outputs.
-- [ ] Keep WP-12 downstream until WP-11 supplies the production release inputs.
-
-## Next
-
-### WP-11: connect canonical entities to the release factory
-
-- [ ] Materialize canonical puzzle, solution, observation, verification-derived, and normalized rows into the existing four release inputs.
-- [ ] Derive release rows rather than introducing a parallel canonical row store.
-- [ ] Preserve verification-derived metrics without trusting source-declared scores.
-- [ ] Preserve payload-rights enforcement through materialization and publication.
-- [ ] Prove repeated offline materialization produces identical canonical row content and release manifest hashes.
-- [ ] Keep `fixtures/tiny-corpus/` as a test fixture only, not production authority.
-
-### WP-12: reach the v1 release boundary
-
-- [ ] Run the full frozen `base-game-2026-06-16` pipeline from pinned cached source facts.
-- [ ] Ensure every required puzzle has at least one verifier-successful solution or fail the complete build.
-- [ ] Ensure every published solution is traceable to immutable source evidence.
-- [ ] Derive missing coverage and source/verifier discrepancies mechanically rather than repairing them by hand.
-- [ ] Record collection hash, source revisions, artifact hashes, verifier identity, validation profile, normalizer version, coverage, and output hashes in the release manifest.
-- [ ] Rebuild offline from the same cache and confirm the canonical release manifest is reproduced.
-- [ ] Pass [`hugging-face-export.md`](hugging-face-export.md) with the complete real corpus.
-- [ ] Publish the first complete base-game release as a downstream projection.
-
-## Later
-
-### Research-grade derived views and benchmark harness
-
-- [ ] Generate all-verified, vanilla/ordinary-constructible, and record-eligible solution views.
-- [ ] Generate Pareto frontiers and best-known cost/cycles/area/instructions views using explicit versioned predicates.
-- [ ] Generate human-observed versus machine-generated solution views.
-- [ ] Implement a deterministic model-oriented puzzle serialization over normalized puzzle records.
-- [ ] Implement the v0.1 Solve benchmark harness defined in [`benchmark-protocol.md`](benchmark-protocol.md).
-- [ ] Support one-shot and one bounded interactive attempt profile with versioned feedback.
-- [ ] Generate per-puzzle result records and deterministic aggregate benchmark reports.
-- [ ] Derive best-known reference metrics/frontiers from verifier-successful canonical solutions.
-- [ ] Design leakage-aware benchmark train/validation/test or held-out collection methodology before introducing splits or making generalization claims.
-- [ ] Keep every research and benchmark view derivable from canonical facts by versioned deterministic software.
-
-### Expand beyond the frozen base game
-
-- [ ] Define a De Re Metallica collection if source and validation semantics are ready.
-- [ ] Define additional official/special puzzle collections as immutable manifests rather than extending the frozen base-game manifest.
-- [ ] Define Workshop/custom puzzle collection policy and provenance rules.
-- [ ] Define tournament/community collection manifests where source identity is sufficiently stable.
-- [ ] Add additional historical solution archives through the existing adapter/acquisition path.
-- [ ] Add clearly identified machine-generated baselines, such as OpusSolver output, as source facts with explicit provenance.
-- [ ] Extend shared infrastructure only when a new source class genuinely requires a new primitive.
-
-## Cross-cutting rules
-
-- [ ] Reuse an existing primitive before adding storage, reconciliation, projection, or orchestration machinery.
-- [ ] Put repeatable bookkeeping, counting, validation, reconciliation, and materialization in deterministic software.
-- [ ] Keep repository facts authoritative and publication/benchmark surfaces derived.
-- [ ] Preserve source evidence even when it conflicts with verifier-derived facts.
-- [ ] Treat rights status per artifact/source class; do not infer redistribution permission from technical availability or the repository's MIT license.
-- [ ] Fail closed on unknown identity, unknown required puzzle fields, corruption, verification failure, or rights uncertainty.
-- [ ] Keep v1 deduplication at exact-byte identity only.
-- [ ] Add focused regression tests for each invariant before considering a slice complete.
-
-## Done when
-
-V1 is done when the release acceptance criteria in [`dataset-spec.md`](dataset-spec.md) are satisfied for `base-game-2026-06-16`: the complete verifier-backed corpus can be rebuilt offline from pinned cached facts, all required solutions have immutable provenance and recomputed metrics, generated views require no manual corpus maintenance, and the existing release pipeline can publish the resulting downstream projection.
+Research views and benchmarks remain derived from the same canonical facts. They must not become separately curated datasets, hand-maintained leaderboards, or alternate stores. Additional collections should be introduced as new immutable collection definitions that reuse the existing pipeline unless a genuinely new source class proves a new primitive is required.

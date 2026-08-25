@@ -1,39 +1,32 @@
 # Documentation map
 
-This directory contains the current corpus contracts, implementation roadmap, source/acquisition notes, and dated design history.
+This directory contains durable corpus contracts, strategic sequencing, source/acquisition notes, and verification/publication guidance.
 
-For current repository behavior, prefer the documents in this directory root. Files under `docs/superpowers/` are dated implementation plans and design notes; they preserve historical reasoning but are not the authority for current behavior when they disagree with code, tests, schemas, or the current root-level documentation.
+Live execution status belongs in GitHub issues and pull requests. Repository documentation should not need edits merely because an issue or pull request is opened, merged, closed, reopened, or restacked. Implementation history belongs in Git and pull-request history rather than a parallel documentation archive.
 
-## Current documents
+## Durable documents
 
 | Document | Role |
 | --- | --- |
-| [`TODO.md`](TODO.md) | Dependency/concurrency work graph and coarse landed/ready/blocked implementation snapshot. GitHub issues and pull requests show live activity. |
-| [`roadmap.md`](roadmap.md) | Strategic dependency order from the current corpus factory to a complete v1 release and later research expansion. |
+| [`CLEANUP.md`](CLEANUP.md) | Small, understood maintenance that is safe to pick up opportunistically and does not require independent coordination. |
+| [`TODO.md`](TODO.md) | Stable dependency/concurrency topology and work-packet boundaries. It deliberately contains no live execution state. |
+| [`roadmap.md`](roadmap.md) | Strategic milestones, dependency order, packet boundaries, and sequencing rationale. |
 | [`dataset-spec.md`](dataset-spec.md) | Canonical data model, invariants, provenance, verification, normalization, reproducibility, and release acceptance criteria. |
 | [`verification.md`](verification.md) | Pinned `libverify` implementation identity, native boundary, canonical success/failure semantics, metric recomputation, and deterministic artifact-to-verification materialization. |
 | [`puzzle-serialization.md`](puzzle-serialization.md) | V1 versioned deterministic model-oriented serialization over canonical normalized puzzle records. |
 | [`benchmark-protocol.md`](benchmark-protocol.md) | Benchmark protocol boundary, Solve-first evaluation design, attempt profiles, scoring/reporting, contamination guidance, and result requirements. |
 | [`solution-views.md`](solution-views.md) | V1 deterministic all-verified, vanilla-constructible, and record-eligible research-view contract. |
 | [`hugging-face-export.md`](hugging-face-export.md) | Loading-script-free Hugging Face/Parquet publication contract. |
-| [`source-inventory.md`](source-inventory.md) | Frozen base-game collection membership, pinned source coverage, provenance roles, and rights boundaries. |
-| [`leaderboard-bot-acquisition.md`](leaderboard-bot-acquisition.md) | Pinned leaderboard-bot model acquisition, cache evidence, and frozen-collection reconciliation contract. |
+| [`source-inventory.md`](source-inventory.md) | Frozen base-game collection membership, pinned source evidence, provenance roles, and rights boundaries. |
+| [`leaderboard-bot-acquisition.md`](leaderboard-bot-acquisition.md) | Pinned leaderboard-bot collection-evidence acquisition and fail-closed reconciliation contract. |
 | [`molecule-db-acquisition.md`](molecule-db-acquisition.md) | Pinned molecule-db acquisition and semantic-evidence contract. |
 | [`official-puzzle-acquisition.md`](official-puzzle-acquisition.md) | Explicit local official-puzzle byte acquisition, provenance, cache identity, and rights contract. |
+| [`official-game-extraction.md`](official-game-extraction.md) | Local extraction path for exact official puzzle artifacts from an operator-owned game installation. |
 
-## Authority order
+## Authority and history
 
-When documentation appears inconsistent, resolve it in this order:
+For implemented behavior, committed schemas, collection manifests, configuration, code, and tests are authoritative. The focused documents above describe durable contracts and intended boundaries. GitHub issues and pull requests own live execution state, review discussion, and acceptance evidence.
 
-1. committed schemas, collection manifests, configuration, code, and tests for implemented behavior;
-2. current root-level documentation in `docs/` and `AGENTS.md` for intended contracts and contributor guidance;
-3. GitHub issues and pull requests for live work and detailed acceptance criteria;
-4. dated notes under `docs/superpowers/` for historical design context.
+Generated release artifacts, coverage reports, manifests, and benchmark reports are projections. Regenerate them with deterministic repository software rather than maintaining copies as documentation.
 
-Generated release artifacts, coverage reports, manifests, and benchmark reports are projections. They should be regenerated by deterministic repository software rather than manually maintained as documentation.
-
-## Historical design notes
-
-`docs/superpowers/specs/` and `docs/superpowers/plans/` contain dated design and implementation documents created while individual capabilities were being developed. They are useful for understanding why an interface was introduced, but many describe work that has since landed or changed.
-
-Do not use a historical plan as evidence that a feature is still pending. Check the current work graph, GitHub state, and implemented code/tests first.
+Historical implementation plans, agent choreography, RED/GREEN transcripts, and superseded design snapshots are intentionally not retained in the durable documentation tree. Git and pull-request history preserve that record without making old execution context look like current architecture.
