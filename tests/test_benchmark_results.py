@@ -168,6 +168,7 @@ def test_schema_accepts_identity_attempt_puzzle_and_aggregate_records():
     report = benchmark.aggregate_benchmark_report(
         identity=identity,
         run=run,
+        expected_puzzle_ids=["puzzle-a"],
         puzzle_results=[puzzle],
     )
 
@@ -353,11 +354,13 @@ def test_aggregate_is_deterministic_and_counts_outcomes_and_resources():
     report_a = benchmark.aggregate_benchmark_report(
         identity=identity,
         run=run,
+        expected_puzzle_ids=["puzzle-b", "puzzle-a"],
         puzzle_results=[puzzle_b, puzzle_a],
     )
     report_b = benchmark.aggregate_benchmark_report(
         identity=identity,
         run=run,
+        expected_puzzle_ids=["puzzle-a", "puzzle-b"],
         puzzle_results=[puzzle_a, puzzle_b],
     )
 
@@ -398,6 +401,7 @@ def test_aggregate_rejects_duplicate_puzzles_mismatched_run_and_attempt_budget_o
         benchmark.aggregate_benchmark_report(
             identity=identity,
             run=run,
+            expected_puzzle_ids=["puzzle-a"],
             puzzle_results=[puzzle, dict(puzzle)],
         )
 
@@ -407,6 +411,7 @@ def test_aggregate_rejects_duplicate_puzzles_mismatched_run_and_attempt_budget_o
         benchmark.aggregate_benchmark_report(
             identity=identity,
             run=run,
+            expected_puzzle_ids=["puzzle-a"],
             puzzle_results=[wrong_run],
         )
 
@@ -416,6 +421,7 @@ def test_aggregate_rejects_duplicate_puzzles_mismatched_run_and_attempt_budget_o
         benchmark.aggregate_benchmark_report(
             identity=identity,
             run=run,
+            expected_puzzle_ids=["puzzle-a"],
             puzzle_results=[over_budget],
         )
 
@@ -455,6 +461,7 @@ def test_aggregate_resource_totals_are_null_when_any_observation_is_missing():
     report = benchmark.aggregate_benchmark_report(
         identity=identity,
         run=run,
+        expected_puzzle_ids=["puzzle-b"],
         puzzle_results=[puzzle],
     )
     assert report["model_calls"] is None
