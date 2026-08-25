@@ -145,6 +145,8 @@ A PR should make concurrent review easy. State:
 - any dependency or stacking relationship;
 - fresh verification evidence, including red/green regression evidence when applicable.
 
+Every PR merged to `main` must have a successful GitHub Actions `validate` check for the exact PR head being merged. A mergeable GitHub state, local test run, or successful check on an older head is not sufficient. Do not merge by direct push or administrative bypass merely to skip the gate; any exceptional repair of the gate itself requires explicit operator action and must restore enforcement immediately afterward.
+
 Keep PRs narrow enough that another contributor can safely operate on an independent packet. Do not describe work as complete merely because code exists or a branch is mergeable. Completion requires fresh evidence that the landed state satisfies the work item's acceptance criteria.
 
 ## Documentation maintenance
