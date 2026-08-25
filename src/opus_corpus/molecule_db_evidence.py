@@ -1,11 +1,22 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-from .adapters.molecule_db import MoleculeDbMolecule, MoleculeDbPuzzleSemantics
+from .adapters.molecule_db import MoleculeDbAdapter, MoleculeDbMolecule, MoleculeDbPuzzleSemantics
+from .cache import CacheReceipt, ContentAddressedCache
+from .collections import CollectionDefinition
+from .content_store import ContentStore
 from .errors import CorpusError
+from .observations import observation_id
+from .puzzle_definition import PuzzleDefinitionEvidence
 
+_PUZZLE_MODEL_PATH = "src/puzzle.rs"
+_MOLECULE_MODEL_PATH = "src/molecules.rs"
+_REQUIRED_PATHS = (_MOLECULE_MODEL_PATH, _PUZZLE_MODEL_PATH)
+_IMPORTER_VERSION = "molecule-db-semantic-v1"
 _TRIPLEX_RE = re.compile(
     r"^Triplex \{ red: (?P<red>true|false), black: (?P<black>true|false), "
     r"yellow: (?P<yellow>true|false) \}$"
@@ -14,6 +25,12 @@ _TRIPLEX_RE = re.compile(
 
 class MoleculeDbEvidenceError(CorpusError):
     """Raised when molecule-db semantics cannot be mapped canonically."""
+
+
+@dataclass(frozen=True, slots=True)
+class MoleculeDbSemanticEvidenceResult:
+    evidence: tuple[PuzzleDefinitionEvidence, ...]
+    observations: tuple[dict[str, Any], ...]
 
 
 def _bond_types(value: str) -> list[str]:
@@ -72,3 +89,97 @@ def molecule_db_semantic_claims(value: MoleculeDbPuzzleSemantics) -> dict[str, A
             f"{value.puzzle_id}: molecule-db supplies no product topology"
         )
     return {"reagents": reagents, "products": products}
+
+
+def _metadata_observation(
+    receipt: CacheReceipt,
+    semantics: MoleculeDbPuzzleSemantics,
+) -> dict[str, Any]:
+    body = {
+        "artifact_kind": "puzzle",
+        "artifact_id": None,
+        "puzzle_id": semantics.puzzle_id,
+        "source_role": "metadata",
+        "source_id": receipt.source_id,
+        "source_revision": receipt.revision,
+        "source_object_id": semantics.game_puzzle_id,
+        "source_path": receipt.upstream_path,
+        "associated_artifact_path": None,
+        "source_declared_puzzle_id": semantics.game_puzzle_id,
+        "source_url": None,
+        "author": None,
+        "retrieved_at": receipt.retrieved_at,
+        "claimed_cost": None,
+        "claimed_cycles": None,
+        "claimed_area": None,
+        "claimed_instructions": None,
+        "observed_sha256": receipt.sha256,
+        "source_evidence_sha256": receipt.sha256,
+        "source_evidence_byte_length": receipt.byte_length,
+        "rights_status": receipt.rights_status,
+        "importer_version": _IMPORTER_VERSION,
+    }
+    return {"observation_id": observation_id(body), **body}
+
+
+def _read_required_sources(
+    cache_root: Path,
+) -> tuple[dict[str, CacheReceipt], dict[str, bytes]]:
+    adapter = MoleculeDbAdapter()
+    cache = ContentAddressedCache(cache_root)
+    receipts = tuple(cache.iter_receipts(adapter.source_id, adapter.pinned_revision))
+    by_path = {receipt.upstream_path: receipt for receipt in receipts}
+    if len(by_path) != len(receipts) or set(by_path) != set(_REQUIRED_PATHS):
+        raise MoleculeDbEvidenceError(
+            f"incomplete or ambiguous molecule-db evidence at {adapter.pinned_revision}"
+        )
+
+    store = ContentStore(cache_root)
+    payloads: dict[str, bytes] = {}
+    for path in _REQUIRED_PATHS:
+        receipt = by_path[path]
+        store.require(receipt.sha256, receipt.byte_length)
+        try:
+            payloads[path] = store.object_path(receipt.sha256).read_bytes()
+        except OSError as exc:
+            raise MoleculeDbEvidenceError(
+                f"cannot read cached molecule-db semantic source {path}"
+            ) from exc
+    return by_path, payloads
+
+
+def materialize_molecule_db_semantic_evidence(
+    collection: CollectionDefinition,
+    cache_root: Path,
+) -> MoleculeDbSemanticEvidenceResult:
+    """Derive puzzle topology evidence from the two pinned molecule-db source facts."""
+
+    by_path, payloads = _read_required_sources(Path(cache_root))
+    adapter = MoleculeDbAdapter()
+    semantics = adapter.parse_collection_semantics(
+        collection,
+        puzzle_source=payloads[_PUZZLE_MODEL_PATH],
+        molecules_source=payloads[_MOLECULE_MODEL_PATH],
+    )
+
+    evidence: list[PuzzleDefinitionEvidence] = []
+    observations: list[dict[str, Any]] = []
+    for puzzle in semantics:
+        claims = molecule_db_semantic_claims(puzzle)
+        for path in _REQUIRED_PATHS:
+            observation = _metadata_observation(by_path[path], puzzle)
+            observations.append(observation)
+            evidence.append(
+                PuzzleDefinitionEvidence(
+                    puzzle_id=puzzle.puzzle_id,
+                    observation_id=observation["observation_id"],
+                    claims=claims,
+                )
+            )
+
+    observations.sort(key=lambda row: (row["puzzle_id"], row["source_path"]))
+    evidence.sort(key=lambda row: (row.puzzle_id, row.observation_id))
+    return MoleculeDbSemanticEvidenceResult(
+        evidence=tuple(evidence),
+        observations=tuple(observations),
+    )
