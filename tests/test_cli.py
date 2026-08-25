@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from opus_corpus.adapters.base import AcquisitionResult
+from opus_corpus.adapters.leaderboard_bot import LeaderboardBotAdapter
 from opus_corpus.adapters.official_game import OfficialGameAdapter
 from opus_corpus.adapters.om_archive import OmArchiveAdapter
 from opus_corpus.cli import main
@@ -103,12 +104,25 @@ def test_fetch_selected_source(
     assert "1 puzzles" in output
 
 
-def test_fetch_unimplemented_source_returns_two(
+def test_fetch_leaderboard_bot_source(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ):
     root = Path(__file__).resolve().parents[1]
     config = root / "corpus.toml"
+    cache = tmp_path / "cache"
+
+    def fake_fetch(self, collection, cache_root):
+        assert collection.collection_id == "base-game-2026-06-16"
+        assert cache_root == cache
+        return AcquisitionResult(
+            source_id="leaderboard-bot",
+            candidate_count=4,
+            puzzles_covered=166,
+        )
+
+    monkeypatch.setattr(LeaderboardBotAdapter, "fetch", fake_fetch)
 
     assert (
         main(
@@ -120,12 +134,15 @@ def test_fetch_unimplemented_source_returns_two(
                 "--source",
                 "leaderboard-bot",
                 "--cache",
-                str(tmp_path / "cache"),
+                str(cache),
             ]
         )
-        == 2
+        == 0
     )
-    assert "leaderboard-bot" in capsys.readouterr().err
+    output = capsys.readouterr().out
+    assert "leaderboard-bot" in output
+    assert "4 candidates" in output
+    assert "166 puzzles" in output
 
 
 def test_fetch_official_game_requires_explicit_source_root(
