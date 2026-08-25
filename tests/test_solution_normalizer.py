@@ -110,7 +110,7 @@ def solution_bytes(
     body += _u32(7)
     body += _string(puzzle_name)
     body += _string(solution_name)
-    body += _u32(4 if solved else 0)
+    body += _u32(1 if solved else 0)
     if solved:
         for tag, value in enumerate((12, 34, 56, 78)):
             body += _u32(tag)
