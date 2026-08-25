@@ -145,7 +145,8 @@ def test_projection_distinguishes_semantic_artifact_and_verifier_ready_coverage(
     assert result.executable_entries == (executable,)
 
 
-def test_projection_is_byte_identical_under_all_input_orderings_and_prefers_official_bytes() -> None:
+def test_projection_is_byte_identical_under_all_input_orderings_and_prefers_official_bytes(
+) -> None:
     value = collection("normal")
     puzzle_id = value.inventory_rows[0]["puzzle_id"]
     semantic = definition(puzzle_id)
