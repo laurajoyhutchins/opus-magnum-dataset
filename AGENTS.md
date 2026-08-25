@@ -22,6 +22,7 @@ Inspect the implementation and recent relevant issues/PRs before proposing a new
 - GitHub repository contents are authoritative for code, schemas, collection definitions, tests, and durable documentation.
 - GitHub issues and pull requests are the repository execution record.
 - `docs/TODO.md` is the repository's dependency/concurrency map and planning aid. It is not an assignee ledger or a second issue tracker.
+- `docs/CLEANUP.md` records small, understood maintenance that does not merit independent scheduling. Pick up adjacent items when safe; promote anything requiring independent coordination or substantial work to a GitHub issue.
 - Before implementation, inspect open issues, pull requests, and the work graph for dependencies or overlapping ownership.
 - Work should remain understandable and executable from the repository and ordinary GitHub surfaces. Do not require contributors to have access to an external orchestration service, private control plane, proprietary project tracker, or agent-specific runtime in order to follow repository procedure.
 - External tools may automate ordinary repository operations, but they are conveniences rather than architectural authorities. Repository correctness and contribution rules must remain represented in versioned repository content and GitHub state.
