@@ -468,3 +468,67 @@ def test_aggregate_resource_totals_are_null_when_any_observation_is_missing():
     assert report["input_tokens"] is None
     assert report["output_tokens"] is None
     assert report["verifier_calls"] == 1
+
+
+def test_attempt_verifier_lineage_invariants_fail_closed_in_builder_and_schema():
+    benchmark = benchmark_module()
+    identity = benchmark_identity()
+    run = run_identity()
+    common = {
+        "benchmark_id": benchmark.benchmark_id(identity),
+        "run_id": benchmark.benchmark_run_id(run),
+        "puzzle_id": "puzzle-a",
+        "attempt_index": 1,
+        "candidate_sha256": "4" * 64,
+        "model_calls": 1,
+        "input_tokens": 10,
+        "output_tokens": 5,
+    }
+
+    with pytest.raises(benchmark.BenchmarkResultError):
+        benchmark.build_attempt_result(
+            **common,
+            outcome="success",
+            verification_id="om.verification." + "5" * 64,
+            cost=1,
+            cycles=2,
+            area=3,
+            instructions=4,
+            error_code=None,
+            verifier_calls=0,
+        )
+
+    with pytest.raises(benchmark.BenchmarkResultError):
+        benchmark.build_attempt_result(
+            **common,
+            outcome="output_compile_failed",
+            verification_id="om.verification." + "5" * 64,
+            cost=None,
+            cycles=None,
+            area=None,
+            instructions=None,
+            error_code="compile_error",
+            verifier_calls=1,
+        )
+
+    jsonschema = importlib.import_module("jsonschema")
+    success_record = success_attempt()
+    success_record["verifier_calls"] = 0
+    with pytest.raises(jsonschema.ValidationError):
+        schema_validator().validate(success_record)
+
+    compile_failure_record = success_attempt()
+    compile_failure_record.update(
+        {
+            "outcome": "output_compile_failed",
+            "verification_id": "om.verification." + "6" * 64,
+            "cost": None,
+            "cycles": None,
+            "area": None,
+            "instructions": None,
+            "error_code": "compile_error",
+            "verifier_calls": 1,
+        }
+    )
+    with pytest.raises(jsonschema.ValidationError):
+        schema_validator().validate(compile_failure_record)

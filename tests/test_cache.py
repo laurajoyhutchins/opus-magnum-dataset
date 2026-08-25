@@ -218,6 +218,16 @@ def test_read_receipt_rejects_partial_json(tmp_path: Path) -> None:
         cache.read_receipt(path)
 
 
+def test_read_receipt_rejects_invalid_utf8_as_cache_integrity_error(tmp_path: Path) -> None:
+    cache = ContentAddressedCache(tmp_path)
+    path = cache.receipt_path("source", "rev", "path/a.solution")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"\xff")
+
+    with pytest.raises(CacheIntegrityError):
+        cache.read_receipt(path)
+
+
 @pytest.mark.parametrize("mutation", ["missing", "extra"])
 def test_read_receipt_rejects_non_exact_shape(tmp_path: Path, mutation: str) -> None:
     cache = ContentAddressedCache(tmp_path)
