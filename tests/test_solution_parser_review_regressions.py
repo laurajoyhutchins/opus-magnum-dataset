@@ -48,19 +48,26 @@ def _solution_with_part(part: bytes) -> bytes:
     return _u32(7) + _string("P001") + _string("fixture") + _u32(0) + _u32(1) + part
 
 
-def test_solution_parser_rejects_noncanonical_solved_metric_count():
+def test_solution_parser_treats_any_nonzero_solved_flag_as_metrics():
     payload = bytearray()
     payload += _u32(7)
     payload += _string("P001")
-    payload += _string("illegal-metric-count")
+    payload += _string("solved-flag-one")
     payload += _u32(1)
     for tag, value in enumerate((12, 34, 56, 78)):
         payload += _u32(tag)
         payload += _u32(value)
     payload += _u32(0)
 
-    with pytest.raises(SolutionParseError, match="metric count"):
-        parse_solution_bytes(bytes(payload))
+    parsed = parse_solution_bytes(bytes(payload))
+
+    assert parsed.solved is True
+    assert parsed.declared_metrics == {
+        "cycles": 12,
+        "cost": 34,
+        "area": 56,
+        "instructions": 78,
+    }
 
 
 def test_solution_normalizer_rejects_empty_track_geometry():
