@@ -64,9 +64,36 @@ Required fields:
 - `collection_memberships`;
 - `aliases`: upstream IDs/names associated with the puzzle.
 
-`puzzle_id` must not depend on a localized title, source filename, source directory path, or artifact hash.
+`puzzle_id` must not depend on a localized title, source filename, source directory path, artifact hash, or semantic serialization.
 
-### 4.2 PuzzleArtifact
+### 4.2 PuzzleDefinition
+
+A versioned canonical semantic statement of one resolved puzzle problem. This is the problem representation consumed by research, model-oriented serialization, and semantic release views.
+
+Required fields:
+
+- `puzzle_definition_id`;
+- semantic schema version;
+- `puzzle_id`;
+- allowed parts/mechanisms;
+- allowed programmable instruction capabilities;
+- reagent molecules;
+- product molecules;
+- atom types and axial coordinates;
+- bonds and bond types;
+- output scale and deterministically derived target output count;
+- production status and strict production constraints;
+- provenance links to supporting observations and exact puzzle artifacts when available.
+
+`puzzle_definition_id` is derived from the semantic schema version, `puzzle_id`, and canonical semantic content. It does not include source ordering, source paths, observation IDs, artifact IDs, artifact hashes, raw bytes, rights status, or producer implementation version.
+
+Semantic identity and exact-byte identity are therefore separate. Zero, one, or multiple exact `PuzzleArtifact` records may support the same `PuzzleDefinition`. Byte-distinct artifacts that decode to identical canonical semantic content do not create distinct problem definitions.
+
+Semantic facts from multiple immutable sources are reconciled deterministically. Sources claim only fields they actually know. Matching claims corroborate one definition; missing required fields leave the definition explicitly unresolved; overlapping disagreement fails closed. V1 has no preferred-source-wins rule and does not synthesize unknown fields from defaults or source priority.
+
+The authoritative semantic schema is `puzzle-definition.schema.json`.
+
+### 4.3 PuzzleArtifact
 
 One exact byte representation of a puzzle.
 
@@ -80,9 +107,9 @@ Required fields:
 - `rights_status`;
 - provenance links.
 
-One puzzle may have multiple artifacts when different upstream transcriptions or versions exist.
+One puzzle may have multiple artifacts when different upstream transcriptions or versions exist. Artifact identity remains the verifier and raw-provenance boundary; it is not the semantic problem identity.
 
-### 4.3 SolutionArtifact
+### 4.4 SolutionArtifact
 
 One exact source solution artifact.
 
@@ -97,9 +124,9 @@ Required fields:
 
 Exact byte identity is the v1 deduplication boundary. Two different byte strings are distinct solution artifacts even when they appear semantically equivalent.
 
-### 4.4 Observation
+### 4.5 Observation
 
-A provenance assertion that an upstream source exposed a puzzle or solution artifact, or metadata about one.
+A provenance assertion that an upstream source exposed a puzzle or solution artifact, or semantic/metadata evidence about one.
 
 Required fields:
 
@@ -114,9 +141,9 @@ Required fields:
 - rights/license metadata where available;
 - importer version.
 
-Multiple observations may point to the same artifact.
+Multiple observations may point to the same artifact. Puzzle semantic evidence that does not expose an exact puzzle artifact may still be represented as metadata observations with no `artifact_id`.
 
-### 4.5 Verification
+### 4.6 Verification
 
 A deterministic evaluation of one `PuzzleArtifact` + `SolutionArtifact` pair under one verifier and validation profile.
 
@@ -142,15 +169,18 @@ Minimum computed metrics for a successful verification:
 
 Additional verifier-supported structural and execution metrics should be retained when deterministic and inexpensive to compute.
 
+A `PuzzleDefinition` does not replace the exact `PuzzleArtifact` at this boundary. Verification remains tied to the exact bytes that the pinned verifier consumed.
+
 ## 5. Source facts versus derived state
 
 Source facts are immutable inputs. Derived state is always reproducible from source facts plus pinned software/configuration.
 
 Examples of derived state:
 
+- reconciled `PuzzleDefinition` records;
 - verification success;
 - recomputed metrics;
-- normalized machine representation;
+- normalized solution representations;
 - `vanilla_constructible`;
 - `record_eligible`;
 - Pareto membership;
@@ -177,11 +207,15 @@ Planned source classes may include clearly identified machine-generated baseline
 
 No adapter may redefine canonical puzzle IDs, validation semantics, or output schema. Source acquisition also does not make source-declared metrics authoritative; verification remains a separate derived stage.
 
+Semantic producers translate source facts into the shared `PuzzleDefinitionEvidence` boundary. They must leave unsupported fields unknown instead of introducing source-specific semantic stores, defaults, or reconciliation rules.
+
 ## 7. Provenance requirements
 
-Every published puzzle or solution row must be traceable to at least one `Observation`.
+Every published puzzle, semantic definition, or solution row must be traceable to at least one `Observation`.
 
 If the same exact artifact is recovered from multiple sources, preserve one artifact plus multiple observations.
+
+If multiple semantic sources support one `PuzzleDefinition`, preserve all supporting observation links even when their semantic claims are identical. Artifact-backed semantic evidence additionally retains the supporting `puzzle_artifact_id` without making it part of semantic identity.
 
 If a source claims metrics that disagree with deterministic verification, preserve both facts. For example:
 
@@ -211,6 +245,8 @@ Validation profiles are versioned. Distinct concepts must remain distinct predic
 
 Anomalous but simulatable solutions should be represented, not silently discarded, unless a specific derived view excludes them.
 
+Semantic completeness does not weaken exact-artifact verification requirements. A puzzle can have a complete `PuzzleDefinition` while lacking an exact artifact suitable for the verifier.
+
 ## 9. Rights and payload policy
 
 Technical ability to store bytes does not imply redistribution permission.
@@ -227,9 +263,11 @@ The project must be able to publish hashes, provenance, computed metrics, normal
 
 Repository-authored material is licensed under MIT, while [`../RIGHTS.md`](../RIGHTS.md) defines the repository-wide boundary between that license and third-party corpus material. The MIT license must not be interpreted as relicensing official puzzle bytes, externally authored solution payloads, or other upstream artifacts. `rights_status` remains a provenance-bearing publication policy fact, not a substitute copyright license.
 
+Semantic availability does not broaden artifact redistribution rights. Raw puzzle bytes, hashes, byte lengths, and artifact-level rights remain attached to `PuzzleArtifact` rather than being inferred from `PuzzleDefinition`.
+
 ## 10. Deduplication
 
-V1 performs only exact-byte deduplication by SHA-256.
+V1 performs only exact-byte deduplication by SHA-256 for artifacts.
 
 Do not collapse solutions merely because they are:
 
@@ -241,25 +279,32 @@ Do not collapse solutions merely because they are:
 - score-equivalent;
 - apparently machine-equivalent.
 
-Semantic equivalence may be added later as a separately versioned derived clustering algorithm.
+`PuzzleDefinition` has its own content-derived semantic identity. That identity deliberately allows distinct exact puzzle artifacts to support one semantic problem when their canonical decoded semantics agree. This does not change exact-byte artifact deduplication.
 
-## 11. Normalized representations
+Semantic equivalence for solutions may be added later as a separately versioned derived clustering algorithm.
 
-Normalization is derived state. It is neither artifact identity nor verification authority.
+## 11. Semantic and normalized representations
 
-### 11.1 Normalized puzzle representation
+Semantic puzzle definitions and normalized solutions are derived state. Neither replaces artifact provenance or verification authority.
 
-A normalized puzzle row must identify both the conceptual puzzle and the exact bytes from which it was derived. At minimum it records:
+### 11.1 Puzzle semantic representation
 
-- `normalized_puzzle_id`;
+`PuzzleDefinition` is the canonical machine-readable problem statement. Its semantic core records:
+
+- `puzzle_definition_id`;
+- `schema_version`;
 - `puzzle_id`;
-- `puzzle_artifact_id`;
-- `normalizer_version`;
-- allowed parts/components;
+- allowed parts/mechanisms;
+- allowed instruction capabilities;
 - reagent and product molecules with atom types, bonds, and axial hex coordinates;
-- puzzle-specific constraints.
+- output scale and target output count;
+- production status and strict production constraints.
 
-`puzzle_artifact_id` is derivation lineage to an exact `PuzzleArtifact`; it is not a replacement for upstream provenance. Source observations remain attached to the artifact layer.
+The record may also carry sorted supporting `source_observation_ids` and `puzzle_artifact_ids`. Those links are provenance attachments and are excluded from `puzzle_definition_id`.
+
+Canonicalization makes source ordering irrelevant while preserving semantic multiplicity. Reversing bond endpoints or reordering atoms, bonds, capabilities, evidence, or equivalent molecule entries does not change identity; repeated molecule occurrences remain repeated semantic content.
+
+`puzzle-definition.schema.json` defines this domain contract. It replaces the former artifact-bound normalized-puzzle schema rather than creating a second semantic representation.
 
 ### 11.2 Normalized solution representation
 
@@ -270,15 +315,15 @@ The normalized solution schema should represent, at minimum:
 - arm programs as arm identity plus cycle/opcode entries;
 - useful deterministic histograms and geometric summaries.
 
-### 11.3 Serialization projections
-
-Serializers are deterministic projections over normalized records. Serializer format and version are separate from normalizer version. The current baseline is canonical JSON; future compact or model-oriented text formats must be generated from the same normalized records rather than maintained as another authority.
-
-`normalized-puzzle.schema.json` defines the normalized puzzle domain contract. It does not, by itself, add a fifth release config; release wiring for normalized puzzles must be specified explicitly when the materialization pipeline is ready to emit them.
-
-The normalizer version must be recorded for every normalized row.
+Every normalized solution remains derived from one exact `SolutionArtifact`. The normalizer version must be recorded for every normalized solution row.
 
 A normalization failure must not destroy or invalidate a successfully verified raw artifact.
+
+### 11.3 Serialization projections
+
+Serializers are deterministic projections over canonical derived records. Serializer format and version are separate from semantic schema or normalizer versions. The current baseline is canonical JSON.
+
+Puzzle research/model serializers consume `PuzzleDefinition`. Solution serializers consume normalized solution records. Future compact or model-oriented text formats must be generated from those same canonical records rather than maintained as another authority.
 
 ## 12. Derived views
 
@@ -300,9 +345,15 @@ These are queries/materializations over canonical facts, not separately curated 
 
 ## 13. Coverage semantics
 
-Coverage is explicit and puzzle-scoped.
+Coverage is explicit and puzzle-scoped. Puzzle problem coverage has distinct axes that must not be collapsed:
 
-Suggested states:
+- semantic coverage: a complete reconciled `PuzzleDefinition` exists;
+- artifact coverage: at least one exact `PuzzleArtifact` exists;
+- verifier readiness: the verifier policy can select an exact artifact unambiguously.
+
+These axes are derived mechanically from canonical materialization results. A semantic definition does not imply verifier readiness, and multiple exact artifacts do not imply a unique verifier selection.
+
+Solution coverage states may include:
 
 - `uncovered`: no candidate solution observed;
 - `candidate_found`: one or more candidates observed, none verified;
@@ -310,7 +361,7 @@ Suggested states:
 - `multi_solution`: multiple verified solutions;
 - `frontier_populated`: a derived frontier exists for the configured metric tuple.
 
-A collection release must state its exact puzzle coverage and candidate/verified counts.
+A collection release must state its exact puzzle and solution coverage and candidate/verified counts.
 
 The existence of a corpus must never be described as exhaustive with respect to all human solutions unless exhaustiveness is demonstrably established.
 
@@ -352,7 +403,7 @@ The existing release shell consumes canonical JSONL projections:
 opus-corpus release build <collection> --input <path> --output <path> --payload-policy <policy> [--coverage-policy complete|subset]
 ```
 
-The remaining production materialization work connects cached source facts, canonical artifacts, verification, and normalization to those release inputs. The local cache is content-addressed; deterministic materialization must consume pinned cached objects rather than mutable remote URLs.
+Production materialization connects cached source facts, canonical artifacts, puzzle definitions, verification, and normalization to those release inputs. The local cache is content-addressed; deterministic materialization must consume pinned cached objects rather than mutable remote URLs.
 
 ## 16. Testing requirements
 
@@ -361,6 +412,8 @@ Tests exist at three levels.
 ### Schema and identity tests
 
 - stable canonical IDs;
+- artifact-independent puzzle semantic identity;
+- deterministic semantic canonicalization and reconciliation;
 - alias resolution;
 - collection membership;
 - schema validation.
@@ -368,7 +421,7 @@ Tests exist at three levels.
 ### Adapter contract tests
 
 - tiny frozen fixtures per upstream source;
-- adapter output conforms to canonical entities;
+- adapter output conforms to canonical entities or shared semantic evidence boundaries;
 - repeated imports are idempotent;
 - source discrepancies are preserved rather than overwritten.
 
@@ -377,8 +430,9 @@ Tests exist at three levels.
 For a releasable collection:
 
 - every required puzzle has a canonical puzzle identity;
+- every required semantic puzzle view has a complete reconciled `PuzzleDefinition`;
 - every included artifact has provenance;
-- every `verified` solution has verifier evidence;
+- every `verified` solution has verifier evidence tied to an exact puzzle artifact;
 - no dangling IDs or hashes exist;
 - derived Pareto members are actually nondominated under the declared metric tuple;
 - no generated view is hand-maintained;
@@ -390,11 +444,13 @@ V1 does not require:
 
 - a database server;
 - a custom simulator;
-- a semantic-equivalence engine;
+- a semantic-equivalence engine for solutions;
 - a web service;
 - an agent-maintained reconciliation process;
+- hand-authored semantic puzzle definitions;
 - hand-authored leaderboard snapshots;
 - direct mirroring of every upstream repository layout;
+- reconstructed or synthesized official puzzle binaries;
 - a train/validation/test split before benchmark split methodology is explicitly designed and versioned.
 
 ## 18. Release acceptance criteria
@@ -410,12 +466,15 @@ A first stable corpus release is complete when:
 7. an offline rebuild from the pinned content cache reproduces the canonical release manifest;
 8. Hugging Face export passes the contract in `hugging-face-export.md`.
 
+The verifier-successful release gate remains an exact-artifact requirement even when semantic puzzle definitions are complete.
+
 ## 19. Settled and remaining decisions
 
 Several early design choices are now settled by committed repository state:
 
 - first collection: immutable `base-game-2026-06-16` with 166 puzzle identities;
 - canonical puzzle IDs and aliases: committed in the frozen collection inventory;
+- semantic puzzle authority: deterministic `PuzzleDefinition` records under `puzzle-definition.schema.json`, independent of exact artifact identity;
 - implementation toolchain: Python 3.12 with a locked `uv` environment;
 - repository-authored material license: MIT, with third-party corpus scope and redistribution policy defined in `RIGHTS.md`;
 - schema authority: packaged repository JSON Schemas resolved through `opus_corpus.schema_resources`;
@@ -427,8 +486,7 @@ Several early design choices are now settled by committed repository state:
 Remaining decisions that affect stable v1 behavior include:
 
 - source-specific redistribution conclusions where rights remain unresolved;
-- exact pinned `omsim` / `libverify` verifier revision and validation-profile identity for v1;
-- publication policy for normalized structures derived from local-only bytes;
+- publication policy for semantic structures derived from local-only bytes;
 - final Hugging Face namespace/repository identity and publication credentials/automation policy.
 
 These remaining decisions must be resolved explicitly at the boundary they govern. They must not be inferred from technical availability or silently encoded in generated state.

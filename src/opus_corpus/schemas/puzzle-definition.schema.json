@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "atom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atom_type", "q", "r"],
+      "properties": {
+        "atom_type": {"type": "string", "minLength": 1},
+        "q": {"type": "integer"},
+        "r": {"type": "integer"}
+      }
+    },
+    "bond": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a_q", "a_r", "b_q", "b_r", "bond_types"],
+      "properties": {
+        "a_q": {"type": "integer"},
+        "a_r": {"type": "integer"},
+        "b_q": {"type": "integer"},
+        "b_r": {"type": "integer"},
+        "bond_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "molecule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["atoms", "bonds"],
+      "properties": {
+        "atoms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/atom"}
+        },
+        "bonds": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/bond"}
+        }
+      }
+    },
+    "coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["q", "r"],
+      "properties": {
+        "q": {"type": "integer"},
+        "r": {"type": "integer"}
+      }
+    },
+    "cabinet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["q", "r", "cabinet_type"],
+      "properties": {
+        "q": {"type": "integer"},
+        "r": {"type": "integer"},
+        "cabinet_type": {"type": "string", "minLength": 1}
+      }
+    },
+    "conduit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a_q", "a_r", "b_q", "b_r", "hexes"],
+      "properties": {
+        "a_q": {"type": "integer"},
+        "a_r": {"type": "integer"},
+        "b_q": {"type": "integer"},
+        "b_r": {"type": "integer"},
+        "hexes": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/coordinate"}
+        }
+      }
+    },
+    "vial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["q", "r", "style", "count"],
+      "properties": {
+        "q": {"type": "integer"},
+        "r": {"type": "integer"},
+        "style": {"type": "integer", "minimum": 0},
+        "count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "production_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shrink_left",
+        "shrink_right",
+        "isolate_inputs_from_outputs",
+        "cabinets",
+        "conduits",
+        "vials"
+      ],
+      "properties": {
+        "shrink_left": {"type": "boolean"},
+        "shrink_right": {"type": "boolean"},
+        "isolate_inputs_from_outputs": {"type": "boolean"},
+        "cabinets": {"type": "array", "items": {"$ref": "#/$defs/cabinet"}},
+        "conduits": {"type": "array", "items": {"$ref": "#/$defs/conduit"}},
+        "vials": {"type": "array", "items": {"$ref": "#/$defs/vial"}}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "puzzle_definition_id",
+    "schema_version",
+    "puzzle_id",
+    "allowed_parts",
+    "allowed_instructions",
+    "reagents",
+    "products",
+    "output_scale",
+    "target_output_count",
+    "production",
+    "production_constraints",
+    "source_observation_ids",
+    "puzzle_artifact_ids"
+  ],
+  "properties": {
+    "puzzle_definition_id": {
+      "type": "string",
+      "pattern": "^om\\.puzzle-definition\\.sha256\\.[0-9a-f]{64}$"
+    },
+    "schema_version": {"const": "puzzle-definition-v1"},
+    "puzzle_id": {"type": "string", "pattern": "^om\\.puzzle\\.\\d{4}$"},
+    "allowed_parts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "allowed_instructions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "reagents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/molecule"}
+    },
+    "products": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/molecule"}
+    },
+    "output_scale": {"type": "integer", "minimum": 1},
+    "target_output_count": {"type": "integer", "minimum": 1},
+    "production": {"type": "boolean"},
+    "production_constraints": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/production_constraints"}
+      ]
+    },
+    "source_observation_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "puzzle_artifact_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^om\\.puzzle-artifact\\.sha256\\.[0-9a-f]{64}$"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"production": {"const": true}}},
+      "then": {"properties": {"production_constraints": {"$ref": "#/$defs/production_constraints"}}},
+      "else": {"properties": {"production_constraints": {"type": "null"}}}
+    }
+  ]
+}
