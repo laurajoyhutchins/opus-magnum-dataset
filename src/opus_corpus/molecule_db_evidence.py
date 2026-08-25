@@ -60,7 +60,6 @@ def molecule_db_semantic_claims(value: MoleculeDbPuzzleSemantics) -> dict[str, A
     reagents: list[dict[str, Any]] = []
     products: list[dict[str, Any]] = []
     for use in value.molecule_uses:
-        molecule = _molecule(use.molecule)
         reagents.extend(_molecule(use.molecule) for _ in range(use.reagent_count))
         products.extend(_molecule(use.molecule) for _ in range(use.product_count))
 
