@@ -174,6 +174,27 @@ def test_libverify_preserves_parse_failures(source: str, expected_code: str):
     assert backend.destroyed == 1
 
 
+def test_libverify_treats_decode_failure_during_metric_evaluation_as_parse_failure():
+    backend = ScriptedBackend(
+        metric_error=("instructions", ("solution file", "invalid decoded solution", 0, 0, 0))
+    )
+
+    result = LibverifyVerifier(backend).verify(verification_input())
+
+    assert result.parse_status == "failed"
+    assert result.simulation_status == "not_run"
+    assert (result.cost, result.instructions, result.cycles, result.area) == (
+        None,
+        None,
+        None,
+        None,
+    )
+    assert result.error_code == "solution_parse_failed"
+    assert result.error_detail == "invalid decoded solution"
+    assert backend.evaluated_metrics == ["cost", "instructions"]
+    assert backend.destroyed == 1
+
+
 def test_libverify_preserves_structured_simulation_failure_and_discards_partial_metrics():
     backend = ScriptedBackend(
         metric_error=("cycles", ("simulation", "collision", 12, -3, 4))
@@ -225,6 +246,7 @@ def test_ctypes_backend_hashes_library_configures_abi_and_preserves_embedded_nul
 ):
     library_path = tmp_path / "libverify.so"
     library_bytes = b"native-library-fixture"
+    expected_sha256 = hashlib.sha256(library_bytes).hexdigest()
     library_path.write_bytes(library_bytes)
     fake = FakeCLibrary()
     loaded_paths: list[str] = []
@@ -235,11 +257,14 @@ def test_ctypes_backend_hashes_library_configures_abi_and_preserves_embedded_nul
 
     monkeypatch.setattr("opus_corpus.libverify.ctypes.CDLL", load_library)
 
-    backend = CtypesLibverifyBackend.from_path(library_path)
+    backend = CtypesLibverifyBackend.from_path(
+        library_path,
+        expected_sha256=expected_sha256,
+    )
     handle = backend.create(b"puzzle\x00tail", b"solution\x00tail")
 
     assert loaded_paths == [str(library_path)]
-    assert backend.binary_sha256 == hashlib.sha256(library_bytes).hexdigest()
+    assert backend.binary_sha256 == expected_sha256
     create_args = fake.verifier_create_from_bytes.calls[0]
     assert bytes(create_args[0].raw[: create_args[1]]) == b"puzzle\x00tail"
     assert bytes(create_args[2].raw[: create_args[3]]) == b"solution\x00tail"
@@ -269,24 +294,54 @@ def test_ctypes_backend_hashes_library_configures_abi_and_preserves_embedded_nul
     assert fake.verifier_evaluate_metric.restype is ctypes.c_int
 
 
-def test_ctypes_backend_reports_missing_required_abi_symbols_as_a_typed_error(
+def test_ctypes_backend_rejects_unpinned_binary_before_loading(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ):
     library_path = tmp_path / "libverify.so"
     library_path.write_bytes(b"native-library-fixture")
+    loaded_paths: list[str] = []
+    monkeypatch.setattr(
+        "opus_corpus.libverify.ctypes.CDLL",
+        lambda path: loaded_paths.append(path),
+    )
+
+    with pytest.raises(LibverifyError, match="binary sha256 mismatch"):
+        CtypesLibverifyBackend.from_path(
+            library_path,
+            expected_sha256="0" * 64,
+        )
+
+    assert loaded_paths == []
+
+
+def test_ctypes_backend_reports_missing_required_abi_symbols_as_a_typed_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    library_path = tmp_path / "libverify.so"
+    library_bytes = b"native-library-fixture"
+    library_path.write_bytes(library_bytes)
     monkeypatch.setattr("opus_corpus.libverify.ctypes.CDLL", lambda path: object())
 
     with pytest.raises(LibverifyError, match="ABI"):
-        CtypesLibverifyBackend.from_path(library_path)
+        CtypesLibverifyBackend.from_path(
+            library_path,
+            expected_sha256=hashlib.sha256(library_bytes).hexdigest(),
+        )
 
 
-def test_libverify_factory_loads_ctypes_backend(monkeypatch: pytest.MonkeyPatch, tmp_path):
+def test_libverify_factory_loads_only_the_expected_ctypes_binary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
     library_path = tmp_path / "libverify.so"
-    library_path.write_bytes(b"native-library-fixture")
+    library_bytes = b"native-library-fixture"
+    library_path.write_bytes(library_bytes)
     fake = FakeCLibrary(error=None)
     monkeypatch.setattr("opus_corpus.libverify.ctypes.CDLL", lambda path: fake)
 
-    result = LibverifyVerifier.from_library(library_path).verify(verification_input())
+    result = LibverifyVerifier.from_library(
+        library_path,
+        expected_sha256=hashlib.sha256(library_bytes).hexdigest(),
+    ).verify(verification_input())
 
     assert result.parse_status == "passed"
     assert result.simulation_status == "passed"
