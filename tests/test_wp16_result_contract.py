@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import importlib
-from dataclasses import fields, replace
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -43,8 +43,7 @@ def attempt(**overrides: object) -> dict[str, object]:
 
 def test_benchmark_identity_commits_to_executable_inventory_hash() -> None:
     benchmark = benchmark_module()
-    field_names = {field.name for field in fields(benchmark.BenchmarkIdentity)}
-    assert "executable_inventory_sha256" in field_names
+    assert "executable_inventory_sha256" in benchmark.BenchmarkIdentity.__dataclass_fields__
 
     identity = benchmark.BenchmarkIdentity(
         protocol_version="solve-v0.1",
