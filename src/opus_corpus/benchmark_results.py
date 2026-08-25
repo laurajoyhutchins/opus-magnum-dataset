@@ -103,12 +103,20 @@ def build_attempt_result(
     if outcome not in OUTCOMES:
         raise BenchmarkResultError(f"unsupported benchmark outcome: {outcome!r}")
 
+    if outcome == "output_compile_failed":
+        if verification_id is not None or verifier_calls != 0:
+            raise BenchmarkResultError(
+                "output compile failures cannot carry verifier lineage or verifier calls"
+            )
+    elif verification_id is None or verifier_calls < 1:
+        raise BenchmarkResultError(
+            "post-compile benchmark outcomes require verifier lineage and a verifier call"
+        )
+
     metrics = (cost, cycles, area, instructions)
     if outcome == "success":
-        if verification_id is None or any(value is None for value in metrics):
-            raise BenchmarkResultError(
-                "successful benchmark attempts require verification lineage and all metrics"
-            )
+        if any(value is None for value in metrics):
+            raise BenchmarkResultError("successful benchmark attempts require all metrics")
         if error_code is not None:
             raise BenchmarkResultError("successful benchmark attempts cannot carry an error code")
     elif any(value is not None for value in metrics):
