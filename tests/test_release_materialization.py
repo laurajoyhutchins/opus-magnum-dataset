@@ -116,7 +116,6 @@ def _solution_observation(solution: ArtifactRecord) -> dict[str, object]:
         "source_declared_puzzle_id": None,
         "source_url": None,
         "author": "fixture",
-        "retrieved_at": "2026-08-24T00:00:00Z",
         "claimed_cost": 999,
         "claimed_cycles": 999,
         "claimed_area": 999,

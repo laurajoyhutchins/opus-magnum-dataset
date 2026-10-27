@@ -44,7 +44,6 @@ class Observation:
     source_declared_puzzle_id: str | None
     source_url: str | None
     author: str | None
-    retrieved_at: str
     claimed_cost: int | None
     claimed_cycles: int | None
     claimed_area: int | None
@@ -226,7 +225,6 @@ def _observation_from_provenance(
         source_declared_puzzle_id=context.source_declared_puzzle_id if context else None,
         source_url=row.source_url,
         author=row.author,
-        retrieved_at=row.retrieved_at,
         claimed_cost=row.claimed_cost,
         claimed_cycles=row.claimed_cycles,
         claimed_area=row.claimed_area,
@@ -261,7 +259,6 @@ def _unpaired_metadata_observation(
         source_declared_puzzle_id=context.source_declared_puzzle_id,
         source_url=_source_url(data, receipt.upstream_path),
         author=None,
-        retrieved_at=receipt.retrieved_at,
         claimed_cost=claimed_cost,
         claimed_cycles=claimed_cycles,
         claimed_area=claimed_area,

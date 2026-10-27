@@ -21,7 +21,7 @@ from .solution_normalizer import OpusSolutionNormalizer, normalize_solution_arti
 from .verification import Verifier
 from .verification_materialization import materialize_verifications
 
-V1_CORPUS_SCHEMA_VERSION = "0.1"
+V1_CORPUS_SCHEMA_VERSION = "0.2"
 
 
 class V1ReleaseError(CorpusError):
