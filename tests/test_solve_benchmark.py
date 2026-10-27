@@ -11,6 +11,11 @@ from typing import Any
 import pytest
 
 from opus_corpus.benchmark_eligibility import derive_benchmark_eligibility
+from opus_corpus.benchmark_raw_replay import (
+    RawCandidateReplayError,
+    replay_raw_attempts,
+    retain_raw_attempts,
+)
 from opus_corpus.collections import CollectionDefinition
 from opus_corpus.hashing import canonical_json_bytes, sha256_bytes
 from opus_corpus.ingestion import ArtifactProvenance, ArtifactRecord
@@ -408,3 +413,77 @@ def test_solve_rejects_false_provenance_before_any_model_call() -> None:
         )
     assert runner.calls == []
     assert verifier.calls == []
+
+
+
+def test_raw_candidate_hash_and_create_only_replay_for_every_attempt(tmp_path: Path) -> None:
+    result, _, _ = run_fixture()
+    canonical = {
+        (puzzle["puzzle_id"], attempt["attempt_index"]): attempt
+        for puzzle in result.puzzle_results
+        for attempt in puzzle["attempts"]
+    }
+    assert result.raw_outputs
+    assert len(result.raw_outputs) == len(canonical)
+    for row in result.raw_outputs:
+        assert sha256_bytes(row.exact_utf8) == row.raw_output_sha256
+        assert canonical[(row.puzzle_id, row.attempt_index)]["raw_output_sha256"] == (
+            row.raw_output_sha256
+        )
+
+    root = tmp_path / "private-custody"
+    first_manifest = retain_raw_attempts(result, root)
+    assert first_manifest.is_file()
+    assert first_manifest.stat().st_mode & 0o077 == 0
+    assert root.stat().st_mode & 0o077 == 0
+    checked = replay_raw_attempts(first_manifest, root)
+    assert len(checked) == len(canonical)
+    assert {row["outcome"] for row in checked} == {
+        "output_compile_failed", "puzzle_solution_mismatch",
+        "solution_parse_failed", "simulation_failed", "success",
+    }
+    assert retain_raw_attempts(result, root) == first_manifest
+
+
+def test_raw_replay_fails_closed_if_compiler_input_object_is_corrupted(
+    tmp_path: Path,
+) -> None:
+    result, _, _ = run_fixture()
+    root = tmp_path / "private-custody"
+    manifest = retain_raw_attempts(result, root)
+    first = result.raw_outputs[0]
+    digest = first.raw_output_sha256
+    target = root / "objects" / "sha256" / digest[:2] / digest[2:]
+    target.write_bytes(b"altered compiler input")
+    with pytest.raises(Exception, match="byte length mismatch|corrupt content object"):
+        replay_raw_attempts(manifest, root)
+
+
+def test_raw_replay_rejects_modified_claimed_compiled_identity(tmp_path: Path) -> None:
+    result, _, _ = run_fixture()
+    root = tmp_path / "private-custody"
+    path = retain_raw_attempts(result, root)
+    body = json.loads(path.read_bytes())
+    entry = next(item for item in body["attempts"] if item["candidate_sha256"] is not None)
+    entry["candidate_sha256"] = "0" * 64
+    path.write_bytes(canonical_json_bytes(body) + b"\n")
+    with pytest.raises(RawCandidateReplayError, match="compiled candidate hash"):
+        replay_raw_attempts(path, root)
+
+
+def test_raw_custody_rejects_shared_public_directory(tmp_path: Path) -> None:
+    result, _, _ = run_fixture()
+    root = tmp_path / "world-readable"
+    root.mkdir(mode=0o755)
+    root.chmod(0o755)
+    with pytest.raises(RawCandidateReplayError, match="directory must be private"):
+        retain_raw_attempts(result, root)
+
+
+def test_raw_output_cannot_exceed_retention_size_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    solve = solve_module()
+    monkeypatch.setattr(solve, "MAX_RAW_OUTPUT_BYTES", 2)
+    with pytest.raises(solve.SolveBenchmarkError, match="retention size policy"):
+        run_fixture()
