@@ -207,6 +207,8 @@ def _run(data: dict[str, Any], *, reverse_inputs: bool = False) -> tuple[Any, An
         collection=collection,
         eligibility=eligibility,
         definitions=reversed(definitions) if reverse_inputs else definitions,
+        artifacts=reversed(artifacts) if reverse_inputs else artifacts,
+        provenance=reversed(provenance_rows) if reverse_inputs else provenance_rows,
         puzzle_artifact_bytes=dict(reversed(list(artifact_bytes.items())))
         if reverse_inputs
         else artifact_bytes,

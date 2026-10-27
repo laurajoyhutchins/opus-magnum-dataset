@@ -16,7 +16,9 @@ from .benchmark_eligibility import (
     ELIGIBILITY_PROFILE,
     ELIGIBILITY_VERSION,
     BenchmarkEligibilityEntry,
+    BenchmarkEligibilityError,
     BenchmarkEligibilityProjection,
+    derive_benchmark_eligibility,
 )
 from .benchmark_results import (
     BenchmarkIdentity,
@@ -30,6 +32,7 @@ from .benchmark_results import (
 from .collections import CollectionDefinition
 from .errors import CorpusError
 from .hashing import canonical_json_bytes, sha256_bytes
+from .ingestion import ArtifactProvenance, ArtifactRecord
 from .puzzle_definition import validate_puzzle_definition
 from .serialization import ModelPuzzleTextSerializer
 from .solution_parser import SolutionParseError
@@ -283,6 +286,8 @@ def run_solve_benchmark(
     collection: CollectionDefinition,
     eligibility: BenchmarkEligibilityProjection,
     definitions: Iterable[Mapping[str, Any]],
+    artifacts: Iterable[ArtifactRecord],
+    provenance: Iterable[ArtifactProvenance],
     puzzle_artifact_bytes: Mapping[str, bytes],
     runner: SolveRunner,
     verifier: Verifier,
@@ -296,8 +301,25 @@ def run_solve_benchmark(
         raise SolveBenchmarkError("attempt_budget must be a positive integer")
 
     _validate_projection(collection, eligibility)
+    # Source facts, not the caller's eligibility digest, determine the exact
+    # runnable population. Materialize iterables once so the validator and
+    # execution consume identical records even when inputs are generators.
+    canonical_definitions = tuple(definitions)
+    try:
+        independently_derived = derive_benchmark_eligibility(
+            collection,
+            definitions=canonical_definitions,
+            artifacts=tuple(artifacts),
+            provenance=tuple(provenance),
+        )
+    except BenchmarkEligibilityError as error:
+        raise SolveBenchmarkError(f"cannot derive canonical eligibility: {error}") from error
+    if eligibility != independently_derived:
+        raise SolveBenchmarkError(
+            "benchmark eligibility projection differs from canonical source-derived membership"
+        )
     collection_rows = _collection_rows(collection)
-    definitions_by_puzzle = _definitions_by_puzzle(definitions)
+    definitions_by_puzzle = _definitions_by_puzzle(canonical_definitions)
     executable = tuple(sorted(eligibility.executable_entries, key=lambda row: row.puzzle_id))
     if not executable:
         raise SolveBenchmarkError("benchmark eligibility contains no executable puzzles")
