@@ -113,7 +113,7 @@ def retain_raw_attempts(result: SolveBenchmarkResult, custody_root: Path) -> Pat
             os.link(temp_path, target, follow_symlinks=False)
         except FileExistsError:
             if target.read_bytes() != manifest_bytes:
-                raise RawCandidateReplayError("existing raw run manifest differs")
+                raise RawCandidateReplayError("existing raw run manifest differs") from None
         if target.read_bytes() != manifest_bytes:
             raise RawCandidateReplayError("raw run manifest readback differs")
     finally:
@@ -161,12 +161,16 @@ def replay_raw_attempts(manifest_path: Path, custody_root: Path) -> tuple[dict[s
             candidate = compile_candidate_output(source)
         except CandidateOutputCompileError as error:
             if row["outcome"] != "output_compile_failed" or row["error_code"] != error.code:
-                raise RawCandidateReplayError("compiler failure does not match retained attempt") from error
+                raise RawCandidateReplayError(
+                    "compiler failure does not match retained attempt"
+                ) from error
         else:
             if (
                 row["outcome"] == "output_compile_failed"
                 or candidate.candidate_sha256 != row["candidate_sha256"]
             ):
-                raise RawCandidateReplayError("compiled candidate hash does not match retained attempt")
+                raise RawCandidateReplayError(
+                    "compiled candidate hash does not match retained attempt"
+                )
         checked.append(dict(row))
     return tuple(checked)
