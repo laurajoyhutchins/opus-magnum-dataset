@@ -16,8 +16,8 @@ from .benchmark_eligibility import (
     ELIGIBILITY_PROFILE,
     ELIGIBILITY_VERSION,
     BenchmarkEligibilityEntry,
-    BenchmarkEligibilityProjection,
     BenchmarkEligibilityError,
+    BenchmarkEligibilityProjection,
     derive_benchmark_eligibility,
 )
 from .benchmark_results import (
