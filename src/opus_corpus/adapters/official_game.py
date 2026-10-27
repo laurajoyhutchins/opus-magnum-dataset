@@ -5,6 +5,7 @@ import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from collections.abc import Mapping
 
 from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
@@ -104,6 +105,34 @@ def parse_official_manifest(
         mappings.append(OfficialPuzzleMapping(puzzle_id, relative_path))
 
     return OfficialPuzzleManifest(snapshot_id, tuple(mappings))
+
+
+
+def official_source_revision(
+    manifest: OfficialPuzzleManifest,
+    verified_payloads: Mapping[str, tuple[str, int]],
+) -> str:
+    """Commit to stable, exact official source facts, not the human label alone."""
+    paths = {mapping.relative_path.as_posix() for mapping in manifest.mappings}
+    if set(verified_payloads) != paths:
+        raise OfficialGameAcquisitionError(
+            "official source revision requires every mapped exact puzzle payload"
+        )
+    records = [
+        {
+            "puzzle_id": mapping.puzzle_id,
+            "path": mapping.relative_path.as_posix(),
+            "payload_sha256": verified_payloads[mapping.relative_path.as_posix()][0],
+            "payload_bytes": verified_payloads[mapping.relative_path.as_posix()][1],
+        }
+        for mapping in manifest.mappings
+    ]
+    commitment = {
+        "format": "official-game-source-revision/v2",
+        "snapshot_id": manifest.snapshot_id,
+        "mappings": sorted(records, key=lambda row: (row["puzzle_id"], row["path"])),
+    }
+    return f"local-{sha256_bytes(canonical_json_bytes(commitment))}"
 
 
 def _read_dumped_puzzle_name(payload: bytes, upstream_path: str) -> str:
@@ -328,28 +357,13 @@ class OfficialGameAdapter(SourceAdapter):
                 ) from exc
             prepared.append((relative_path, payload))
 
-        # A human label is not a source identity. Commit to the validated
-        # semantic mapping and its exact byte digests, independent of local
-        # file paths, timestamps, and mapping enumeration order.
-        revision_payload = {
-            "format": "official-game-source-revision/v2",
-            "snapshot_id": manifest.snapshot_id,
-            "mappings": sorted(
-                (
-                    {
-                        "puzzle_id": mapping.puzzle_id,
-                        "path": mapping.relative_path.as_posix(),
-                        "payload_sha256": sha256_bytes(payload),
-                        "payload_bytes": len(payload),
-                    }
-                    for mapping, (_, payload) in zip(
-                        manifest.mappings, prepared, strict=True
-                    )
-                ),
-                key=lambda item: (item["puzzle_id"], item["path"]),
-            ),
-        }
-        revision = f"local-{sha256_bytes(canonical_json_bytes(revision_payload))}"
+        revision = official_source_revision(
+            manifest,
+            {
+                relative_path.as_posix(): (sha256_bytes(payload), len(payload))
+                for relative_path, payload in prepared
+            },
+        )
 
         cache = ContentAddressedCache(cache_root)
         cache.put_bytes(
