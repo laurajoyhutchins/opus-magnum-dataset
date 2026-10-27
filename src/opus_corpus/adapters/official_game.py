@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import re
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from collections.abc import Mapping
 
 from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
