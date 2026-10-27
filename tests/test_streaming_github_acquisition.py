@@ -52,6 +52,8 @@ class _Unreadable(io.BytesIO):
 
 
 class _ChunkedResponse(io.BytesIO):
+    headers: dict[str, str] = {}
+
     def __enter__(self):
         return self
 
@@ -138,3 +140,75 @@ def test_leaderboard_filters_irrelevant_members_before_reading(monkeypatch, tmp_
     objects = [path for path in (cache_root / "objects" / "sha256").rglob("*") if path.is_file()]
     assert len(receipts) == 1
     assert [path.read_bytes() for path in objects] == [b"solution"]
+
+
+
+def test_github_download_rejects_actual_bytes_beyond_ceiling_even_without_length(
+    monkeypatch,
+) -> None:
+    payload = _tarball([("root/puzzle.solution", b"0123456789")])
+    monkeypatch.setattr(github_source, "MAX_COMPRESSED_BYTES", len(payload) - 1)
+    monkeypatch.setattr(
+        github_source,
+        "urlopen",
+        lambda request, timeout: _ChunkedResponse(payload),
+    )
+    with pytest.raises(AcquisitionError, match="download size limit exceeded"):
+        list(github_source.iter_github_tarball_members("owner", "repo", "rev"))
+
+
+def test_github_download_rejects_oversized_declared_content_before_streaming(
+    monkeypatch,
+) -> None:
+    class NoRead(_ChunkedResponse):
+        headers = {"Content-Length": "999"}
+        def read(self, size: int = -1) -> bytes:
+            raise AssertionError("oversized response must not be read")
+
+    monkeypatch.setattr(github_source, "MAX_COMPRESSED_BYTES", 100)
+    monkeypatch.setattr(github_source, "urlopen", lambda request, timeout: NoRead(b""))
+    with pytest.raises(AcquisitionError, match="download size limit exceeded"):
+        list(github_source.iter_github_tarball_members("owner", "repo", "rev"))
+
+
+def test_tar_member_size_limit_rejects_before_payload_is_consumed(monkeypatch) -> None:
+    payload = _tarball([("root/big.solution", b"x" * 16)])
+    monkeypatch.setattr(github_source, "MAX_MEMBER_BYTES", 15)
+    with pytest.raises(AcquisitionError, match="member size limit exceeded"):
+        list(github_source.iter_tarball_members(io.BytesIO(payload)))
+
+
+def test_tarball_member_count_limit_is_enforced_before_yield(monkeypatch) -> None:
+    payload = _tarball([
+        ("root/a.txt", b"a"),
+        ("root/b.txt", b"b"),
+        ("root/c.txt", b"c"),
+    ])
+    monkeypatch.setattr(github_source, "MAX_ARCHIVE_MEMBERS", 2)
+    with pytest.raises(AcquisitionError, match="member count limit exceeded"):
+        list(github_source.iter_tarball_members(io.BytesIO(payload)))
+
+
+def test_tarball_total_size_caps_cumulative_decompressed_source_bytes(
+    monkeypatch,
+) -> None:
+    # These member bodies compress effectively but exceed the exact sum cap.
+    payload = _tarball([
+        ("root/a.dat", b"a" * 8),
+        ("root/b.dat", b"b" * 8),
+    ])
+    monkeypatch.setattr(github_source, "MAX_MEMBER_BYTES", 20)
+    monkeypatch.setattr(github_source, "MAX_TOTAL_UNCOMPRESSED_BYTES", 15)
+    with pytest.raises(AcquisitionError, match="total size limit exceeded"):
+        list(github_source.iter_tarball_members(io.BytesIO(payload)))
+
+
+def test_limits_allow_exact_ceiling_for_safe_archive(monkeypatch) -> None:
+    payload = _tarball([("root/data.txt", b"exact")])
+    monkeypatch.setattr(github_source, "MAX_MEMBER_BYTES", 5)
+    monkeypatch.setattr(github_source, "MAX_TOTAL_UNCOMPRESSED_BYTES", 5)
+    monkeypatch.setattr(github_source, "MAX_ARCHIVE_MEMBERS", 1)
+    assert [
+        (name, stream.read())
+        for name, stream in github_source.iter_tarball_members(io.BytesIO(payload))
+    ] == [("data.txt", b"exact")]
