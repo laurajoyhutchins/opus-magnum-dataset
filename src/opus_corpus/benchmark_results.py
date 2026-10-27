@@ -208,6 +208,12 @@ def build_puzzle_result(
         ),
         None,
     )
+    # The executable bounded-sequential harness stops immediately at success.
+    # Reject forged or independently constructed records that claim later work.
+    if first_success is not None and first_success != len(normalized_attempts):
+        raise BenchmarkResultError(
+            f"puzzle {puzzle_id!r} contains attempts after its first successful solve"
+        )
     record = {
         "record_type": "puzzle_result",
         "benchmark_id": benchmark_id,
