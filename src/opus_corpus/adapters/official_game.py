@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -10,7 +11,7 @@ from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
 from ..directory_publication import publish_directory
 from ..errors import CorpusError
-from ..hashing import sha256_bytes
+from ..hashing import canonical_json_bytes, sha256_bytes
 from ..path_safety import resolve_disjoint_trees
 from .base import AcquisitionResult, SourceAdapter
 
@@ -104,6 +105,34 @@ def parse_official_manifest(
         mappings.append(OfficialPuzzleMapping(puzzle_id, relative_path))
 
     return OfficialPuzzleManifest(snapshot_id, tuple(mappings))
+
+
+
+def official_source_revision(
+    manifest: OfficialPuzzleManifest,
+    verified_payloads: Mapping[str, tuple[str, int]],
+) -> str:
+    """Commit to stable, exact official source facts, not the human label alone."""
+    paths = {mapping.relative_path.as_posix() for mapping in manifest.mappings}
+    if set(verified_payloads) != paths:
+        raise OfficialGameAcquisitionError(
+            "official source revision requires every mapped exact puzzle payload"
+        )
+    records = [
+        {
+            "puzzle_id": mapping.puzzle_id,
+            "path": mapping.relative_path.as_posix(),
+            "payload_sha256": verified_payloads[mapping.relative_path.as_posix()][0],
+            "payload_bytes": verified_payloads[mapping.relative_path.as_posix()][1],
+        }
+        for mapping in manifest.mappings
+    ]
+    commitment = {
+        "format": "official-game-source-revision/v2",
+        "snapshot_id": manifest.snapshot_id,
+        "mappings": sorted(records, key=lambda row: (row["puzzle_id"], row["path"])),
+    }
+    return f"local-{sha256_bytes(canonical_json_bytes(commitment))}"
 
 
 def _read_dumped_puzzle_name(payload: bytes, upstream_path: str) -> str:
@@ -302,7 +331,6 @@ class OfficialGameAdapter(SourceAdapter):
         source_root = Path(self.source_root).resolve()
         collection_ids = {row["puzzle_id"] for row in collection.inventory_rows}
         manifest, manifest_bytes = self._load_manifest(source_root, collection_ids)
-        revision = f"local-{sha256_bytes(manifest.snapshot_id.encode('utf-8'))}"
         prepared: list[tuple[PurePosixPath, bytes]] = []
 
         for mapping in manifest.mappings:
@@ -328,6 +356,14 @@ class OfficialGameAdapter(SourceAdapter):
                     f"could not read puzzle file for {puzzle_id}: {relative_path.as_posix()}"
                 ) from exc
             prepared.append((relative_path, payload))
+
+        revision = official_source_revision(
+            manifest,
+            {
+                relative_path.as_posix(): (sha256_bytes(payload), len(payload))
+                for relative_path, payload in prepared
+            },
+        )
 
         cache = ContentAddressedCache(cache_root)
         cache.put_bytes(

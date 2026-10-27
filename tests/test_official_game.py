@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from opus_corpus.adapters.official_game import OfficialGameAcquisitionError, OfficialGameAdapter
-from opus_corpus.cache import CacheIntegrityError, ContentAddressedCache
+from opus_corpus.cache import ContentAddressedCache
 from opus_corpus.collections import CollectionDefinition
 
 
@@ -255,7 +255,7 @@ path = "P001.puzzle"
         OfficialGameAdapter(source_root).fetch(_collection(tmp_path), tmp_path / "cache")
 
 
-def test_fetch_rejects_mutation_within_same_local_snapshot(tmp_path: Path):
+def test_same_label_changed_bytes_produce_new_immutable_source_revision(tmp_path: Path):
     source_root = tmp_path / "official"
     cache_root = tmp_path / "cache"
     _write_manifest(
@@ -267,17 +267,28 @@ puzzle_id = "om.puzzle.0001"
 path = "P001.puzzle"
 ''',
     )
-    puzzle_path = source_root / "P001.puzzle"
-    puzzle_path.write_bytes(b"first")
+    path = source_root / "P001.puzzle"
+    path.write_bytes(b"first")
     adapter = OfficialGameAdapter(source_root)
     adapter.fetch(_collection(tmp_path), cache_root)
+    revision_first = _only_revision(cache_root)
 
-    puzzle_path.write_bytes(b"changed")
-    with pytest.raises(CacheIntegrityError, match="pinned source path changed"):
-        adapter.fetch(_collection(tmp_path), cache_root)
+    path.write_bytes(b"changed")
+    adapter.fetch(_collection(tmp_path), cache_root)
+    revisions = {p.name for p in (cache_root / "receipts" / "official-game").iterdir()}
+    assert len(revisions) == 2
+    assert revision_first in revisions
+    revision_second = (revisions - {revision_first}).pop()
+    assert revision_first != revision_second
+    cache = ContentAddressedCache(cache_root)
+    for revision, expected in ((revision_first, b"first"), (revision_second, b"changed")):
+        receipt = json.loads(
+            cache.receipt_path("official-game", revision, "P001.puzzle").read_text()
+        )
+        assert cache.object_path(receipt["sha256"]).read_bytes() == expected
 
 
-def test_fetch_rejects_puzzle_id_remapping_within_same_local_snapshot(tmp_path: Path):
+def test_same_label_remapped_manifest_produces_new_revision(tmp_path: Path):
     source_root = tmp_path / "official"
     cache_root = tmp_path / "cache"
     _write_manifest(
@@ -292,6 +303,7 @@ path = "P001.puzzle"
     (source_root / "P001.puzzle").write_bytes(b"same bytes")
     adapter = OfficialGameAdapter(source_root)
     adapter.fetch(_collection(tmp_path), cache_root)
+    before = _only_revision(cache_root)
 
     _write_manifest(
         source_root,
@@ -302,30 +314,58 @@ puzzle_id = "om.puzzle.0002"
 path = "P001.puzzle"
 ''',
     )
-    with pytest.raises(CacheIntegrityError, match="pinned source path changed"):
-        adapter.fetch(_collection(tmp_path), cache_root)
+    adapter.fetch(_collection(tmp_path), cache_root)
+    revisions = {p.name for p in (cache_root / "receipts" / "official-game").iterdir()}
+    assert len(revisions) == 2
+    assert before in revisions
 
 
-def test_invalid_manifest_does_not_partially_mutate_cache(tmp_path: Path):
-    source_root = tmp_path / "official"
-    cache_root = tmp_path / "cache"
-    _write_manifest(
-        source_root,
-        '''schema_version = 1
-snapshot_id = "fixture"
+def test_independent_cache_revisions_commit_to_bytes_not_snapshot_label_alone(
+    tmp_path: Path,
+):
+    manifest = '''schema_version = 1
+snapshot_id = "same-label"
+[[puzzles]]
+puzzle_id = "om.puzzle.0001"
+path = "P001.puzzle"
+'''
+    revisions = []
+    for side, content in (("first", b"left"), ("second", b"right")):
+        source = tmp_path / side / "source"
+        cache_root = tmp_path / side / "cache"
+        _write_manifest(source, manifest)
+        (source / "P001.puzzle").write_bytes(content)
+        OfficialGameAdapter(source).fetch(_collection(tmp_path), cache_root)
+        revisions.append(_only_revision(cache_root))
+    assert revisions[0] != revisions[1]
+
+
+def test_semantically_reordered_manifest_uses_the_same_source_revision(tmp_path: Path):
+    manifest_a = '''schema_version = 1
+snapshot_id = "same-label"
 [[puzzles]]
 puzzle_id = "om.puzzle.0001"
 path = "P001.puzzle"
 [[puzzles]]
+puzzle_id = "om.puzzle.0002"
+path = "P002.puzzle"
+'''
+    manifest_b = '''snapshot_id = "same-label"
+schema_version = 1
+[[puzzles]]
+path = "P002.puzzle"
+puzzle_id = "om.puzzle.0002"
+[[puzzles]]
+path = "P001.puzzle"
 puzzle_id = "om.puzzle.0001"
-path = "copy/P001.puzzle"
-''',
-    )
-    (source_root / "P001.puzzle").write_bytes(b"one")
-    (source_root / "copy").mkdir()
-    (source_root / "copy/P001.puzzle").write_bytes(b"duplicate")
-
-    with pytest.raises(OfficialGameAcquisitionError, match="duplicate puzzle_id"):
-        OfficialGameAdapter(source_root).fetch(_collection(tmp_path), cache_root)
-
-    assert not cache_root.exists()
+'''
+    revisions = []
+    for side, manifest in (("left", manifest_a), ("right", manifest_b)):
+        source = tmp_path / side / "source"
+        cache_root = tmp_path / side / "cache"
+        _write_manifest(source, manifest)
+        (source / "P001.puzzle").write_bytes(b"one")
+        (source / "P002.puzzle").write_bytes(b"two")
+        OfficialGameAdapter(source).fetch(_collection(tmp_path), cache_root)
+        revisions.append(_only_revision(cache_root))
+    assert revisions[0] == revisions[1]

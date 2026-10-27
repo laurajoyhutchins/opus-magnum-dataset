@@ -5,7 +5,11 @@ from pathlib import Path
 import pytest
 
 from opus_corpus.adapters.molecule_db import MoleculeDbAdapter
-from opus_corpus.adapters.official_game import OfficialGameAdapter
+from opus_corpus.adapters.official_game import (
+    OfficialGameAdapter,
+    official_source_revision,
+    parse_official_manifest,
+)
 from opus_corpus.adapters.omsim import OmsimAdapter
 from opus_corpus.cache import ContentAddressedCache
 from opus_corpus.collections import CollectionDefinition
@@ -73,11 +77,20 @@ def _two_puzzle_collection(tmp_path: Path) -> CollectionDefinition:
     )
 
 
+
+def _revision_for(manifest_bytes: bytes, exact_payloads: dict[str, bytes]) -> str:
+    manifest = parse_official_manifest(
+        manifest_bytes,
+        {"om.puzzle.0001", "om.puzzle.0002"},
+    )
+    return official_source_revision(
+        manifest,
+        {path: (sha256_bytes(payload), len(payload)) for path, payload in exact_payloads.items()},
+    )
+
 def _cache_identical_exact_sources(cache_root: Path, *, official_first: bool) -> None:
     cache = ContentAddressedCache(cache_root)
     puzzle_bytes = b"same exact puzzle bytes"
-    snapshot_id = "fixture-snapshot"
-    official_revision = f"local-{sha256_bytes(snapshot_id.encode('utf-8'))}"
     manifest_bytes = b'''\
 schema_version = 1
 snapshot_id = "fixture-snapshot"
@@ -86,6 +99,10 @@ snapshot_id = "fixture-snapshot"
 puzzle_id = "om.puzzle.0001"
 path = "official/P001.puzzle"
 '''
+    official_revision = _revision_for(
+        manifest_bytes,
+        {"official/P001.puzzle": puzzle_bytes},
+    )
 
     def put_omsim() -> None:
         cache.put_bytes(
@@ -122,8 +139,6 @@ path = "official/P001.puzzle"
 
 def _cache_divergent_exact_sources(cache_root: Path) -> None:
     cache = ContentAddressedCache(cache_root)
-    snapshot_id = "fixture-snapshot"
-    official_revision = f"local-{sha256_bytes(snapshot_id.encode('utf-8'))}"
     manifest_bytes = b'''\
 schema_version = 1
 snapshot_id = "fixture-snapshot"
@@ -132,6 +147,10 @@ snapshot_id = "fixture-snapshot"
 puzzle_id = "om.puzzle.0001"
 path = "official/P001.puzzle"
 '''
+    official_revision = _revision_for(
+        manifest_bytes,
+        {"official/P001.puzzle": b"different official puzzle bytes"},
+    )
     cache.put_bytes(
         "omsim",
         OmsimAdapter.pinned_revision,
@@ -213,20 +232,23 @@ def test_official_manifest_mapping_is_preserved_as_artifact_evidence(tmp_path: P
 
     cache_root = tmp_path / "cache"
     cache = ContentAddressedCache(cache_root)
-    snapshot_id = "fixture-snapshot"
-    revision = f"local-{sha256_bytes(snapshot_id.encode('utf-8'))}"
-    manifest_receipt = cache.put_bytes(
-        "official-game",
-        revision,
-        "official-puzzles.toml",
-        b'''\
+    manifest_bytes = b'''\
 schema_version = 1
 snapshot_id = "fixture-snapshot"
 
 [[puzzles]]
 puzzle_id = "om.puzzle.0001"
 path = "official/P001.puzzle"
-''',
+'''
+    revision = _revision_for(
+        manifest_bytes,
+        {"official/P001.puzzle": b"official puzzle bytes"},
+    )
+    manifest_receipt = cache.put_bytes(
+        "official-game",
+        revision,
+        "official-puzzles.toml",
+        manifest_bytes,
         rights_status="local_fetch_only",
     )
     puzzle_receipt = cache.put_bytes(
