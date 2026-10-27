@@ -100,6 +100,7 @@ def build_attempt_result(
     input_tokens: int | None,
     output_tokens: int | None,
     verifier_calls: int,
+    raw_output_sha256: str | None = None,
 ) -> dict[str, Any]:
     if outcome not in OUTCOMES:
         raise BenchmarkResultError(f"unsupported benchmark outcome: {outcome!r}")
@@ -164,6 +165,8 @@ def build_attempt_result(
         "output_tokens": output_tokens,
         "verifier_calls": verifier_calls,
     }
+    if raw_output_sha256 is not None:
+        record["raw_output_sha256"] = raw_output_sha256
     _validate_record(record)
     return record
 
