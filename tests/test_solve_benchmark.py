@@ -326,7 +326,10 @@ def test_solve_path_rejects_wrong_selected_artifact_bytes_before_model_execution
         )
     assert runner.calls == []
 
-@pytest.mark.parametrize("tamper", ["omit_executable", "add_ineligible", "omit_entry", "change_artifact"])
+@pytest.mark.parametrize(
+    "tamper",
+    ["omit_executable", "add_ineligible", "omit_entry", "change_artifact"],
+)
 def test_solve_rejects_noncanonical_projection_before_any_model_call(tamper: str) -> None:
     solve = solve_module()
     value, definitions, artifacts, provenance_rows, artifact_bytes = fixture_inputs()
