@@ -23,6 +23,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -32,10 +34,15 @@ jobs:
       - run: uv sync --all-extras --locked
       - run: uv run opus-corpus collections validate
       - name: Build and validate release
+        env:
+          RELEASE_COLLECTION: ${{ inputs.collection }}
+          RELEASE_INPUT_PATH: ${{ inputs.input_path }}
+          RELEASE_PAYLOAD_POLICY: ${{ inputs.payload_policy }}
         run: |
-          uv run opus-corpus release build "${{ inputs.collection }}" --input "${{ inputs.input_path }}" --output .publish-release --payload-policy "${{ inputs.payload_policy }}"
-          uv run opus-corpus release validate "${{ inputs.collection }}" --output .publish-release
+          uv run opus-corpus release build "$RELEASE_COLLECTION" --input "$RELEASE_INPUT_PATH" --output .publish-release --payload-policy "$RELEASE_PAYLOAD_POLICY"
+          uv run opus-corpus release validate "$RELEASE_COLLECTION" --output .publish-release
       - name: Publish generated projection
         env:
+          RELEASE_COLLECTION: ${{ inputs.collection }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: uv run opus-corpus release publish "${{ inputs.collection }}" --output .publish-release
+        run: uv run opus-corpus release publish "$RELEASE_COLLECTION" --output .publish-release
