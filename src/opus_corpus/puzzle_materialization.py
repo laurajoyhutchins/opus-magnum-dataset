@@ -8,6 +8,7 @@ from typing import Any
 from .adapters.official_game import (
     OfficialGameAcquisitionError,
     OfficialGameAdapter,
+    official_source_revision,
     parse_official_manifest,
 )
 from .adapters.omsim import OmsimAdapter
@@ -15,7 +16,6 @@ from .cache import CacheReceipt, ContentAddressedCache
 from .collections import CollectionDefinition
 from .content_store import ContentStore
 from .errors import CorpusError
-from .hashing import sha256_bytes
 from .ingestion import (
     ArtifactProvenance,
     ArtifactRecord,
@@ -135,13 +135,8 @@ def _official_candidates_for_revision(
             f"{source_id}@{revision}: invalid cached manifest: {exc}"
         ) from exc
 
-    expected_revision = f"local-{sha256_bytes(manifest.snapshot_id.encode('utf-8'))}"
-    if revision != expected_revision:
-        raise PuzzleMaterializationError(
-            f"{source_id}@{revision}: snapshot identity does not match cache revision"
-        )
-
     seen_paths: set[str] = set()
+    verified_payloads: dict[str, tuple[str, int]] = {}
     candidates: list[ObservedArtifactCandidate] = []
     for mapping in manifest.mappings:
         puzzle_id = mapping.puzzle_id
@@ -152,6 +147,10 @@ def _official_candidates_for_revision(
             raise PuzzleMaterializationError(
                 f"{source_id}@{revision}: missing cached puzzle {source_path}"
             )
+        # Re-read the immutable content-addressed bytes, never trust only a
+        # caller-provided manifest label or receipt-digest assertion.
+        store.require(receipt.sha256, receipt.byte_length)
+        verified_payloads[source_path] = (receipt.sha256, receipt.byte_length)
         candidates.append(
             ObservedArtifactCandidate(
                 artifact_kind="puzzle",
@@ -170,6 +169,16 @@ def _official_candidates_for_revision(
         raise PuzzleMaterializationError(
             f"{source_id}@{revision}: cached puzzle is absent from manifest: "
             f"{', '.join(sorted(extra_puzzles))}"
+        )
+    try:
+        expected_revision = official_source_revision(manifest, verified_payloads)
+    except OfficialGameAcquisitionError as exc:
+        raise PuzzleMaterializationError(
+            f"{source_id}@{revision}: invalid official source revision: {exc}"
+        ) from exc
+    if revision != expected_revision:
+        raise PuzzleMaterializationError(
+            f"{source_id}@{revision}: immutable source identity does not match cached bytes"
         )
     return tuple(candidates)
 
