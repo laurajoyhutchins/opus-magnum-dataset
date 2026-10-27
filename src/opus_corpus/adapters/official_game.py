@@ -10,7 +10,7 @@ from ..cache import ContentAddressedCache
 from ..collections import CollectionDefinition
 from ..directory_publication import publish_directory
 from ..errors import CorpusError
-from ..hashing import sha256_bytes
+from ..hashing import canonical_json_bytes, sha256_bytes
 from ..path_safety import resolve_disjoint_trees
 from .base import AcquisitionResult, SourceAdapter
 
@@ -302,7 +302,6 @@ class OfficialGameAdapter(SourceAdapter):
         source_root = Path(self.source_root).resolve()
         collection_ids = {row["puzzle_id"] for row in collection.inventory_rows}
         manifest, manifest_bytes = self._load_manifest(source_root, collection_ids)
-        revision = f"local-{sha256_bytes(manifest.snapshot_id.encode('utf-8'))}"
         prepared: list[tuple[PurePosixPath, bytes]] = []
 
         for mapping in manifest.mappings:
@@ -328,6 +327,29 @@ class OfficialGameAdapter(SourceAdapter):
                     f"could not read puzzle file for {puzzle_id}: {relative_path.as_posix()}"
                 ) from exc
             prepared.append((relative_path, payload))
+
+        # A human label is not a source identity. Commit to the validated
+        # semantic mapping and its exact byte digests, independent of local
+        # file paths, timestamps, and mapping enumeration order.
+        revision_payload = {
+            "format": "official-game-source-revision/v2",
+            "snapshot_id": manifest.snapshot_id,
+            "mappings": sorted(
+                (
+                    {
+                        "puzzle_id": mapping.puzzle_id,
+                        "path": mapping.relative_path.as_posix(),
+                        "payload_sha256": sha256_bytes(payload),
+                        "payload_bytes": len(payload),
+                    }
+                    for mapping, (_, payload) in zip(
+                        manifest.mappings, prepared, strict=True
+                    )
+                ),
+                key=lambda item: (item["puzzle_id"], item["path"]),
+            ),
+        }
+        revision = f"local-{sha256_bytes(canonical_json_bytes(revision_payload))}"
 
         cache = ContentAddressedCache(cache_root)
         cache.put_bytes(
