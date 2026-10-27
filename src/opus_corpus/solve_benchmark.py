@@ -49,6 +49,7 @@ ATTEMPT_PROFILE = "bounded-sequential-v1"
 SCORING_VERSION = "solve-report-v1"
 HARNESS_IMPLEMENTATION = "opus-corpus-solve-harness"
 HARNESS_REVISION = "1"
+MAX_RAW_OUTPUT_BYTES = 4 * 1024 * 1024
 
 
 class SolveBenchmarkError(CorpusError):
@@ -87,6 +88,15 @@ class SolveBenchmarkResult:
     eligibility: BenchmarkEligibilityProjection
     puzzle_results: tuple[dict[str, Any], ...]
     report: dict[str, Any]
+    raw_outputs: tuple[RawAttemptOutput, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RawAttemptOutput:
+    puzzle_id: str
+    attempt_index: int
+    raw_output_sha256: str
+    exact_utf8: bytes
 
 
 def _collection_rows(collection: CollectionDefinition) -> dict[str, Mapping[str, str]]:
@@ -256,6 +266,7 @@ def _attempt_from_verification(
     puzzle_id: str,
     attempt_index: int,
     candidate_sha256: str,
+    raw_output_sha256: str,
     output: RunnerOutput,
     result: VerificationResult,
 ) -> dict[str, Any]:
@@ -268,6 +279,7 @@ def _attempt_from_verification(
         attempt_index=attempt_index,
         outcome=outcome,
         candidate_sha256=candidate_sha256,
+        raw_output_sha256=raw_output_sha256,
         verification_id=result.verification_id,
         cost=result.cost if success else None,
         cycles=result.cycles if success else None,
@@ -350,6 +362,7 @@ def run_solve_benchmark(
     benchmark_id_value = benchmark_id(identity)
     run_id_value = benchmark_run_id(run)
     puzzle_results: list[dict[str, Any]] = []
+    raw_outputs: list[RawAttemptOutput] = []
 
     for entry in executable:
         definition = definitions_by_puzzle[entry.puzzle_id]
@@ -362,6 +375,18 @@ def run_solve_benchmark(
                 puzzle_id=entry.puzzle_id,
                 puzzle_text=puzzle_text,
                 attempt_index=attempt_index,
+            )
+            if not isinstance(output.raw_output, str):
+                raise SolveBenchmarkError("runner raw candidate output must be UTF-8 text")
+            try:
+                exact_utf8 = output.raw_output.encode("utf-8")
+            except UnicodeEncodeError as exc:
+                raise SolveBenchmarkError("runner raw output cannot encode as UTF-8") from exc
+            if len(exact_utf8) > MAX_RAW_OUTPUT_BYTES:
+                raise SolveBenchmarkError("runner raw output exceeds retention size policy")
+            raw_output_sha256 = sha256_bytes(exact_utf8)
+            raw_outputs.append(
+                RawAttemptOutput(entry.puzzle_id, attempt_index, raw_output_sha256, exact_utf8)
             )
             try:
                 candidate = compile_candidate_output(output.raw_output)
@@ -380,6 +405,7 @@ def run_solve_benchmark(
                         area=None,
                         instructions=None,
                         error_code=exc.code,
+                        raw_output_sha256=raw_output_sha256,
                         model_calls=output.model_calls,
                         input_tokens=output.input_tokens,
                         output_tokens=output.output_tokens,
@@ -408,6 +434,7 @@ def run_solve_benchmark(
                         area=None,
                         instructions=None,
                         error_code=exc.code,
+                        raw_output_sha256=raw_output_sha256,
                         model_calls=output.model_calls,
                         input_tokens=output.input_tokens,
                         output_tokens=output.output_tokens,
@@ -430,6 +457,7 @@ def run_solve_benchmark(
                         area=None,
                         instructions=None,
                         error_code="solution_parse_failed",
+                        raw_output_sha256=raw_output_sha256,
                         model_calls=output.model_calls,
                         input_tokens=output.input_tokens,
                         output_tokens=output.output_tokens,
@@ -464,6 +492,7 @@ def run_solve_benchmark(
                 puzzle_id=entry.puzzle_id,
                 attempt_index=attempt_index,
                 candidate_sha256=candidate.candidate_sha256,
+                raw_output_sha256=raw_output_sha256,
                 output=output,
                 result=verification_result,
             )
@@ -490,4 +519,5 @@ def run_solve_benchmark(
         eligibility=eligibility,
         puzzle_results=tuple(puzzle_results),
         report=report,
+        raw_outputs=tuple(raw_outputs),
     )
