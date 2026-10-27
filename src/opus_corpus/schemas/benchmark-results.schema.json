@@ -133,6 +133,7 @@
           ]
         },
         "candidate_sha256": {"$ref": "#/$defs/nullable_sha256"},
+        "raw_output_sha256": {"$ref": "#/$defs/sha256"},
         "verification_id": {"$ref": "#/$defs/verification_id"},
         "cost": {"type": ["integer", "null"], "minimum": 0},
         "cycles": {"type": ["integer", "null"], "minimum": 0},
