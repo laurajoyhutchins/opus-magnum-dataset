@@ -1,6 +1,6 @@
 {
   "release_kind": "fixture",
-  "corpus_schema_version": "0.1",
+  "corpus_schema_version": "0.2",
   "verifier_revision": "fixture-verifier",
   "verifier_sha256": null,
   "validation_profile": "fixture-v1",
