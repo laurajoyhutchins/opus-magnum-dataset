@@ -4,6 +4,7 @@ import base64
 import importlib
 import json
 import struct
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -324,3 +325,83 @@ def test_solve_path_rejects_wrong_selected_artifact_bytes_before_model_execution
             attempt_budget=1,
         )
     assert runner.calls == []
+
+@pytest.mark.parametrize("tamper", ["omit_executable", "add_ineligible", "omit_entry", "change_artifact"])
+def test_solve_rejects_noncanonical_projection_before_any_model_call(tamper: str) -> None:
+    solve = solve_module()
+    value, definitions, artifacts, provenance_rows, artifact_bytes = fixture_inputs()
+    eligibility = derive_benchmark_eligibility(
+        value,
+        definitions=definitions,
+        artifacts=artifacts,
+        provenance=provenance_rows,
+    )
+    if tamper == "omit_executable":
+        eligibility = replace(
+            eligibility, executable_entries=eligibility.executable_entries[:-1]
+        )
+    elif tamper == "add_ineligible":
+        eligibility = replace(
+            eligibility,
+            executable_entries=eligibility.executable_entries + (eligibility.entries[-1],),
+        )
+    elif tamper == "omit_entry":
+        eligibility = replace(eligibility, entries=eligibility.entries[:-1])
+    else:
+        changed = replace(
+            eligibility.executable_entries[0],
+            selected_puzzle_artifact_sha256="0" * 64,
+        )
+        eligibility = replace(
+            eligibility,
+            entries=(changed,) + eligibility.entries[1:],
+            executable_entries=(changed,) + eligibility.executable_entries[1:],
+        )
+
+    puzzle_ids = [row["puzzle_id"] for row in value.inventory_rows]
+    runner = FixtureRunner({puzzle_id: "not-json" for puzzle_id in puzzle_ids})
+    verifier = FixtureVerifier(artifacts[4].artifact_id)
+
+    with pytest.raises(solve.SolveBenchmarkError, match="canonical source-derived membership"):
+        solve.run_solve_benchmark(
+            collection=value,
+            eligibility=eligibility,
+            definitions=definitions,
+            artifacts=artifacts,
+            provenance=provenance_rows,
+            puzzle_artifact_bytes=artifact_bytes,
+            runner=runner,
+            verifier=verifier,
+            attempt_budget=1,
+        )
+    assert runner.calls == []
+    assert verifier.calls == []
+
+
+def test_solve_rejects_false_provenance_before_any_model_call() -> None:
+    solve = solve_module()
+    value, definitions, artifacts, provenance_rows, artifact_bytes = fixture_inputs()
+    eligibility = derive_benchmark_eligibility(
+        value,
+        definitions=definitions,
+        artifacts=artifacts,
+        provenance=provenance_rows,
+    )
+    puzzle_ids = [row["puzzle_id"] for row in value.inventory_rows]
+    runner = FixtureRunner({puzzle_id: "not-json" for puzzle_id in puzzle_ids})
+    verifier = FixtureVerifier(artifacts[4].artifact_id)
+
+    with pytest.raises(solve.SolveBenchmarkError, match="canonical source-derived membership"):
+        solve.run_solve_benchmark(
+            collection=value,
+            eligibility=eligibility,
+            definitions=definitions,
+            artifacts=artifacts,
+            provenance=provenance_rows[:-1],
+            puzzle_artifact_bytes=artifact_bytes,
+            runner=runner,
+            verifier=verifier,
+            attempt_budget=1,
+        )
+    assert runner.calls == []
+    assert verifier.calls == []
