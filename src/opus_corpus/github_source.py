@@ -84,9 +84,13 @@ def iter_github_tarball_members(
                     try:
                         declared_size = int(declared)
                     except (TypeError, ValueError) as exc:
-                        raise AcquisitionError("GitHub source tarball invalid Content-Length") from exc
+                        raise AcquisitionError(
+                            "GitHub source tarball invalid Content-Length"
+                        ) from exc
                     if declared_size < 0 or declared_size > MAX_COMPRESSED_BYTES:
-                        raise AcquisitionError("GitHub source tarball download size limit exceeded")
+                        raise AcquisitionError(
+                            "GitHub source tarball download size limit exceeded"
+                        )
 
                 total = 0
                 while True:
@@ -98,7 +102,9 @@ def iter_github_tarball_members(
                         break
                     total += len(chunk)
                     if total > MAX_COMPRESSED_BYTES:
-                        raise AcquisitionError("GitHub source tarball download size limit exceeded")
+                        raise AcquisitionError(
+                            "GitHub source tarball download size limit exceeded"
+                        )
                     payload.write(chunk)
             payload.seek(0)
             yield from iter_tarball_members(payload)
