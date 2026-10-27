@@ -302,7 +302,6 @@ def materialize_puzzle_provenance_observations(
             "source_declared_puzzle_id": row.get("source_object_id"),
             "source_url": row.get("source_url"),
             "author": row.get("author"),
-            "retrieved_at": row["retrieved_at"],
             "claimed_cost": row.get("claimed_cost"),
             "claimed_cycles": row.get("claimed_cycles"),
             "claimed_area": row.get("claimed_area"),
